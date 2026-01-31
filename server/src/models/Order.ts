@@ -1,6 +1,47 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
-const orderSchema = new mongoose.Schema({
+export interface IOrder extends Document {
+    orderId: string;
+    userId: Types.ObjectId;
+    restaurantId: Types.ObjectId;
+    items: Array<{
+        menuItemId: Types.ObjectId;
+        name: string;
+        quantity: number;
+        price: number;
+        customizations: Array<{
+            name: string;
+            option: string;
+            price: number;
+        }>;
+    }>;
+    deliveryAddress: {
+        label: string;
+        addressLine: string;
+        landmark?: string;
+        coordinates: {
+            lat: number;
+            lng: number;
+        };
+    };
+    distance: number;
+    deliveryCharges: number;
+    subtotal: number;
+    taxes: number;
+    total: number;
+    paymentMethod: 'COD' | 'ONLINE';
+    paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+    paymentId?: string;
+    razorpayOrderId?: string;
+    orderStatus: 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'DELIVERED' | 'CANCELLED';
+    preparationTime?: number;
+    estimatedDeliveryTime?: Date;
+    specialInstructions?: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const orderSchema = new Schema<IOrder>({
     orderId: {
         type: String,
         required: true,
@@ -8,19 +49,19 @@ const orderSchema = new mongoose.Schema({
         index: true
     },
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
         index: true
     },
     restaurantId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'Restaurant',
         required: true
     },
     items: [{
         menuItemId: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Schema.Types.ObjectId,
             ref: 'MenuItem'
         },
         name: String,
@@ -41,7 +82,7 @@ const orderSchema = new mongoose.Schema({
             lng: Number
         }
     },
-    distance: Number, // in kilometers
+    distance: Number,
     deliveryCharges: Number,
     subtotal: Number,
     taxes: Number,
@@ -64,7 +105,7 @@ const orderSchema = new mongoose.Schema({
         default: 'PENDING',
         index: true
     },
-    preparationTime: Number, // in minutes
+    preparationTime: Number,
     estimatedDeliveryTime: Date,
     specialInstructions: String,
     createdAt: {
@@ -78,7 +119,6 @@ const orderSchema = new mongoose.Schema({
     }
 });
 
-// Generate unique order ID before saving
 orderSchema.pre('save', async function (next) {
     if (!this.orderId) {
         const timestamp = Date.now().toString(36);
@@ -88,4 +128,4 @@ orderSchema.pre('save', async function (next) {
     next();
 });
 
-module.exports = mongoose.model('Order', orderSchema);
+export default mongoose.model<IOrder>('Order', orderSchema);

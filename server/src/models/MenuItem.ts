@@ -1,8 +1,28 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
-const menuItemSchema = new mongoose.Schema({
+export interface IMenuItem extends Document {
+    restaurantId: Types.ObjectId;
+    name: string;
+    description?: string;
+    category: string;
+    price: number;
+    image?: string;
+    isVeg: boolean;
+    isAvailable: boolean;
+    customizations: Array<{
+        name: string;
+        options: Array<{
+            name: string;
+            price: number;
+        }>;
+        required: boolean;
+    }>;
+    createdAt: Date;
+}
+
+const menuItemSchema = new Schema<IMenuItem>({
     restaurantId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'Restaurant',
         required: true
     },
@@ -43,7 +63,6 @@ const menuItemSchema = new mongoose.Schema({
     }
 });
 
-// Compound index for efficient queries
 menuItemSchema.index({ restaurantId: 1, category: 1 });
 
-module.exports = mongoose.model('MenuItem', menuItemSchema);
+export default mongoose.model<IMenuItem>('MenuItem', menuItemSchema);

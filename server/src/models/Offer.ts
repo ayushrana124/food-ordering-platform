@@ -1,8 +1,23 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
-const offerSchema = new mongoose.Schema({
+export interface IOffer extends Document {
+    restaurantId: Types.ObjectId;
+    title: string;
+    description?: string;
+    code: string;
+    discountType: 'PERCENTAGE' | 'FLAT';
+    discountValue: number;
+    minOrderAmount: number;
+    maxDiscount?: number;
+    validFrom: Date;
+    validTill: Date;
+    isActive: boolean;
+    createdAt: Date;
+}
+
+const offerSchema = new Schema<IOffer>({
     restaurantId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'Restaurant',
         required: true
     },
@@ -29,7 +44,7 @@ const offerSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    maxDiscount: Number, // for percentage type
+    maxDiscount: Number,
     validFrom: {
         type: Date,
         required: true
@@ -48,4 +63,4 @@ const offerSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model('Offer', offerSchema);
+export default mongoose.model<IOffer>('Offer', offerSchema);

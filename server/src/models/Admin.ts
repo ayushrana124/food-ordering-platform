@@ -1,7 +1,17 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import mongoose, { Document, Schema, Types } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-const adminSchema = new mongoose.Schema({
+export interface IAdmin extends Document {
+    email: string;
+    password: string;
+    name: string;
+    role: 'OWNER' | 'MANAGER';
+    restaurantId: Types.ObjectId;
+    createdAt: Date;
+    comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+const adminSchema = new Schema<IAdmin>({
     email: {
         type: String,
         required: true,
@@ -23,7 +33,7 @@ const adminSchema = new mongoose.Schema({
         default: 'MANAGER'
     },
     restaurantId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'Restaurant',
         required: true
     },
@@ -33,16 +43,14 @@ const adminSchema = new mongoose.Schema({
     }
 });
 
-// Hash password before saving
 adminSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
     this.password = await bcrypt.hash(this.password, 12);
     next();
 });
 
-// Compare password method
-adminSchema.methods.comparePassword = async function (candidatePassword) {
+adminSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('Admin', adminSchema);
+export default mongoose.model<IAdmin>('Admin', adminSchema);

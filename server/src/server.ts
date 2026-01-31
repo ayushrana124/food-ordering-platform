@@ -1,19 +1,19 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const http = require('http');
-const socketio = require('socket.io');
-const connectDB = require('./config/db');
-const config = require('./config/config');
+import express, { Request, Response, NextFunction, Application } from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import connectDB from './config/db';
+import config from './config/config';
 
 // Load environment variables
 dotenv.config();
 
-const app = express();
+const app: Application = express();
 const server = http.createServer(app);
-const io = socketio(server, {
+const io = new SocketIOServer(server, {
     cors: { origin: config.clientUrl }
 });
 
@@ -28,13 +28,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Make io accessible to routes
-app.use((req, res, next) => {
+declare global {
+    namespace Express {
+        interface Request {
+            io: SocketIOServer;
+        }
+    }
+}
+
+app.use((req: Request, res: Response, next: NextFunction) => {
     req.io = io;
     next();
 });
 
 // Health check route
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
@@ -50,7 +58,7 @@ app.get('/health', (req, res) => {
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
 
-    socket.on('join', (userId) => {
+    socket.on('join', (userId: string) => {
         socket.join(userId);
         console.log(`User ${userId} joined`);
     });
@@ -61,7 +69,7 @@ io.on('connection', (socket) => {
 });
 
 // Error handler
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);
     res.status(500).json({
         message: 'Something went wrong!',
@@ -70,7 +78,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
     res.status(404).json({ message: 'Route not found' });
 });
 

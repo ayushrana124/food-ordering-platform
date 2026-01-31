@@ -1,6 +1,34 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Schema } from 'mongoose';
 
-const restaurantSchema = new mongoose.Schema({
+export interface IRestaurant extends Document {
+    name: string;
+    description?: string;
+    logo?: string;
+    banner?: string;
+    address: {
+        addressLine: string;
+        coordinates: {
+            lat: number;
+            lng: number;
+        };
+    };
+    phone?: string;
+    email?: string;
+    openingHours: {
+        [key: string]: {
+            open: string;
+            close: string;
+            isOpen: boolean;
+        };
+    };
+    isOpen: boolean;
+    deliveryRadius: number;
+    minOrderAmount: number;
+    avgPreparationTime: number;
+    categories: string[];
+}
+
+const restaurantSchema = new Schema<IRestaurant>({
     name: {
         type: String,
         required: true
@@ -32,7 +60,7 @@ const restaurantSchema = new mongoose.Schema({
     },
     deliveryRadius: {
         type: Number,
-        default: 10 // kilometers
+        default: 10
     },
     minOrderAmount: {
         type: Number,
@@ -40,9 +68,9 @@ const restaurantSchema = new mongoose.Schema({
     },
     avgPreparationTime: {
         type: Number,
-        default: 30 // minutes
+        default: 30
     },
     categories: [String]
 });
 
-module.exports = mongoose.model('Restaurant', restaurantSchema);
+export default mongoose.model<IRestaurant>('Restaurant', restaurantSchema);
