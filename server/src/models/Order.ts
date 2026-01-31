@@ -119,13 +119,12 @@ const orderSchema = new Schema<IOrder>({
     }
 });
 
-orderSchema.pre('save', async function (next) {
+orderSchema.pre('save', async function () {
     if (!this.orderId) {
         const timestamp = Date.now().toString(36);
         const random = Math.random().toString(36).substring(2, 7);
         this.orderId = `ORD-${timestamp}-${random}`.toUpperCase();
     }
-    next();
 });
 
 export default mongoose.model<IOrder>('Order', orderSchema);
