@@ -28,13 +28,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Make io accessible to routes
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
     req.io = io;
     next();
 });
 
 // Health check route
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
@@ -47,7 +47,7 @@ app.get('/health', (req: Request, res: Response) => {
 // app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err.stack);
     res.status(500).json({
         message: 'Something went wrong!',
@@ -56,7 +56,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // 404 handler
-app.use((req: Request, res: Response) => {
+app.use((_req: Request, res: Response) => {
     res.status(404).json({ message: 'Route not found' });
 });
 
