@@ -38,22 +38,24 @@ app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
-// Routes (will be added in Phase 2)
-// app.use('/api/auth', require('./routes/authRoutes'));
-// app.use('/api/users', require('./routes/userRoutes'));
-// app.use('/api/menu', require('./routes/menuRoutes'));
-// app.use('/api/orders', require('./routes/orderRoutes'));
-// app.use('/api/payment', require('./routes/paymentRoutes'));
-// app.use('/api/admin', require('./routes/adminRoutes'));
+// API Routes
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/userRoutes';
+import menuRoutes from './routes/menuRoutes';
+import orderRoutes from './routes/orderRoutes';
+import paymentRoutes from './routes/paymentRoutes';
+import adminRoutes from './routes/adminRoutes';
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/menu', menuRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error(err.stack);
-    res.status(500).json({
-        message: 'Something went wrong!',
-        error: config.nodeEnv === 'development' ? err.message : undefined
-    });
-});
+import { errorHandler } from './middleware/errorHandler';
+app.use(errorHandler);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

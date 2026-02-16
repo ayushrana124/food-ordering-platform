@@ -1,19 +1,22 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Types } from 'mongoose';
+
+export interface IAddress {
+    _id?: Types.ObjectId;
+    label: 'Home' | 'Work' | 'Other';
+    addressLine: string;
+    landmark?: string;
+    coordinates: {
+        lat: number;
+        lng: number;
+    };
+    isDefault: boolean;
+}
 
 export interface IUser extends Document {
     phone: string;
     name?: string;
     email?: string;
-    addresses: Array<{
-        label: 'Home' | 'Work' | 'Other';
-        addressLine: string;
-        landmark?: string;
-        coordinates: {
-            lat: number;
-            lng: number;
-        };
-        isDefault: boolean;
-    }>;
+    addresses: Types.DocumentArray<IAddress>;
     isBlocked: boolean;
     isCODBlocked: boolean;
     createdAt: Date;
