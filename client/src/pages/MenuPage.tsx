@@ -38,55 +38,66 @@ export default function MenuPage() {
     });
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)' }} className="page-enter">
+        <div className="min-h-screen bg-[#FAFAF8] page-enter">
             <Navbar />
 
             {/* Dark header */}
-            <div style={{ background: 'var(--dark)', padding: 'clamp(1.75rem, 4vw, 2.5rem) 0' }}>
+            <div className="bg-[#111] py-[clamp(1.75rem,4vw,2.5rem)]">
                 <div className="container">
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.16em', color: 'var(--amber)', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>
+                    <span className="text-[0.7rem] font-bold tracking-[0.16em] text-[#D4920A] uppercase block mb-[0.3rem]">
                         Order Online
                     </span>
-                    <h1 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 800, color: '#fff', fontSize: 'clamp(1.6rem, 5vw, 2.4rem)', lineHeight: 1.1 }}>
+                    <h1 className="font-ui font-extrabold text-white text-[clamp(1.6rem,5vw,2.4rem)] leading-[1.1]">
                         Our Menu
                     </h1>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '0.3rem', fontFamily: "'Inter', sans-serif" }}>
+                    <p className="text-[rgba(255,255,255,0.5)] text-[0.875rem] mt-[0.3rem] font-ui">
                         Fresh handcrafted pizza, sides and more
                     </p>
                 </div>
             </div>
 
             {/* Sticky filters */}
-            <div style={{ position: 'sticky', top: 62, zIndex: 90, background: 'rgba(250,250,248,0.97)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0.7rem 0' }}>
+            <div className="sticky top-[62px] z-[90] bg-[rgba(250,250,248,0.97)] backdrop-blur-[12px] border-b border-[#EBEBEB] py-[0.7rem]">
                 <div className="container">
-                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="flex gap-[0.6rem] items-center flex-wrap">
                         {/* Search */}
-                        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 150 }}>
-                            <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', display: 'flex' }}>
+                        <div className="relative flex-[1_1_180px] min-w-[150px]">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9B9B9B] flex">
                                 <SearchIcon />
                             </span>
-                            <input className="input" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
-                                style={{ paddingLeft: '2.25rem', height: 38, fontSize: '0.85rem', borderRadius: 'var(--r-full)' }} />
+                            <input
+                                className="input pl-9 h-[38px] text-[0.85rem] rounded-full"
+                                placeholder="Search menu..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
                         </div>
 
                         {/* Veg toggle */}
-                        <button onClick={() => setVegOnly((v) => !v)} style={{
-                            display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.85rem',
-                            borderRadius: 'var(--r-full)',
-                            border: `1.5px solid ${vegOnly ? '#4ade80' : 'var(--border-strong)'}`,
-                            background: vegOnly ? '#F0FAF4' : 'var(--surface)',
-                            color: vegOnly ? '#166534' : 'var(--text-2)',
-                            fontFamily: "'Inter', sans-serif",
-                            fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.18s', flexShrink: 0,
-                        }}>
-                            <span style={{ width: 9, height: 9, borderRadius: '50%', background: vegOnly ? '#4ade80' : 'var(--border-strong)', display: 'inline-block', transition: 'background 0.18s' }} />
+                        <button
+                            onClick={() => setVegOnly((v) => !v)}
+                            className="flex items-center gap-[0.4rem] px-[0.85rem] py-[0.4rem] rounded-full font-ui font-bold text-[0.78rem] cursor-pointer transition-all duration-[180ms] flex-shrink-0"
+                            style={{
+                                border: `1.5px solid ${vegOnly ? '#4ade80' : '#D0CFC9'}`,
+                                background: vegOnly ? '#F0FAF4' : '#fff',
+                                color: vegOnly ? '#166534' : '#555',
+                            }}
+                        >
+                            <span
+                                className="w-[9px] h-[9px] rounded-full inline-block transition-colors duration-[180ms]"
+                                style={{ background: vegOnly ? '#4ade80' : '#D0CFC9' }}
+                            />
                             Veg Only
                         </button>
 
                         {/* Category pills */}
-                        <div className="scroll-x-hide" style={{ display: 'flex', gap: '0.35rem', flex: '1 1 auto', overflowX: 'auto', paddingBottom: '1px' }}>
+                        <div className="scroll-x-hide flex gap-[0.35rem] flex-[1_1_auto] overflow-x-auto pb-[1px]">
                             {ALL_CATS.map((cat) => (
-                                <button key={cat} className={`pill${activeCat === cat ? ' active' : ''}`} onClick={() => setActiveCat(cat)}>
+                                <button
+                                    key={cat}
+                                    className={`pill${activeCat === cat ? ' active' : ''}`}
+                                    onClick={() => setActiveCat(cat)}
+                                >
                                     {cat}
                                 </button>
                             ))}
@@ -96,18 +107,18 @@ export default function MenuPage() {
             </div>
 
             {/* Results */}
-            <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginBottom: '1rem', fontWeight: 600, fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em' }}>
+            <div className="container pt-6 pb-12">
+                <p className="text-[0.75rem] text-[#9B9B9B] mb-4 font-semibold font-ui tracking-[0.04em]">
                     {filtered.length} item{filtered.length !== 1 ? 's' : ''} found
                 </p>
                 {loading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
+                    <div className="flex justify-center py-16">
                         <LoadingSpinner size="lg" />
                     </div>
                 ) : filtered.length === 0 ? (
                     <EmptyState emoji="🔍" title="No items found" description="Try a different search or category" />
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(180px, 24vw, 240px), 1fr))', gap: '1rem' }}>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(clamp(180px,24vw,240px),1fr))' }}>
                         {filtered.map((item) => (
                             <MenuItemCard key={item._id} item={item} />
                         ))}

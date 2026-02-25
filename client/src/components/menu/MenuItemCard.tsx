@@ -30,33 +30,27 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
     };
 
     const handleDecrement = () => {
-        // Find the last added cart item for this menu item and decrement it
         const last = [...cartItems].reverse().find((i) => i.menuItemId === item._id);
-        if (last) {
-            if (last.quantity > 1) {
-                // updateQuantity is exposed via setQuantity in useCart
-                // We remove the item and let the decrement happen via removeItem for qty=1
-            }
-            removeItem(last.cartId);
-        }
+        if (last) removeItem(last.cartId);
     };
 
     return (
         <>
-            <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div className="card card-hover flex flex-col h-full">
                 {/* Image */}
-                <div style={{ position: 'relative', height: compact ? 140 : 180, overflow: 'hidden', background: 'var(--color-surface-alt)', flexShrink: 0 }}>
+                <div
+                    className="relative overflow-hidden bg-[#F4F3EF] flex-shrink-0"
+                    style={{ height: compact ? 140 : 180 }}
+                >
                     {item.image && !imgError ? (
                         <img
                             src={item.image}
                             alt={item.name}
                             onError={() => setImgError(true)}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
-                            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                         />
                     ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--border-strong)' }}>
+                        <div className="flex items-center justify-center h-full text-[#D0CFC9]">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="10" />
                                 <path d="M2 12l10 10 10-10" />
@@ -66,21 +60,19 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
                             </svg>
                         </div>
                     )}
+
                     {/* Veg/Non-veg badge */}
-                    <span style={{ position: 'absolute', top: 8, left: 8 }}>
+                    <span className="absolute top-2 left-2">
                         <span className={item.isVeg ? 'badge-veg' : 'badge-nonveg'}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
+                            <span className="w-[6px] h-[6px] rounded-full bg-current inline-block" />
                             {item.isVeg ? 'VEG' : 'NON-VEG'}
                         </span>
                     </span>
+
                     {/* Unavailable overlay */}
                     {!item.isAvailable && (
-                        <div style={{
-                            position: 'absolute', inset: 0,
-                            background: 'rgba(255,255,255,0.75)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                            <span style={{ background: '#1C1C1E', color: 'white', padding: '0.3rem 0.75rem', borderRadius: 'var(--radius-full)', fontSize: '0.8rem', fontWeight: 600 }}>
+                        <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
+                            <span className="bg-[#1C1C1E] text-white px-3 py-1 rounded-full text-[0.8rem] font-semibold">
                                 Currently Unavailable
                             </span>
                         </div>
@@ -88,30 +80,38 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
                 </div>
 
                 {/* Content */}
-                <div style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', flex: 1, gap: '0.25rem' }}>
-                    <h3 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: compact ? '0.92rem' : '1rem', color: 'var(--text-1)', lineHeight: 1.3 }}>
+                <div className="p-[0.875rem] flex flex-col flex-1 gap-1">
+                    <h3
+                        className="font-ui font-bold text-[#111] leading-snug"
+                        style={{ fontSize: compact ? '0.92rem' : '1rem' }}
+                    >
                         {item.name}
                     </h3>
                     {!compact && (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        <p
+                            className="text-[0.8rem] text-[#555] leading-relaxed overflow-hidden"
+                            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
+                        >
                             {item.description}
                         </p>
                     )}
                     {item.customizations.length > 0 && (
-                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-                            Customizable
-                        </p>
+                        <p className="text-[0.75rem] text-[#9B9B9B] italic">Customizable</p>
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.5rem' }}>
-                        <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: compact ? '1.05rem' : '1.2rem', fontWeight: 800, color: '#111' }}>
+
+                    <div className="flex items-center justify-between mt-auto pt-2">
+                        <span
+                            className="font-outfit font-extrabold text-[#111]"
+                            style={{ fontSize: compact ? '1.05rem' : '1.2rem' }}
+                        >
                             ₹{item.price}
                         </span>
 
                         {item.isAvailable && (
                             countInCart > 0 ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div className="flex items-center gap-2">
                                     <button className="qty-btn" onClick={handleDecrement}>−</button>
-                                    <span style={{ fontWeight: 800, color: '#111', minWidth: 20, textAlign: 'center' }}>{countInCart}</span>
+                                    <span className="font-extrabold text-[#111] min-w-[20px] text-center">{countInCart}</span>
                                     <button className="qty-btn" onClick={handleAddClick}>+</button>
                                 </div>
                             ) : (

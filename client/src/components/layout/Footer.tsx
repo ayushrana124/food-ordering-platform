@@ -25,37 +25,40 @@ const ClockIcon = () => (
 
 export default function Footer() {
     const year = new Date().getFullYear();
+
     return (
-        <footer style={{ background: 'var(--dark)', color: 'rgba(255,255,255,0.65)', paddingTop: '3.5rem' }}>
+        <footer className="bg-[#111] text-[rgba(255,255,255,0.65)] pt-14">
             <div className="container">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-10 pb-10 border-b border-[rgba(255,255,255,0.07)]">
 
                     {/* Brand */}
                     <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <div className="flex items-center gap-2 mb-[0.9rem]">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4920A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="10" />
                                 <path d="M2 12l10 10 10-10" />
                             </svg>
-                            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: '1.15rem', color: '#fff', letterSpacing: '-0.02em' }}>
-                                Bunty<span style={{ color: 'var(--amber)' }}>Pizza</span>
+                            <span className="font-ui font-extrabold text-[1.15rem] text-white tracking-[-0.02em]">
+                                Bunty<span className="text-[#D4920A]">Pizza</span>
                             </span>
                         </div>
-                        <p style={{ fontSize: '0.82rem', lineHeight: 1.8, color: 'rgba(255,255,255,0.4)', maxWidth: 240 }}>
+                        <p className="text-[0.82rem] leading-[1.8] text-[rgba(255,255,255,0.4)] max-w-[240px]">
                             Crafted with love, delivered with speed. Your favourite pizza, always fresh.
                         </p>
                     </div>
 
                     {/* Quick Links */}
                     <div>
-                        <h4 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, color: 'var(--amber)', fontSize: '0.72rem', marginBottom: '1.1rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                        <h4 className="font-ui font-bold text-[#D4920A] text-[0.72rem] mb-[1.1rem] tracking-[0.16em] uppercase">
                             Quick Links
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                        <div className="flex flex-col gap-[0.55rem]">
                             {[{ to: '/', l: 'Home' }, { to: '/menu', l: 'Menu' }, { to: '/cart', l: 'Cart' }, { to: '/profile', l: 'My Account' }].map((i) => (
-                                <Link key={i.to} to={i.to} style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', transition: 'color 0.18s', textDecoration: 'none', fontFamily: "'Inter', sans-serif" }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--amber)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}>
+                                <Link
+                                    key={i.to}
+                                    to={i.to}
+                                    className="text-[rgba(255,255,255,0.45)] text-[0.85rem] no-underline font-ui hover:text-[#D4920A] transition-colors duration-[180ms]"
+                                >
                                     {i.l}
                                 </Link>
                             ))}
@@ -64,17 +67,17 @@ export default function Footer() {
 
                     {/* Contact */}
                     <div>
-                        <h4 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, color: 'var(--amber)', fontSize: '0.72rem', marginBottom: '1.1rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                        <h4 className="font-ui font-bold text-[#D4920A] text-[0.72rem] mb-[1.1rem] tracking-[0.16em] uppercase">
                             Contact
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Inter', sans-serif" }}>
+                        <div className="flex flex-col gap-[0.6rem] text-[0.82rem] text-[rgba(255,255,255,0.45)] font-ui">
                             {[
                                 { Icon: PhoneIcon, text: '+91 98765 43210' },
                                 { Icon: MailIcon, text: 'hello@buntypizza.com' },
                                 { Icon: MapPinIcon, text: '123 Pizza Lane, Mumbai' },
                             ].map((c) => (
-                                <div key={c.text} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{ opacity: 0.6, flexShrink: 0 }}><c.Icon /></span> {c.text}
+                                <div key={c.text} className="flex items-center gap-2">
+                                    <span className="opacity-60 flex-shrink-0"><c.Icon /></span> {c.text}
                                 </div>
                             ))}
                         </div>
@@ -82,18 +85,18 @@ export default function Footer() {
 
                     {/* Hours */}
                     <div>
-                        <h4 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, color: 'var(--amber)', fontSize: '0.72rem', marginBottom: '1.1rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                        <h4 className="font-ui font-bold text-[#D4920A] text-[0.72rem] mb-[1.1rem] tracking-[0.16em] uppercase">
                             Hours
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Inter', sans-serif" }}>
+                        <div className="flex flex-col gap-2 text-[0.82rem] text-[rgba(255,255,255,0.45)] font-ui">
                             {[
                                 { day: 'Mon – Fri', time: '11am – 11pm' },
                                 { day: 'Sat – Sun', time: '10am – 12am' },
                             ].map((h) => (
-                                <div key={h.day} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                    <span style={{ opacity: .6 }}><ClockIcon /></span>
-                                    <span style={{ flex: 1 }}>{h.day}</span>
-                                    <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{h.time}</span>
+                                <div key={h.day} className="flex items-center gap-[0.4rem]">
+                                    <span className="opacity-60"><ClockIcon /></span>
+                                    <span className="flex-1">{h.day}</span>
+                                    <span className="text-[#D4920A] font-semibold">{h.time}</span>
                                 </div>
                             ))}
                         </div>
@@ -101,15 +104,16 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom */}
-                <div style={{ padding: '1.25rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', fontFamily: "'Inter', sans-serif" }}>
+                <div className="py-5 flex justify-between items-center flex-wrap gap-2">
+                    <p className="text-[0.75rem] text-[rgba(255,255,255,0.25)] font-ui">
                         &copy; {year} BuntyPizza. All rights reserved.
                     </p>
-                    <div style={{ display: 'flex', gap: '1.25rem' }}>
+                    <div className="flex gap-5">
                         {['Privacy', 'Terms', 'Refund'].map((t) => (
-                            <span key={t} style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", transition: 'color 0.18s' }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)'; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.25)'; }}>
+                            <span
+                                key={t}
+                                className="text-[0.75rem] text-[rgba(255,255,255,0.25)] cursor-pointer font-ui hover:text-[rgba(255,255,255,0.6)] transition-colors duration-[180ms]"
+                            >
                                 {t}
                             </span>
                         ))}

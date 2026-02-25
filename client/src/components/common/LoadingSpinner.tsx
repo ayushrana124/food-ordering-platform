@@ -3,12 +3,12 @@ interface LoadingSpinnerProps {
     color?: string;
 }
 
-export default function LoadingSpinner({ size = 'md', color = '#E63946' }: LoadingSpinnerProps) {
+export default function LoadingSpinner({ size = 'md', color = '#D4920A' }: LoadingSpinnerProps) {
     const sizes = { sm: 20, md: 36, lg: 56 };
     const px = sizes[size];
 
     return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="inline-flex items-center justify-center">
             <svg
                 width={px}
                 height={px}

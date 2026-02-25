@@ -105,12 +105,11 @@ const StarSolidIcon = () => (
     </svg>
 );
 
-/* ── Offer Cards data ─────────────────────────────────────────────────────── */
+/* ── Offer data ───────────────────────────────────────────────────────────── */
 const OFFERS = [
     {
         id: 'o1',
         bg: 'linear-gradient(135deg, #1C1C1E 0%, #2C1810 100%)',
-        accentBg: 'rgba(212,146,10,0.12)',
         Icon: TagIcon,
         label: 'Today Only',
         headline: 'Buy 2\nGet 1 FREE',
@@ -122,7 +121,6 @@ const OFFERS = [
     {
         id: 'o2',
         bg: 'linear-gradient(135deg, #0F1422 0%, #1A2340 100%)',
-        accentBg: 'rgba(212,146,10,0.1)',
         Icon: PercentIcon,
         label: 'New User',
         headline: '50% Off\nFirst Order',
@@ -134,7 +132,6 @@ const OFFERS = [
     {
         id: 'o3',
         bg: 'linear-gradient(135deg, #0A1A0A 0%, #112211 100%)',
-        accentBg: 'rgba(212,146,10,0.08)',
         Icon: GiftIcon,
         label: 'Best Value',
         headline: 'Mega Combo\n@ ₹599',
@@ -162,7 +159,6 @@ export default function LandingPage() {
     const dispatch = useAppDispatch();
     const { restaurant, items, loading } = useAppSelector((s: RootState) => s.menu);
 
-    // Offer card carousel state
     const [activeOffer, setActiveOffer] = useState(0);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const offerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -182,7 +178,6 @@ export default function LandingPage() {
         return () => window.removeEventListener('resize', handler);
     }, []);
 
-    // Auto-advance only on mobile
     useEffect(() => {
         if (isMobile) {
             offerTimer.current = setInterval(nextOffer, 4000);
@@ -193,46 +188,48 @@ export default function LandingPage() {
     }, [isMobile, nextOffer]);
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)' }} className="page-enter">
+        <div className="min-h-screen bg-[#FAFAF8] page-enter">
             <Navbar />
 
-            {/* ════════════════════════════════════════
-          OFFER CARDS — 3-up desktop · 1-up mobile
-      ════════════════════════════════════════ */}
-            <section style={{ padding: 'clamp(2rem, 5vw, 3.5rem) 0', background: 'var(--surface-alt)' }}>
+            {/* ── OFFER CARDS ─────────────────────────────────────────────── */}
+            <section className="py-[clamp(2rem,5vw,3.5rem)] bg-[#F4F3EF]">
                 <div className="container">
-                    <div style={{ marginBottom: 'clamp(1.25rem, 3vw, 2rem)' }}>
-                        <span className="section-label">Offers & Deals</span>
+                    <div className="mb-[clamp(1.25rem,3vw,2rem)]">
+                        <span className="section-label">Offers &amp; Deals</span>
                         <h2 className="section-title">What's On Today</h2>
                     </div>
 
-                    {/* Desktop: 3 cards in a row */}
+                    {/* Desktop: 3 columns */}
                     {!isMobile ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+                        <div className="grid grid-cols-3 gap-5">
                             {OFFERS.map((o) => <OfferCard key={o.id} offer={o} />)}
                         </div>
                     ) : (
                         /* Mobile: 1-up carousel */
                         <div>
-                            <div style={{ overflow: 'hidden', borderRadius: 'var(--r-xl)' }}>
-                                <div style={{
-                                    display: 'flex',
-                                    transform: `translateX(calc(-${activeOffer} * 100%))`,
-                                    transition: 'transform 0.5s cubic-bezier(0.22,0.61,0.36,1)',
-                                }}>
+                            <div className="overflow-hidden rounded-[22px]">
+                                <div
+                                    className="flex transition-transform duration-500"
+                                    style={{
+                                        transform: `translateX(calc(-${activeOffer} * 100%))`,
+                                        transitionTimingFunction: 'cubic-bezier(0.22,0.61,0.36,1)',
+                                    }}
+                                >
                                     {OFFERS.map((o) => <OfferCard key={o.id} offer={o} fullWidth />)}
                                 </div>
                             </div>
                             {/* Dots */}
-                            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '1rem' }}>
+                            <div className="flex justify-center gap-[6px] mt-4">
                                 {OFFERS.map((_, i) => (
-                                    <button key={i} onClick={() => goOffer(i)} style={{
-                                        width: i === activeOffer ? 22 : 7, height: 7,
-                                        borderRadius: 99,
-                                        background: i === activeOffer ? 'var(--dark)' : 'var(--border-strong)',
-                                        border: 'none', cursor: 'pointer', padding: 0,
-                                        transition: 'all 0.3s',
-                                    }} />
+                                    <button
+                                        key={i}
+                                        onClick={() => goOffer(i)}
+                                        className="h-[7px] rounded-full border-none cursor-pointer p-0 transition-all duration-300"
+                                        style={{
+                                            width: i === activeOffer ? 22 : 7,
+                                            background: i === activeOffer ? '#111' : '#D0CFC9',
+                                        }}
+                                    />
                                 ))}
                             </div>
                         </div>
@@ -240,25 +237,25 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ════════════════════════════════════════
-          RESTAURANT STATUS STRIP
-      ════════════════════════════════════════ */}
+            {/* ── RESTAURANT STATUS STRIP ─────────────────────────────────── */}
             {restaurant && (
-                <div style={{ background: 'var(--dark)', padding: '0.7rem 0', borderBottom: '1px solid var(--dark-3)' }}>
-                    <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: 'clamp(1.5rem, 5vw, 3.5rem)', flexWrap: 'wrap' }}>
+                <div className="bg-[#111] py-[0.7rem] border-b border-[#2A2A2A]">
+                    <div className="container flex justify-center gap-[clamp(1.5rem,5vw,3.5rem)] flex-wrap">
                         {[
                             { Icon: CheckIcon, text: restaurant.isOpen ? 'Open Now' : 'Closed', amber: restaurant.isOpen },
                             { Icon: ClockIcon, text: `${restaurant.deliveryTime} min delivery` },
                             { Icon: MapPinIcon, text: (restaurant.address ?? 'Mumbai').split(',')[0] },
                             { Icon: StarSolidIcon, text: `${restaurant.rating ?? '4.8'} rating` },
                         ].map((s, i) => (
-                            <div key={i} style={{
-                                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                fontSize: 'clamp(0.72rem, 1.5vw, 0.82rem)',
-                                color: s.amber ? 'var(--amber)' : 'rgba(255,255,255,0.6)',
-                                fontWeight: s.amber ? 600 : 400,
-                            }}>
-                                <span style={{ opacity: 0.8 }}><s.Icon /></span>
+                            <div
+                                key={i}
+                                className="flex items-center gap-[0.4rem] text-[clamp(0.72rem,1.5vw,0.82rem)]"
+                                style={{
+                                    color: s.amber ? '#D4920A' : 'rgba(255,255,255,0.6)',
+                                    fontWeight: s.amber ? 600 : 400,
+                                }}
+                            >
+                                <span className="opacity-80"><s.Icon /></span>
                                 {s.text}
                             </div>
                         ))}
@@ -266,39 +263,35 @@ export default function LandingPage() {
                 </div>
             )}
 
-            {/* ════════════════════════════════════════
-          CATEGORIES
-      ════════════════════════════════════════ */}
-            <section style={{ padding: 'clamp(2.5rem, 6vw, 5rem) 0', background: 'var(--surface)' }}>
+            {/* ── CATEGORIES ──────────────────────────────────────────────── */}
+            <section className="py-[clamp(2.5rem,6vw,5rem)] bg-white">
                 <div className="container">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: 'clamp(1.5rem, 3vw, 2.5rem)', justifyContent: 'center' }}>
-                        <div style={{ flex: 1, height: 1, background: 'var(--border-strong)' }} />
-                        <h2 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 'clamp(0.72rem, 1.8vw, 0.85rem)', letterSpacing: '0.18em', color: 'var(--text-3)', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+                    <div className="flex items-center gap-4 mb-[clamp(1.5rem,3vw,2.5rem)] justify-center">
+                        <div className="flex-1 h-[1px] bg-[#D0CFC9]" />
+                        <h2 className="font-ui font-bold text-[clamp(0.72rem,1.8vw,0.85rem)] tracking-[0.18em] text-[#9B9B9B] whitespace-nowrap uppercase">
                             Browse Categories
                         </h2>
-                        <div style={{ flex: 1, height: 1, background: 'var(--border-strong)' }} />
+                        <div className="flex-1 h-[1px] bg-[#D0CFC9]" />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(100px, 14vw, 135px), 1fr))', gap: 'clamp(0.6rem, 1.5vw, 1rem)' }}>
+                    <div
+                        className="grid gap-[clamp(0.6rem,1.5vw,1rem)]"
+                        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(100px,14vw,135px), 1fr))' }}
+                    >
                         {CATEGORIES.map((cat) => (
-                            <Link key={cat.name} to={`/menu?category=${encodeURIComponent(cat.name)}`} style={{ textDecoration: 'none' }}>
-                                <div style={{
-                                    background: cat.bg,
-                                    border: `1.5px solid ${cat.border}`,
-                                    borderRadius: 'var(--r-lg)',
-                                    padding: 'clamp(0.9rem, 2.5vw, 1.3rem) 0.5rem',
-                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem',
-                                    cursor: 'pointer',
-                                    transition: 'transform 0.2s, box-shadow 0.2s',
-                                    boxShadow: 'var(--shadow-sm)',
-                                }}
-                                    onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = 'var(--shadow-md)'; }}
-                                    onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.transform = ''; el.style.boxShadow = 'var(--shadow-sm)'; }}
+                            <Link key={cat.name} to={`/menu?category=${encodeURIComponent(cat.name)}`} className="no-underline">
+                                <div
+                                    className="flex flex-col items-center gap-[0.6rem] rounded-[16px] cursor-pointer transition-[transform,box-shadow] duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+                                    style={{
+                                        background: cat.bg,
+                                        border: `1.5px solid ${cat.border}`,
+                                        padding: 'clamp(0.9rem,2.5vw,1.3rem) 0.5rem',
+                                    }}
                                 >
-                                    <div style={{ color: cat.color, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <div className="flex items-center justify-center w-8 h-8" style={{ color: cat.color }}>
                                         <cat.Icon />
                                     </div>
-                                    <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 'clamp(0.65rem, 1.4vw, 0.78rem)', color: 'var(--text-1)', textAlign: 'center', lineHeight: 1.3 }}>
+                                    <span className="font-ui font-bold text-[clamp(0.65rem,1.4vw,0.78rem)] text-[#111] text-center leading-snug">
                                         {cat.name}
                                     </span>
                                 </div>
@@ -308,27 +301,28 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ════════════════════════════════════════
-          BESTSELLERS
-      ════════════════════════════════════════ */}
-            <section style={{ padding: 'clamp(2.5rem, 6vw, 5rem) 0', background: 'var(--surface-alt)' }}>
+            {/* ── BESTSELLERS ─────────────────────────────────────────────── */}
+            <section className="py-[clamp(2.5rem,6vw,5rem)] bg-[#F4F3EF]">
                 <div className="container">
-                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 'clamp(1.25rem, 3vw, 2rem)', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div className="flex items-end justify-between mb-[clamp(1.25rem,3vw,2rem)] flex-wrap gap-3">
                         <div>
                             <span className="section-label">Most Ordered</span>
                             <h2 className="section-title">Our Bestsellers</h2>
                         </div>
-                        <Link to="/menu" className="btn-outline" style={{ fontSize: '0.82rem', padding: '0.5rem 1.1rem' }}>
+                        <Link to="/menu" className="btn-outline no-underline" style={{ fontSize: '0.82rem', padding: '0.5rem 1.1rem' }}>
                             View Full Menu
                         </Link>
                     </div>
 
                     {loading ? (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                        <div className="flex justify-center py-12">
                             <LoadingSpinner size="lg" />
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(170px, 22vw, 230px), 1fr))', gap: 'clamp(0.75rem, 2vw, 1.1rem)' }}>
+                        <div
+                            className="grid gap-[clamp(0.75rem,2vw,1.1rem)]"
+                            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(170px,22vw,230px), 1fr))' }}
+                        >
                             {items.slice(0, 8).map((item) => (
                                 <MenuItemCard key={item._id} item={item} compact />
                             ))}
@@ -337,33 +331,33 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ════════════════════════════════════════
-          WHY US
-      ════════════════════════════════════════ */}
-            <section style={{ background: 'var(--dark)', padding: 'clamp(3rem, 7vw, 6rem) 0' }}>
+            {/* ── WHY US ──────────────────────────────────────────────────── */}
+            <section className="bg-[#111] py-[clamp(3rem,7vw,6rem)]">
                 <div className="container">
-                    <div style={{ textAlign: 'center', marginBottom: 'clamp(2rem, 5vw, 3.5rem)' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.18em', color: 'var(--amber)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>The Bunty Difference</span>
-                        <h2 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: 'clamp(1.4rem, 4vw, 2.2rem)', color: '#fff' }}>
+                    <div className="text-center mb-[clamp(2rem,5vw,3.5rem)]">
+                        <span className="block text-[0.7rem] font-bold tracking-[0.18em] text-[#D4920A] uppercase mb-2">
+                            The Bunty Difference
+                        </span>
+                        <h2 className="font-ui font-extrabold text-[clamp(1.4rem,4vw,2.2rem)] text-white">
                             Why thousands choose us
                         </h2>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                         {[
                             { title: 'Farm-Fresh Daily', desc: 'Hand-stretched dough, premium mozzarella, locally sourced vegetables.' },
                             { title: `${restaurant?.deliveryTime ?? 30}-Min Delivery`, desc: 'GPS-tracked. Hot and fresh, every single time.' },
                             { title: 'Expert Chefs', desc: 'Trained artisans using authentic Italian techniques.' },
                             { title: 'Best for Money', desc: 'Restaurant-quality pizza at everyday prices.' },
                         ].map((f, i) => (
-                            <div key={f.title} style={{ padding: 'clamp(1.25rem, 3vw, 1.75rem)', border: '1px solid var(--dark-3)', borderRadius: 'var(--r-lg)', transition: 'border-color 0.2s' }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--amber)'; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--dark-3)'; }}
+                            <div
+                                key={f.title}
+                                className="p-[clamp(1.25rem,3vw,1.75rem)] rounded-[16px] border border-[#2A2A2A] transition-[border-color] duration-200 hover:border-[#D4920A]"
                             >
-                                <div style={{ width: 36, height: 36, background: 'rgba(212,146,10,0.12)', borderRadius: 'var(--r-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--amber)', marginBottom: '1rem' }}>
+                                <div className="w-9 h-9 bg-[rgba(212,146,10,0.12)] rounded-[6px] flex items-center justify-center text-[#D4920A] mb-4">
                                     {[<TagIcon />, <ClockIcon />, <StarIcon />, <CheckIcon />][i]}
                                 </div>
-                                <h3 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '0.35rem' }}>{f.title}</h3>
-                                <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.75 }}>{f.desc}</p>
+                                <h3 className="font-ui font-bold text-[0.95rem] text-white mb-[0.35rem]">{f.title}</h3>
+                                <p className="text-[0.8rem] text-[rgba(255,255,255,0.45)] leading-[1.75]">{f.desc}</p>
                             </div>
                         ))}
                     </div>
@@ -378,26 +372,21 @@ export default function LandingPage() {
 /* ── Offer Card sub-component ─────────────────────────────────────────────── */
 function OfferCard({ offer, fullWidth = false }: { offer: typeof OFFERS[0]; fullWidth?: boolean }) {
     return (
-        <div style={{
-            background: offer.bg,
-            borderRadius: 'var(--r-xl)',
-            padding: 'clamp(1.5rem, 3vw, 2rem)',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: fullWidth ? '100%' : undefined,
-            flexShrink: fullWidth ? 0 : undefined,
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1.5rem',
-            minHeight: 'clamp(210px, 28vw, 280px)',
-            // Thin amber left border
-            borderLeft: '3px solid var(--amber)',
-        }}>
+        <div
+            className="relative overflow-hidden flex flex-col justify-between gap-6 rounded-[22px] border-l-[3px] border-l-[#D4920A]"
+            style={{
+                background: offer.bg,
+                padding: 'clamp(1.5rem,3vw,2rem)',
+                minWidth: fullWidth ? '100%' : undefined,
+                flexShrink: fullWidth ? 0 : undefined,
+                minHeight: 'clamp(210px,28vw,280px)',
+            }}
+        >
             {/* Big decorative background icon */}
-            <div style={{
-                position: 'absolute', right: '-12px', bottom: '-12px',
-                color: offer.highlight, opacity: 0.06,
-                width: 120, height: 120,
-                transform: 'rotate(-12deg)',
-            }}>
+            <div
+                className="absolute right-[-12px] bottom-[-12px] opacity-[0.06] rotate-[-12deg] pointer-events-none"
+                style={{ color: offer.highlight, width: 120, height: 120 }}
+            >
                 <svg viewBox="0 0 24 24" fill="currentColor" width="120" height="120">
                     <offer.Icon />
                 </svg>
@@ -406,64 +395,46 @@ function OfferCard({ offer, fullWidth = false }: { offer: typeof OFFERS[0]; full
             {/* Content */}
             <div>
                 {/* Label badge */}
-                <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                    background: 'rgba(212,146,10,0.18)',
-                    color: offer.highlight,
-                    borderRadius: 'var(--r-sm)',
-                    padding: '0.2rem 0.65rem',
-                    fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    marginBottom: '0.9rem',
-                }}>
-                    <offer.Icon />
-                    {offer.label}
+                <div
+                    className="inline-flex items-center gap-[0.35rem] px-[0.65rem] py-[0.2rem] rounded-[6px] text-[0.65rem] font-bold tracking-[0.12em] uppercase mb-[0.9rem]"
+                    style={{ background: 'rgba(212,146,10,0.18)', color: offer.highlight }}
+                >
+                    <offer.Icon /> {offer.label}
                 </div>
 
                 {/* Headline */}
                 {offer.headline.split('\n').map((line, i) => (
-                    <div key={i} style={{
-                        fontFamily: "'Inter', sans-serif",
-                        fontWeight: 900,
-                        fontSize: 'clamp(1.6rem, 3.8vw, 2.4rem)',
-                        lineHeight: 1.05,
-                        color: i === 0 ? '#fff' : offer.highlight,
-                        letterSpacing: '-0.02em',
-                    }}>
+                    <div
+                        key={i}
+                        className="font-ui font-black leading-[1.05] tracking-[-0.02em]"
+                        style={{
+                            fontSize: 'clamp(1.6rem,3.8vw,2.4rem)',
+                            color: i === 0 ? '#fff' : offer.highlight,
+                        }}
+                    >
                         {line}
                     </div>
                 ))}
 
-                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 'clamp(0.78rem, 1.4vw, 0.88rem)', lineHeight: 1.65, marginTop: '0.75rem', maxWidth: 300 }}>
+                <p
+                    className="text-[rgba(255,255,255,0.55)] leading-[1.65] mt-3 max-w-[300px]"
+                    style={{ fontSize: 'clamp(0.78rem,1.4vw,0.88rem)' }}
+                >
                     {offer.desc}
                 </p>
             </div>
 
             {/* Footer row */}
-            <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Link to="/menu" style={{
-                    background: offer.highlight, color: '#fff',
-                    padding: '0.55rem 1.2rem', borderRadius: 'var(--r-sm)',
-                    fontFamily: "'Inter', sans-serif", fontWeight: 700,
-                    fontSize: '0.82rem', textDecoration: 'none',
-                    transition: 'filter 0.18s', letterSpacing: '0.01em',
-                    whiteSpace: 'nowrap',
-                }}
-                    onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.88)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.filter = ''; }}
+            <div className="flex gap-[0.7rem] items-center flex-wrap">
+                <Link
+                    to="/menu"
+                    className="px-5 py-[0.55rem] rounded-[6px] font-ui font-bold text-[0.82rem] no-underline text-white whitespace-nowrap tracking-[0.01em] transition-[filter] duration-[180ms] hover:brightness-90"
+                    style={{ background: offer.highlight }}
                 >
                     {offer.cta}
                 </Link>
                 {offer.code && (
-                    <div style={{
-                        border: '1px dashed rgba(212,146,10,0.4)',
-                        borderRadius: 'var(--r-sm)',
-                        padding: '0.35rem 0.7rem',
-                        fontSize: '0.72rem', fontWeight: 700,
-                        color: 'rgba(255,255,255,0.5)',
-                        letterSpacing: '0.08em',
-                        whiteSpace: 'nowrap',
-                    }}>
+                    <div className="border border-dashed border-[rgba(212,146,10,0.4)] rounded-[6px] px-[0.7rem] py-[0.35rem] text-[0.72rem] font-bold text-[rgba(255,255,255,0.5)] tracking-[0.08em] whitespace-nowrap">
                         USE: <span style={{ color: offer.highlight }}>{offer.code}</span>
                     </div>
                 )}

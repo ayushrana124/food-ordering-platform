@@ -62,17 +62,8 @@ const SignOutIcon = () => (
     </svg>
 );
 
-/* ── Shared style ─────────────────────────────────────────────────────────── */
-const iconBtnStyle: React.CSSProperties = {
-    position: 'relative',
-    width: 38, height: 38, borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'transparent',
-    border: '1.5px solid var(--border-strong)',
-    color: 'var(--text-2)',
-    cursor: 'pointer', flexShrink: 0,
-    transition: 'border-color 0.18s, background 0.18s, color 0.18s',
-};
+/* ── Icon button base class ─────────────────────────────────────────────── */
+const iconBtnCls = 'relative w-[38px] h-[38px] rounded-full flex items-center justify-center bg-transparent border-[1.5px] border-[#D0CFC9] text-[#555] cursor-pointer flex-shrink-0 transition-all duration-[180ms]';
 
 export default function Navbar() {
     const { itemCount } = useCart();
@@ -99,41 +90,37 @@ export default function Navbar() {
 
     return (
         <>
-            <nav style={{
-                position: 'sticky', top: 0, zIndex: 100,
-                background: 'rgba(250,250,248,0.97)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                borderBottom: scrolled ? '1px solid var(--border)' : '1px solid transparent',
-                boxShadow: scrolled ? '0 1px 16px rgba(0,0,0,0.05)' : 'none',
-                transition: 'border-color 0.25s, box-shadow 0.25s',
-            }}>
-                <div className="container" style={{ display: 'flex', alignItems: 'center', height: 62, gap: '0.5rem' }}>
+            <nav
+                className={`sticky top-0 z-[100] bg-[rgba(250,250,248,0.97)] backdrop-blur-[16px] transition-[border-color,box-shadow] duration-[250ms] ${scrolled ? 'border-b border-[#EBEBEB] shadow-[0_1px_16px_rgba(0,0,0,0.05)]' : 'border-b border-transparent'
+                    }`}
+                style={{ WebkitBackdropFilter: 'blur(16px)' }}
+            >
+                <div className="container flex items-center h-[62px] gap-2">
 
                     {/* Logo */}
-                    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', textDecoration: 'none', flexShrink: 0, marginRight: '0.5rem' }}>
-                        <div style={{ color: 'var(--amber)', display: 'flex', alignItems: 'center' }}>
+                    <Link to="/" className="flex items-center gap-[0.55rem] no-underline flex-shrink-0 mr-2">
+                        <span className="text-[#D4920A] flex items-center">
                             <LogoIcon size={24} />
-                        </div>
-                        <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
-                            Bunty<span style={{ color: 'var(--amber)' }}>Pizza</span>
+                        </span>
+                        <span className="font-ui font-extrabold text-[1.1rem] text-[#111] tracking-[-0.02em]">
+                            Bunty<span className="text-[#D4920A]">Pizza</span>
                         </span>
                     </Link>
 
                     {/* Desktop links */}
-                    <div className="hide-mobile" style={{ display: 'flex', gap: '0.1rem', flex: 1 }}>
+                    <div className="hide-mobile flex gap-[0.1rem] flex-1">
                         {navLinks.map((l) => (
-                            <Link key={l.to} to={l.to} style={{
-                                padding: '0.4rem 0.85rem', borderRadius: '6px',
-                                fontFamily: "'Inter', sans-serif",
-                                fontWeight: active(l.to) ? 700 : 500,
-                                fontSize: '0.875rem',
-                                color: active(l.to) ? 'var(--text-1)' : 'var(--text-2)',
-                                background: active(l.to) ? 'var(--amber-light)' : 'transparent',
-                                textDecoration: 'none', transition: 'all 0.18s',
-                            }}
-                                onMouseEnter={(e) => { if (!active(l.to)) e.currentTarget.style.color = 'var(--text-1)'; }}
-                                onMouseLeave={(e) => { if (!active(l.to)) e.currentTarget.style.color = 'var(--text-2)'; }}
+                            <Link
+                                key={l.to}
+                                to={l.to}
+                                className="px-[0.85rem] py-[0.4rem] rounded-[6px] font-ui text-[0.875rem] no-underline transition-all duration-[180ms]"
+                                style={{
+                                    fontWeight: active(l.to) ? 700 : 500,
+                                    color: active(l.to) ? '#111' : '#555',
+                                    background: active(l.to) ? '#FFF6DC' : 'transparent',
+                                }}
+                                onMouseEnter={(e) => { if (!active(l.to)) e.currentTarget.style.color = '#111'; }}
+                                onMouseLeave={(e) => { if (!active(l.to)) e.currentTarget.style.color = '#555'; }}
                             >
                                 {l.label}
                             </Link>
@@ -141,24 +128,18 @@ export default function Navbar() {
                     </div>
 
                     {/* Right icons */}
-                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <div className="ml-auto flex items-center gap-[0.45rem]">
 
                         {/* Cart */}
-                        <Link to="/cart" style={{ ...iconBtnStyle, textDecoration: 'none' }}
-                            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--amber)'; el.style.background = 'var(--amber-light)'; el.style.color = 'var(--amber)'; }}
-                            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-strong)'; el.style.background = 'transparent'; el.style.color = 'var(--text-2)'; }}
+                        <Link
+                            to="/cart"
+                            className={`${iconBtnCls} no-underline`}
+                            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#D4920A'; el.style.background = '#FFF6DC'; el.style.color = '#D4920A'; }}
+                            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#D0CFC9'; el.style.background = 'transparent'; el.style.color = '#555'; }}
                         >
                             <CartIcon />
                             {itemCount > 0 && (
-                                <span style={{
-                                    position: 'absolute', top: -4, right: -4,
-                                    background: 'var(--dark)', color: '#fff',
-                                    width: 16, height: 16, borderRadius: '50%',
-                                    fontSize: '0.58rem', fontWeight: 800,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '2px solid var(--bg)',
-                                    fontFamily: "'Inter', sans-serif",
-                                }}>
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#111] text-white text-[0.58rem] font-extrabold flex items-center justify-center border-2 border-[#FAFAF8] font-ui">
                                     {itemCount > 9 ? '9+' : itemCount}
                                 </span>
                             )}
@@ -166,46 +147,54 @@ export default function Navbar() {
 
                         {/* Auth */}
                         {isAuthenticated ? (
-                            <div style={{ position: 'relative' }}>
-                                <button onClick={() => setProfileOpen((p) => !p)} style={{
-                                    ...iconBtnStyle,
-                                    background: 'var(--amber-light)', borderColor: 'var(--amber-border)',
-                                    color: '#7a5a00', fontFamily: "'Inter', sans-serif",
-                                    fontWeight: 800, fontSize: '0.9rem',
-                                }}>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setProfileOpen((p) => !p)}
+                                    className={`${iconBtnCls} bg-[#FFF6DC] border-[#E8C060] text-[#7a5a00] font-ui font-extrabold text-[0.9rem]`}
+                                >
                                     {(user?.name || user?.phone || '?')[0].toUpperCase()}
                                 </button>
                                 {profileOpen && (
-                                    <div style={{ position: 'absolute', top: 46, right: 0, background: 'var(--surface)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)', minWidth: 175, zIndex: 200, overflow: 'hidden' }}>
+                                    <div className="absolute top-[46px] right-0 bg-white rounded-[16px] shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-[#EBEBEB] min-w-[175px] z-[200] overflow-hidden">
                                         {[
                                             { to: '/profile', Icon: UserIcon, label: 'My Profile' },
                                             { to: '/profile?tab=orders', Icon: OrdersIcon, label: 'My Orders' },
                                         ].map((item) => (
-                                            <Link key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.8rem 1rem', fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-1)', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}
-                                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-alt)'; }}
-                                                onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                                            <Link
+                                                key={item.to}
+                                                to={item.to}
+                                                className="flex items-center gap-[0.55rem] px-4 py-[0.8rem] text-[0.83rem] font-semibold text-[#111] border-b border-[#EBEBEB] no-underline hover:bg-[#F4F3EF] transition-colors"
+                                            >
                                                 <item.Icon /> {item.label}
                                             </Link>
                                         ))}
-                                        <button onClick={signOut} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.8rem 1rem', fontSize: '0.83rem', fontWeight: 600, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer' }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.background = '#FFF1F2'; }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                                        <button
+                                            onClick={signOut}
+                                            className="w-full flex items-center gap-[0.55rem] px-4 py-[0.8rem] text-[0.83rem] font-semibold text-[#DC2626] bg-none border-none cursor-pointer hover:bg-[#FFF1F2] transition-colors"
+                                        >
                                             <SignOutIcon /> Sign Out
                                         </button>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            <button onClick={() => navigate('/login')} style={{ ...iconBtnStyle }} title="Sign In"
-                                onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = 'var(--amber)'; el.style.background = 'var(--amber-light)'; el.style.color = 'var(--amber)'; }}
-                                onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = 'var(--border-strong)'; el.style.background = 'transparent'; el.style.color = 'var(--text-2)'; }}
+                            <button
+                                onClick={() => navigate('/login')}
+                                className={iconBtnCls}
+                                title="Sign In"
+                                onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = '#D4920A'; el.style.background = '#FFF6DC'; el.style.color = '#D4920A'; }}
+                                onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = '#D0CFC9'; el.style.background = 'transparent'; el.style.color = '#555'; }}
                             >
                                 <UserIcon />
                             </button>
                         )}
 
                         {/* Hamburger (mobile) */}
-                        <button className="hide-desktop" onClick={() => setMenuOpen((o) => !o)} style={{ ...iconBtnStyle }} aria-label="Menu">
+                        <button
+                            className={`${iconBtnCls} hide-desktop`}
+                            onClick={() => setMenuOpen((o) => !o)}
+                            aria-label="Menu"
+                        >
                             {menuOpen ? <CloseIcon /> : <BarsIcon />}
                         </button>
                     </div>
@@ -213,14 +202,25 @@ export default function Navbar() {
 
                 {/* Mobile dropdown */}
                 {menuOpen && (
-                    <div style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '0.5rem clamp(1rem,4vw,2rem) 1rem' }}>
+                    <div className="bg-[#FAFAF8] border-t border-[#EBEBEB] py-2 px-[clamp(1rem,4vw,2rem)]">
                         {navLinks.map((l) => (
-                            <Link key={l.to} to={l.to} style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 0.5rem', fontFamily: "'Inter', sans-serif", fontWeight: active(l.to) ? 700 : 500, fontSize: '0.95rem', color: active(l.to) ? 'var(--amber)' : 'var(--text-1)', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}>
+                            <Link
+                                key={l.to}
+                                to={l.to}
+                                className="flex items-center py-3 px-2 font-ui text-[0.95rem] border-b border-[#EBEBEB] no-underline"
+                                style={{
+                                    fontWeight: active(l.to) ? 700 : 500,
+                                    color: active(l.to) ? '#D4920A' : '#111',
+                                }}
+                            >
                                 {l.label}
                             </Link>
                         ))}
                         {!isAuthenticated && (
-                            <button onClick={() => { navigate('/login'); setMenuOpen(false); }} style={{ marginTop: '0.75rem', width: '100%', padding: '0.7rem', borderRadius: 'var(--r-md)', background: 'var(--amber-light)', border: '1.5px solid var(--amber-border)', color: '#7a5a00', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: "'Inter', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => { navigate('/login'); setMenuOpen(false); }}
+                                className="mt-3 w-full py-[0.7rem] rounded-[10px] bg-[#FFF6DC] border-[1.5px] border-[#E8C060] text-[#7a5a00] font-bold text-[0.875rem] cursor-pointer font-ui flex items-center justify-center gap-2"
+                            >
                                 <UserIcon /> Sign In
                             </button>
                         )}
@@ -228,7 +228,9 @@ export default function Navbar() {
                 )}
             </nav>
 
-            {profileOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setProfileOpen(false)} />}
+            {profileOpen && (
+                <div className="fixed inset-0 z-[199]" onClick={() => setProfileOpen(false)} />
+            )}
         </>
     );
 }

@@ -34,7 +34,6 @@ export default function ProfilePage() {
     const [email, setEmail] = useState(user?.email ?? '');
     const [addresses, setAddresses] = useState<IAddress[]>(user?.addresses ?? []);
 
-    // Load orders
     useEffect(() => {
         if (tab === 'orders') {
             setOrdersLoading(true);
@@ -42,7 +41,6 @@ export default function ProfilePage() {
         }
     }, [tab]);
 
-    // Load latest addresses
     useEffect(() => {
         if (tab === 'addresses') {
             userService.getProfile().then((u) => setAddresses(u.addresses)).catch(() => { });
@@ -75,46 +73,39 @@ export default function ProfilePage() {
     ];
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }} className="page-enter">
+        <div className="min-h-screen bg-[#FAFAF8] page-enter">
             <Navbar />
-            <div className="container" style={{ padding: '2rem 1rem 4rem', maxWidth: 860 }}>
+            <div className="container py-8 px-4 pb-16 max-w-[860px]">
+
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-                    <div style={{
-                        width: 60, height: 60, borderRadius: '50%', background: 'var(--color-accent)',
-                        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.5rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0,
-                    }}>
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="w-[60px] h-[60px] rounded-full bg-[#D4920A] text-white flex items-center justify-center text-[1.5rem] font-extrabold font-outfit flex-shrink-0">
                         {(user?.name || user?.phone || '?')[0].toUpperCase()}
                     </div>
                     <div>
-                        <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.5rem', lineHeight: 1.1 }}>
+                        <h1 className="font-outfit font-extrabold text-[1.5rem] leading-[1.1]">
                             {user?.name || 'Pizza Lover'}
                         </h1>
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>+91 {user?.phone}</p>
+                        <p className="text-[#555] text-[0.9rem]">+91 {user?.phone}</p>
                     </div>
                     <button
                         onClick={signOut}
-                        style={{ marginLeft: 'auto', background: 'none', border: '1.5px solid var(--color-error)', color: 'var(--color-error)', padding: '0.4rem 1rem', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}
+                        className="ml-auto bg-none border-[1.5px] border-[#DC2626] text-[#DC2626] px-4 py-[0.4rem] rounded-full cursor-pointer font-semibold text-[0.875rem] hover:bg-[#FEF2F2] transition-colors"
                     >
                         Logout
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0' }}>
+                <div className="flex gap-2 mb-6 border-b border-[#EBEBEB]">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
                             onClick={() => setTab(t.key)}
+                            className="px-5 py-[0.625rem] border-none bg-none cursor-pointer font-semibold text-[0.9rem] transition-all duration-200 -mb-[1px]"
                             style={{
-                                padding: '0.625rem 1.25rem',
-                                border: 'none', background: 'none', cursor: 'pointer',
-                                fontWeight: 600, fontSize: '0.9rem',
-                                color: tab === t.key ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                                borderBottom: `2px solid ${tab === t.key ? 'var(--color-accent)' : 'transparent'}`,
-                                marginBottom: '-1px',
-                                transition: 'all 0.2s',
+                                color: tab === t.key ? '#D4920A' : '#555',
+                                borderBottom: `2px solid ${tab === t.key ? '#D4920A' : 'transparent'}`,
                             }}
                         >
                             {t.icon} {t.label}
@@ -124,23 +115,23 @@ export default function ProfilePage() {
 
                 {/* Profile Tab */}
                 {tab === 'profile' && (
-                    <div className="card" style={{ padding: '1.5rem' }}>
-                        <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, marginBottom: '1.25rem' }}>Edit Profile</h3>
-                        <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 400 }}>
+                    <div className="card p-6">
+                        <h3 className="font-outfit font-bold mb-5">Edit Profile</h3>
+                        <form onSubmit={handleSaveProfile} className="flex flex-col gap-4 max-w-[400px]">
                             <div>
-                                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.35rem' }}>Name</label>
+                                <label className="block font-semibold text-[0.875rem] mb-[0.35rem]">Name</label>
                                 <input className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" id="profile-name" />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.35rem' }}>Email</label>
+                                <label className="block font-semibold text-[0.875rem] mb-[0.35rem]">Email</label>
                                 <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="yourname@email.com" id="profile-email" />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.35rem' }}>Phone</label>
-                                <input className="input" type="text" value={user?.phone ?? ''} disabled style={{ background: 'var(--color-surface-alt)', color: 'var(--color-text-muted)' }} />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Phone cannot be changed</p>
+                                <label className="block font-semibold text-[0.875rem] mb-[0.35rem]">Phone</label>
+                                <input className="input bg-[#F4F3EF] text-[#9B9B9B]" type="text" value={user?.phone ?? ''} disabled />
+                                <p className="text-[0.75rem] text-[#9B9B9B] mt-1">Phone cannot be changed</p>
                             </div>
-                            <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start' }} disabled={loading}>
+                            <button type="submit" className="btn-primary self-start" disabled={loading}>
                                 {loading ? 'Saving...' : 'Save Changes'}
                             </button>
                         </form>
@@ -151,28 +142,28 @@ export default function ProfilePage() {
                 {tab === 'addresses' && (
                     <div>
                         {addresses.length === 0 ? (
-                            <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
-                                <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>No saved addresses yet.</p>
+                            <div className="card p-8 text-center">
+                                <p className="text-[#555] mb-4">No saved addresses yet.</p>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                            <div className="flex flex-col gap-[0.875rem]">
                                 {addresses.map((addr) => (
-                                    <div key={addr._id} className="card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.2rem' }}>
-                                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{addr.label}</span>
+                                    <div key={addr._id} className="card p-4 pl-5 flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex gap-2 items-center mb-[0.2rem]">
+                                                <span className="font-bold text-[0.9rem]">{addr.label}</span>
                                                 {addr.isDefault && (
-                                                    <span style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', fontSize: '0.7rem', fontWeight: 600, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-sm)' }}>
+                                                    <span className="bg-[#DCFCE7] text-[#15803D] text-[0.7rem] font-semibold px-[0.45rem] py-[0.1rem] rounded-[6px]">
                                                         Default
                                                     </span>
                                                 )}
                                             </div>
-                                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{addr.addressLine}</p>
-                                            {addr.landmark && <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Near {addr.landmark}</p>}
+                                            <p className="text-[0.875rem] text-[#555]">{addr.addressLine}</p>
+                                            {addr.landmark && <p className="text-[0.8rem] text-[#9B9B9B]">Near {addr.landmark}</p>}
                                         </div>
                                         <button
                                             onClick={() => handleDeleteAddress(addr._id)}
-                                            style={{ padding: '0.35rem 0.75rem', border: '1.5px solid var(--color-error)', background: 'white', color: 'var(--color-error)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                                            className="px-3 py-[0.35rem] border-[1.5px] border-[#DC2626] bg-white text-[#DC2626] rounded-[10px] cursor-pointer text-[0.8rem] font-semibold hover:bg-[#FEF2F2] transition-colors"
                                         >
                                             Remove
                                         </button>
@@ -187,41 +178,43 @@ export default function ProfilePage() {
                 {tab === 'orders' && (
                     <div>
                         {ordersLoading ? (
-                            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                            <div className="flex justify-center py-12">
                                 <LoadingSpinner size="lg" />
                             </div>
                         ) : orders.length === 0 ? (
-                            <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
-                                <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>No orders yet! 🍕</p>
+                            <div className="card p-8 text-center">
+                                <p className="text-[#555] mb-4">No orders yet! 🍕</p>
                                 <Link to="/menu" className="btn-primary">Order Now</Link>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                            <div className="flex flex-col gap-[0.875rem]">
                                 {orders.map((order) => (
-                                    <div key={order._id} className="card" style={{ padding: '1.25rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    <div key={order._id} className="card p-5">
+                                        <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
                                             <div>
-                                                <p style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'Outfit' }}>Order #{order.orderId}</p>
-                                                <p style={{ fontSize: '0.775rem', color: 'var(--color-text-muted)' }}>
+                                                <p className="font-bold text-[0.9rem] font-outfit">Order #{order.orderId}</p>
+                                                <p className="text-[0.775rem] text-[#9B9B9B]">
                                                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </p>
                                             </div>
-                                            <span style={{
-                                                background: ORDER_STATUS_COLORS[order.status] + '18',
-                                                color: ORDER_STATUS_COLORS[order.status],
-                                                padding: '0.25rem 0.75rem', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: 700,
-                                            }}>
+                                            <span
+                                                className="px-3 py-1 rounded-full text-[0.75rem] font-bold"
+                                                style={{
+                                                    background: ORDER_STATUS_COLORS[order.status] + '18',
+                                                    color: ORDER_STATUS_COLORS[order.status],
+                                                }}
+                                            >
                                                 {order.status.replace(/_/g, ' ')}
                                             </span>
                                         </div>
-                                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
+                                        <p className="text-[0.85rem] text-[#555] mb-3">
                                             {order.items.map((i) => `${i.name} ×${i.quantity}`).join(' · ')}
                                         </p>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontWeight: 700, color: 'var(--color-accent)' }}>₹{order.total}</span>
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-bold text-[#D4920A]">₹{order.total}</span>
                                             <Link
                                                 to={`/order/${order._id}`}
-                                                style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}
+                                                className="text-[#D4920A] no-underline font-semibold text-[0.875rem] hover:underline"
                                             >
                                                 Track →
                                             </Link>
