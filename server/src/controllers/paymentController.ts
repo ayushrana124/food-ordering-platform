@@ -4,11 +4,20 @@ import crypto from 'crypto';
 import Order from '../models/Order';
 import config from '../config/config';
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-    key_id: config.razorpayKeyId,
-    key_secret: config.razorpayKeySecret
-});
+// Lazily create Razorpay instance — avoids crash at startup when keys are placeholders
+let _razorpay: Razorpay | null = null;
+
+function getRazorpay(): Razorpay {
+    if (!_razorpay) {
+        const keyId = config.razorpayKeyId;
+        const keySecret = config.razorpayKeySecret;
+        if (!keyId || keyId === 'your_razorpay_key_id' || !keySecret || keySecret === 'your_razorpay_key_secret') {
+            throw new Error('Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env');
+        }
+        _razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    }
+    return _razorpay;
+}
 
 // Create Razorpay order
 export const createPaymentOrder = async (req: Request, res: Response): Promise<void> => {
@@ -45,7 +54,7 @@ export const createPaymentOrder = async (req: Request, res: Response): Promise<v
             receipt: order.orderId
         };
 
-        const razorpayOrder = await razorpay.orders.create(options);
+        const razorpayOrder = await getRazorpay().orders.create(options);
 
         // Save Razorpay order ID
         order.razorpayOrderId = razorpayOrder.id;
