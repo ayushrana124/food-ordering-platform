@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { ShoppingBag, Pizza, Trash2, PartyPopper, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import EmptyState from '@/components/common/EmptyState';
@@ -15,19 +16,19 @@ export default function CartPage() {
 
     if (items.length === 0) {
         return (
-            <div className="min-h-screen bg-[#FAFAF8]">
+            <div className="min-h-screen bg-bg">
                 <Navbar />
                 <div className="py-16">
                     <EmptyState
-                        emoji="🛒"
+                        icon={ShoppingBag}
                         title="Your cart is empty"
                         description="Add some delicious items from our menu!"
                         action={
                             <button
-                                className="btn-primary text-base px-8 py-3"
+                                className="btn-primary text-base px-8 py-3 flex items-center gap-2"
                                 onClick={() => navigate('/menu')}
                             >
-                                Browse Menu 🍕
+                                Browse Menu <Pizza size={18} />
                             </button>
                         }
                     />
@@ -38,12 +39,13 @@ export default function CartPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAF8] page-enter">
+        <div className="min-h-screen bg-bg page-enter">
             <Navbar />
             <div className="container py-8 px-4 pb-16">
-                <h1 className="font-outfit font-extrabold text-[clamp(1.5rem,4vw,2rem)] mb-7">
-                    🛒 Your Cart{' '}
-                    <span className="text-base font-medium text-[#555]">({itemCount} items)</span>
+                <h1 className="font-outfit font-extrabold text-[clamp(1.5rem,4vw,2rem)] mb-7 flex items-center gap-3">
+                    <ShoppingBag size={28} className="text-amber" />
+                    Your Cart
+                    <span className="text-base font-medium text-[#555] ml-1">({itemCount} items)</span>
                 </h1>
 
                 {/* 2-col layout on md+ */}
@@ -56,11 +58,13 @@ export default function CartPage() {
                             return (
                                 <div key={item.cartId} className="card p-4 flex gap-4 items-center">
                                     {/* Image */}
-                                    <div className="w-[72px] h-[72px] rounded-[10px] overflow-hidden flex-shrink-0 bg-[#F4F3EF]">
+                                    <div className="w-[72px] h-[72px] rounded-[10px] overflow-hidden shrink-0 bg-surface-alt">
                                         {item.image ? (
                                             <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="flex items-center justify-center h-full text-[2rem]">🍕</div>
+                                            <div className="flex items-center justify-center h-full text-[#D0CFC9]">
+                                                <Pizza size={32} />
+                                            </div>
                                         )}
                                     </div>
 
@@ -68,21 +72,21 @@ export default function CartPage() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-[0.4rem] mb-[0.15rem]">
                                             <span
-                                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                                className="w-2 h-2 rounded-full shrink-0"
                                                 style={{ background: item.isVeg ? '#15803D' : '#B91C1C' }}
                                             />
                                             <h4 className="font-outfit font-bold text-[0.95rem] truncate">{item.name}</h4>
                                         </div>
                                         {item.selectedCustomizations.length > 0 && (
-                                            <p className="text-[0.75rem] text-[#9B9B9B]">
+                                            <p className="text-[0.75rem] text-text-muted">
                                                 + {item.selectedCustomizations.map((c) => c.name).join(', ')}
                                             </p>
                                         )}
-                                        <p className="font-bold text-[#D4920A] mt-1">₹{itemTotal}</p>
+                                        <p className="font-bold text-amber mt-1">₹{itemTotal}</p>
                                     </div>
 
                                     {/* Quantity */}
-                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="flex items-center gap-2 shrink-0">
                                         <button className="qty-btn" onClick={() => setQuantity(item.cartId, item.quantity - 1)}>−</button>
                                         <span className="font-bold min-w-[20px] text-center">{item.quantity}</span>
                                         <button className="qty-btn" onClick={() => setQuantity(item.cartId, item.quantity + 1)}>+</button>
@@ -91,10 +95,10 @@ export default function CartPage() {
                                     {/* Remove */}
                                     <button
                                         onClick={() => removeItem(item.cartId)}
-                                        className="p-[0.35rem] border-none bg-[#FEF2F2] rounded-[10px] cursor-pointer text-[#DC2626] text-base flex-shrink-0"
+                                        className="p-[0.35rem] border-none bg-[#FEF2F2] rounded-[10px] cursor-pointer text-[#DC2626] text-base shrink-0 hover:bg-[#FEE2E2] transition-colors"
                                         title="Remove"
                                     >
-                                        🗑
+                                        <Trash2 size={18} />
                                     </button>
                                 </div>
                             );
@@ -112,8 +116,10 @@ export default function CartPage() {
                             </div>
                             <div className="flex justify-between text-[0.9rem]">
                                 <span className="text-[#555]">Delivery</span>
-                                <span className={`font-semibold ${DELIVERY_CHARGE === 0 ? 'text-[#15803D]' : ''}`}>
-                                    {DELIVERY_CHARGE === 0 ? 'FREE 🎉' : `₹${DELIVERY_CHARGE}`}
+                                <span className={`font-semibold flex items-center gap-1 ${DELIVERY_CHARGE === 0 ? 'text-[#15803D]' : ''}`}>
+                                    {DELIVERY_CHARGE === 0 ? (
+                                        <>FREE <PartyPopper size={14} /></>
+                                    ) : `₹${DELIVERY_CHARGE}`}
                                 </span>
                             </div>
                             <div className="flex justify-between text-[0.9rem]">
@@ -126,7 +132,7 @@ export default function CartPage() {
 
                         <div className="flex justify-between mb-6 mt-3">
                             <span className="font-outfit font-extrabold text-[1.1rem]">Total</span>
-                            <span className="font-outfit font-extrabold text-[1.1rem] text-[#D4920A]">₹{TOTAL}</span>
+                            <span className="font-outfit font-extrabold text-[1.1rem] text-amber">₹{TOTAL}</span>
                         </div>
 
                         {subtotal < 499 && (
@@ -136,10 +142,10 @@ export default function CartPage() {
                         )}
 
                         <button
-                            className="btn-primary w-full justify-center text-base py-[0.875rem]"
+                            className="btn-primary w-full justify-center text-base py-[0.875rem] flex items-center gap-2 group"
                             onClick={() => navigate('/checkout')}
                         >
-                            Proceed to Checkout →
+                            Proceed to Checkout <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                         </button>
                     </div>
                 </div>

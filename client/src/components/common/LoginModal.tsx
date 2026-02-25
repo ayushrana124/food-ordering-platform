@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Pizza, X, ArrowRight, CheckCircle2, Timer, Smartphone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import toast from 'react-hot-toast';
@@ -72,7 +73,7 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         try {
             const res = await authService.verifyOTP(phone, otp);
             login(res.user, res.token);
-            toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}! 🍕`);
+            toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}!`);
             onClose();
         } catch (err: unknown) {
             const msg = err && typeof err === 'object' && 'response' in err
@@ -103,14 +104,16 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                 {/* Close button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 w-8 h-8 rounded-full border-[1.5px] border-[#D0CFC9] bg-white cursor-pointer flex items-center justify-center text-base text-[#555]"
+                    className="absolute top-4 right-4 w-8 h-8 rounded-full border border-[#D0CFC9] bg-white cursor-pointer flex items-center justify-center text-[#555] transition-colors hover:bg-[#F4F3EF]"
                 >
-                    ✕
+                    <X size={16} />
                 </button>
 
                 {/* Header */}
                 <div className="text-center mb-7">
-                    <div className="text-[2.5rem] mb-2">🍕</div>
+                    <div className="w-16 h-16 bg-[#F4F3EF] rounded-2xl flex items-center justify-center text-[#D4920A] mx-auto mb-4">
+                        <Pizza size={32} />
+                    </div>
                     <h2 className="font-outfit text-[1.5rem] font-extrabold mb-1 text-[#111]">
                         {step === 'phone' ? 'Welcome back!' : 'Verify OTP'}
                     </h2>
@@ -128,7 +131,8 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             Phone Number
                         </label>
                         <div className="relative mb-5">
-                            <span className="absolute left-[0.875rem] top-1/2 -translate-y-1/2 font-semibold text-[#555] text-[0.95rem]">
+                            <span className="absolute left-[0.875rem] top-1/2 -translate-y-1/2 font-semibold text-[#555] text-[0.95rem] flex items-center gap-1 border-r border-[#EBEBEB] pr-3">
+                                <Smartphone size={16} className="text-[#9B9B9B]" />
                                 +91
                             </span>
                             <input
@@ -137,15 +141,19 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 placeholder="98765 43210"
-                                style={{ paddingLeft: '3rem' }}
+                                style={{ paddingLeft: '4.5rem' }}
                                 autoFocus
                                 inputMode="numeric"
                                 required
                                 id="phone-input"
                             />
                         </div>
-                        <button type="submit" className="btn-primary w-full justify-center" disabled={loading}>
-                            {loading ? '⏳ Sending...' : 'Send OTP →'}
+                        <button type="submit" className="btn-primary w-full justify-center flex items-center gap-2" disabled={loading}>
+                            {loading ? (
+                                <Timer size={20} className="animate-spin" />
+                            ) : (
+                                <>Send OTP <ArrowRight size={18} /></>
+                            )}
                         </button>
                     </form>
                 ) : (
@@ -164,20 +172,24 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             required
                             id="otp-input"
                         />
-                        <button type="submit" className="btn-primary w-full justify-center mb-3" disabled={loading}>
-                            {loading ? '⏳ Verifying...' : 'Verify & Login ✓'}
+                        <button type="submit" className="btn-primary w-full justify-center mb-4 flex items-center gap-2" disabled={loading}>
+                            {loading ? (
+                                <Timer size={20} className="animate-spin" />
+                            ) : (
+                                <>Verify & Login <CheckCircle2 size={18} /></>
+                            )}
                         </button>
 
                         <div className="text-center">
                             {countdown > 0 ? (
-                                <p className="text-[0.85rem] text-[#9B9B9B]">
-                                    Resend OTP in <strong>{countdown}s</strong>
+                                <p className="text-[0.85rem] text-[#9B9B9B] flex items-center justify-center gap-1">
+                                    <Timer size={14} /> Resend OTP in <strong>{countdown}s</strong>
                                 </p>
                             ) : (
                                 <button
                                     type="button"
                                     onClick={handleSendOTP}
-                                    className="bg-none border-none text-[#D4920A] font-semibold cursor-pointer text-[0.9rem]"
+                                    className="bg-none border-none text-[#D4920A] font-semibold cursor-pointer text-[0.9rem] hover:underline"
                                 >
                                     Resend OTP
                                 </button>
@@ -185,9 +197,9 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             <button
                                 type="button"
                                 onClick={() => { setStep('phone'); setOtp(''); }}
-                                className="block mx-auto mt-[0.4rem] bg-none border-none text-[#555] cursor-pointer text-[0.85rem]"
+                                className="block mx-auto mt-3 bg-none border-none text-[#555] cursor-pointer text-[0.85rem] hover:text-[#111] transition-colors"
                             >
-                                ← Change number
+                                ← Change phone number
                             </button>
                         </div>
                     </form>

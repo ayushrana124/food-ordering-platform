@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapPin, CreditCard, Banknote, FileText, Pizza, Check, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -69,7 +70,7 @@ export default function CheckoutPage() {
 
             if (paymentMethod === 'COD') {
                 clear();
-                toast.success('Order placed! 🍕 We\'re cooking your pizza.');
+                toast.success('Order placed! We\'re cooking your pizza.', { icon: <Pizza size={20} className="text-amber" /> });
                 navigate(`/order/${order._id}`);
                 return;
             }
@@ -92,7 +93,7 @@ export default function CheckoutPage() {
                             orderId: order._id,
                         });
                         clear();
-                        toast.success('Payment successful! 🍕');
+                        toast.success('Payment successful!', { icon: <Check size={20} className="text-green-500" /> });
                         navigate(`/order/${order._id}`);
                     } catch {
                         toast.error('Payment verification failed. Contact support.');
@@ -128,7 +129,10 @@ export default function CheckoutPage() {
 
                         {/* Delivery Address */}
                         <div className="card p-6">
-                            <h3 className="font-outfit font-bold mb-4">📍 Delivery Address</h3>
+                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2">
+                                <MapPin size={18} className="text-amber" />
+                                Delivery Address
+                            </h3>
                             {addresses.length === 0 ? (
                                 <p className="text-[#555] text-[0.9rem]">
                                     No addresses saved yet. Please add one from your Profile.
@@ -141,7 +145,7 @@ export default function CheckoutPage() {
                                             className="flex gap-[0.875rem] px-4 py-[0.875rem] rounded-[10px] cursor-pointer transition-all duration-150"
                                             style={{
                                                 border: `2px solid ${selectedAddr === addr._id ? '#D4920A' : '#D0CFC9'}`,
-                                                background: selectedAddr === addr._id ? '#FFF6DC' : 'white',
+                                                background: selectedAddr === addr._id ? 'var(--amber-light)' : 'white',
                                             }}
                                         >
                                             <input
@@ -172,7 +176,10 @@ export default function CheckoutPage() {
 
                         {/* Payment Method */}
                         <div className="card p-6">
-                            <h3 className="font-outfit font-bold mb-4">💳 Payment Method</h3>
+                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2">
+                                <CreditCard size={18} className="text-amber" />
+                                Payment Method
+                            </h3>
                             <div className="flex gap-3">
                                 {(['ONLINE', 'COD'] as const).map((m) => (
                                     <label
@@ -180,7 +187,7 @@ export default function CheckoutPage() {
                                         className="flex-1 flex items-center gap-[0.625rem] px-4 py-[0.875rem] rounded-[10px] cursor-pointer transition-all duration-150"
                                         style={{
                                             border: `2px solid ${paymentMethod === m ? '#D4920A' : '#D0CFC9'}`,
-                                            background: paymentMethod === m ? '#FFF6DC' : 'white',
+                                            background: paymentMethod === m ? 'var(--amber-light)' : 'white',
                                         }}
                                     >
                                         <input
@@ -192,7 +199,10 @@ export default function CheckoutPage() {
                                             className="accent-[#D4920A]"
                                         />
                                         <div>
-                                            <p className="font-bold text-[0.9rem]">{m === 'ONLINE' ? '💳 Online' : '💵 Cash on Delivery'}</p>
+                                            <p className="font-outfit font-bold text-[0.9rem] flex items-center gap-2">
+                                                {m === 'ONLINE' ? <CreditCard size={16} /> : <Banknote size={16} />}
+                                                {m === 'ONLINE' ? 'Online' : 'Cash on Delivery'}
+                                            </p>
                                             <p className="text-[0.75rem] text-[#9B9B9B]">{m === 'ONLINE' ? 'UPI, Cards, Net Banking' : 'Pay when delivered'}</p>
                                         </div>
                                     </label>
@@ -202,7 +212,10 @@ export default function CheckoutPage() {
 
                         {/* Special Instructions */}
                         <div className="card p-6">
-                            <h3 className="font-outfit font-bold mb-[0.875rem]">📝 Special Instructions</h3>
+                            <h3 className="font-outfit font-bold mb-[0.875rem] flex items-center gap-2">
+                                <FileText size={18} className="text-amber" />
+                                Special Instructions
+                            </h3>
                             <textarea
                                 className="input resize-y"
                                 rows={3}
@@ -244,11 +257,19 @@ export default function CheckoutPage() {
                         </div>
 
                         <button
-                            className="btn-primary w-full justify-center py-[0.875rem] text-base"
+                            className="btn-primary w-full justify-center py-[0.875rem] text-base flex items-center gap-2"
                             onClick={handlePlaceOrder}
                             disabled={loading || addresses.length === 0}
                         >
-                            {loading ? <LoadingSpinner size="sm" color="white" /> : paymentMethod === 'ONLINE' ? '💳 Pay ₹' + TOTAL : '🍕 Place Order'}
+                            {loading ? (
+                                <LoadingSpinner size="sm" color="white" />
+                            ) : (
+                                <>
+                                    {paymentMethod === 'ONLINE' ? <CreditCard size={18} /> : <Pizza size={18} />}
+                                    {paymentMethod === 'ONLINE' ? 'Pay ₹' + TOTAL : 'Place Order'}
+                                    <ArrowRight size={18} className="ml-1" />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

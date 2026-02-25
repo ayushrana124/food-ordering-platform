@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { User, MapPin, Package, LogOut, Trash2, Pizza } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -66,20 +67,20 @@ export default function ProfilePage() {
         } catch { toast.error('Failed to remove address'); }
     };
 
-    const tabs: { key: Tab; label: string; icon: string }[] = [
-        { key: 'profile', label: 'Profile', icon: '👤' },
-        { key: 'addresses', label: 'Addresses', icon: '📍' },
-        { key: 'orders', label: 'Orders', icon: '📦' },
+    const tabs: { key: Tab; label: string; icon: any }[] = [
+        { key: 'profile', label: 'Profile', icon: User },
+        { key: 'addresses', label: 'Addresses', icon: MapPin },
+        { key: 'orders', label: 'Orders', icon: Package },
     ];
 
     return (
-        <div className="min-h-screen bg-[#FAFAF8] page-enter">
+        <div className="min-h-screen bg-bg page-enter">
             <Navbar />
             <div className="container py-8 px-4 pb-16 max-w-[860px]">
 
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
-                    <div className="w-[60px] h-[60px] rounded-full bg-[#D4920A] text-white flex items-center justify-center text-[1.5rem] font-extrabold font-outfit flex-shrink-0">
+                    <div className="w-[60px] h-[60px] rounded-full bg-[#D4920A] text-white flex items-center justify-center text-[1.5rem] font-extrabold font-outfit shrink-0">
                         {(user?.name || user?.phone || '?')[0].toUpperCase()}
                     </div>
                     <div>
@@ -90,25 +91,26 @@ export default function ProfilePage() {
                     </div>
                     <button
                         onClick={signOut}
-                        className="ml-auto bg-none border-[1.5px] border-[#DC2626] text-[#DC2626] px-4 py-[0.4rem] rounded-full cursor-pointer font-semibold text-[0.875rem] hover:bg-[#FEF2F2] transition-colors"
+                        className="ml-auto bg-none border-[1.5px] border-[#DC2626] text-[#DC2626] px-4 py-[0.4rem] rounded-full cursor-pointer font-semibold text-[0.875rem] hover:bg-[#FEF2F2] transition-colors flex items-center gap-2"
                     >
+                        <LogOut size={16} />
                         Logout
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-2 mb-6 border-b border-[#EBEBEB]">
+                <div className="flex gap-2 mb-6 border-b border-border">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
                             onClick={() => setTab(t.key)}
-                            className="px-5 py-[0.625rem] border-none bg-none cursor-pointer font-semibold text-[0.9rem] transition-all duration-200 -mb-[1px]"
+                            className="px-5 py-[0.625rem] border-none bg-none cursor-pointer font-semibold text-[0.9rem] transition-all duration-200 -mb-[1px] flex items-center gap-2"
                             style={{
                                 color: tab === t.key ? '#D4920A' : '#555',
                                 borderBottom: `2px solid ${tab === t.key ? '#D4920A' : 'transparent'}`,
                             }}
                         >
-                            {t.icon} {t.label}
+                            <t.icon size={18} /> {t.label}
                         </button>
                     ))}
                 </div>
