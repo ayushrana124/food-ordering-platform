@@ -58,9 +58,13 @@ import { errorHandler } from './middleware/errorHandler';
 app.use(errorHandler);
 
 // 404 handler
-app.use((_req: Request, res: Response) => {
-    res.status(404).json({ message: 'Route not found' });
+app.use((req: Request, res: Response) => {
+    res.status(404).json({
+        success: false,
+        message: `Cannot ${req.method} ${req.originalUrl}`
+    });
 });
+
 
 const PORT = config.port;
 server.listen(PORT, () => {
