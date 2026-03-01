@@ -1,61 +1,41 @@
 import { Link } from 'react-router-dom';
-
-const PhoneIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-    </svg>
-);
-const MailIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-        <polyline points="22,6 12,13 2,6" />
-    </svg>
-);
-const MapPinIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-        <circle cx="12" cy="10" r="3" />
-    </svg>
-);
-const ClockIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-    </svg>
-);
+import { Phone, Mail, MapPin, Clock, ChefHat, ShieldCheck, FileText, RefreshCw } from 'lucide-react';
 
 export default function Footer() {
     const year = new Date().getFullYear();
+
     return (
-        <footer style={{ background: 'var(--dark)', color: 'rgba(255,255,255,0.65)', paddingTop: '3.5rem' }}>
+        <footer className="bg-[#F7F7F5] border-t border-[#EEEEEE] text-[#4A4A4A] pt-16">
             <div className="container">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-10 pb-12 border-b border-[#EEEEEE]">
 
                     {/* Brand */}
                     <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M2 12l10 10 10-10" />
-                            </svg>
-                            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: '1.15rem', color: '#fff', letterSpacing: '-0.02em' }}>
-                                Bunty<span style={{ color: 'var(--amber)' }}>Pizza</span>
+                        <Link to="/" className="flex items-center gap-[0.5rem] no-underline mb-4 group">
+                            <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E8A317] to-[#F0B429] flex items-center justify-center text-white transition-transform duration-300 group-hover:scale-110" style={{ boxShadow: '0 2px 8px rgba(232,163,23,0.2)' }}>
+                                <ChefHat size={16} />
                             </span>
-                        </div>
-                        <p style={{ fontSize: '0.82rem', lineHeight: 1.8, color: 'rgba(255,255,255,0.4)', maxWidth: 240 }}>
+                            <span className="font-outfit font-extrabold text-[1.1rem] text-[#0F0F0F] tracking-[-0.02em]">
+                                Bunty<span className="text-[#E8A317]">Pizza</span>
+                            </span>
+                        </Link>
+                        <p className="text-[0.85rem] leading-[1.8] text-[#8E8E8E] max-w-[240px]">
                             Crafted with love, delivered with speed. Your favourite pizza, always fresh.
                         </p>
                     </div>
 
                     {/* Quick Links */}
                     <div>
-                        <h4 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, color: 'var(--amber)', fontSize: '0.72rem', marginBottom: '1.1rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                        <h4 className="font-outfit font-bold text-[#0F0F0F] text-[0.72rem] mb-5 tracking-[0.14em] uppercase">
                             Quick Links
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                        <div className="flex flex-col gap-[0.65rem]">
                             {[{ to: '/', l: 'Home' }, { to: '/menu', l: 'Menu' }, { to: '/cart', l: 'Cart' }, { to: '/profile', l: 'My Account' }].map((i) => (
-                                <Link key={i.to} to={i.to} style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', transition: 'color 0.18s', textDecoration: 'none', fontFamily: "'Inter', sans-serif" }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--amber)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}>
+                                <Link
+                                    key={i.to}
+                                    to={i.to}
+                                    className="text-[#4A4A4A] text-[0.85rem] no-underline font-medium hover:text-[#E8A317] transition-colors duration-200"
+                                >
                                     {i.l}
                                 </Link>
                             ))}
@@ -64,17 +44,20 @@ export default function Footer() {
 
                     {/* Contact */}
                     <div>
-                        <h4 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, color: 'var(--amber)', fontSize: '0.72rem', marginBottom: '1.1rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                        <h4 className="font-outfit font-bold text-[#0F0F0F] text-[0.72rem] mb-5 tracking-[0.14em] uppercase">
                             Contact
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Inter', sans-serif" }}>
+                        <div className="flex flex-col gap-[0.7rem] text-[0.85rem] text-[#4A4A4A]">
                             {[
-                                { Icon: PhoneIcon, text: '+91 98765 43210' },
-                                { Icon: MailIcon, text: 'hello@buntypizza.com' },
-                                { Icon: MapPinIcon, text: '123 Pizza Lane, Mumbai' },
+                                { Icon: Phone, text: '+91 98765 43210' },
+                                { Icon: Mail, text: 'hello@buntypizza.com' },
+                                { Icon: MapPin, text: '123 Pizza Lane, Mumbai' },
                             ].map((c) => (
-                                <div key={c.text} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{ opacity: 0.6, flexShrink: 0 }}><c.Icon /></span> {c.text}
+                                <div key={c.text} className="flex items-center gap-[0.6rem]">
+                                    <span className="w-7 h-7 rounded-lg bg-[#FFFBF0] flex items-center justify-center text-[#E8A317] flex-shrink-0">
+                                        <c.Icon size={13} />
+                                    </span>
+                                    {c.text}
                                 </div>
                             ))}
                         </div>
@@ -82,18 +65,20 @@ export default function Footer() {
 
                     {/* Hours */}
                     <div>
-                        <h4 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, color: 'var(--amber)', fontSize: '0.72rem', marginBottom: '1.1rem', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                        <h4 className="font-outfit font-bold text-[#0F0F0F] text-[0.72rem] mb-5 tracking-[0.14em] uppercase">
                             Hours
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Inter', sans-serif" }}>
+                        <div className="flex flex-col gap-[0.6rem] text-[0.85rem] text-[#4A4A4A]">
                             {[
-                                { day: 'Mon – Fri', time: '11am – 11pm' },
-                                { day: 'Sat – Sun', time: '10am – 12am' },
+                                { day: 'Mon - Fri', time: '11am - 11pm' },
+                                { day: 'Sat - Sun', time: '10am - 12am' },
                             ].map((h) => (
-                                <div key={h.day} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                    <span style={{ opacity: .6 }}><ClockIcon /></span>
-                                    <span style={{ flex: 1 }}>{h.day}</span>
-                                    <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{h.time}</span>
+                                <div key={h.day} className="flex items-center gap-[0.5rem]">
+                                    <span className="w-7 h-7 rounded-lg bg-[#FFFBF0] flex items-center justify-center text-[#E8A317] flex-shrink-0">
+                                        <Clock size={13} />
+                                    </span>
+                                    <span className="flex-1">{h.day}</span>
+                                    <span className="text-[#0F0F0F] font-bold">{h.time}</span>
                                 </div>
                             ))}
                         </div>
@@ -101,16 +86,21 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom */}
-                <div style={{ padding: '1.25rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', fontFamily: "'Inter', sans-serif" }}>
+                <div className="py-5 flex justify-between items-center flex-wrap gap-3">
+                    <p className="text-[0.75rem] text-[#8E8E8E]">
                         &copy; {year} BuntyPizza. All rights reserved.
                     </p>
-                    <div style={{ display: 'flex', gap: '1.25rem' }}>
-                        {['Privacy', 'Terms', 'Refund'].map((t) => (
-                            <span key={t} style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", transition: 'color 0.18s' }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)'; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.25)'; }}>
-                                {t}
+                    <div className="flex gap-5">
+                        {[
+                            { label: 'Privacy', Icon: ShieldCheck },
+                            { label: 'Terms', Icon: FileText },
+                            { label: 'Refund', Icon: RefreshCw },
+                        ].map((t) => (
+                            <span
+                                key={t.label}
+                                className="flex items-center gap-[0.35rem] text-[0.75rem] text-[#8E8E8E] cursor-pointer hover:text-[#E8A317] transition-colors duration-200"
+                            >
+                                <t.Icon size={12} /> {t.label}
                             </span>
                         ))}
                     </div>

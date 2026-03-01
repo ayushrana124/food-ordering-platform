@@ -13,6 +13,16 @@ const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
 const OrderTrackingPage = lazy(() => import('@/pages/OrderTrackingPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 
+// Admin pages
+const AdminLogin = lazy(() => import('@/pages/admin/AdminLogin'));
+const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'));
+const AdminOrders = lazy(() => import('@/pages/admin/Orders'));
+const AdminMenuManagement = lazy(() => import('@/pages/admin/MenuManagement'));
+const AdminUsers = lazy(() => import('@/pages/admin/Users'));
+const AdminSettings = lazy(() => import('@/pages/admin/Settings'));
+
+import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
+
 // Protected route wrapper
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated } = useAuth();
@@ -67,8 +77,18 @@ export default function App() {
                         </PrivateRoute>
                     }
                 />
+
+                {/* Admin routes */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+                <Route path="/admin/orders" element={<AdminProtectedRoute><AdminOrders /></AdminProtectedRoute>} />
+                <Route path="/admin/menu" element={<AdminProtectedRoute><AdminMenuManagement /></AdminProtectedRoute>} />
+                <Route path="/admin/users" element={<AdminProtectedRoute><AdminUsers /></AdminProtectedRoute>} />
+                <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
+
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </Suspense>
     );
 }
+

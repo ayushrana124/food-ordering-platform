@@ -1,78 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ShoppingBag, User, Menu, X, FileText, LogOut, ChefHat } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
-
-/* ── Inline SVG icons ─────────────────────────────────────────────────────── */
-const LogoIcon = ({ size = 26 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 2C6.48 2 2 6.48 2 12" />
-        <path d="M12 2c3.31 0 6.19 1.65 8 4.17" />
-        <circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" />
-        <circle cx="14" cy="8" r="1" fill="currentColor" stroke="none" />
-        <circle cx="15" cy="13" r="0.9" fill="currentColor" stroke="none" />
-        <path d="M2 12l10 10 10-10" />
-    </svg>
-);
-
-const CartIcon = () => (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <path d="M16 10a4 4 0 0 1-8 0" />
-    </svg>
-);
-
-const UserIcon = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
-const BarsIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <line x1="3" y1="12" x2="21" y2="12" />
-        <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-);
-
-const CloseIcon = () => (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-);
-
-const OrdersIcon = () => (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
-    </svg>
-);
-
-const SignOutIcon = () => (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-        <polyline points="16 17 21 12 16 7" />
-        <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-);
-
-/* ── Shared style ─────────────────────────────────────────────────────────── */
-const iconBtnStyle: React.CSSProperties = {
-    position: 'relative',
-    width: 38, height: 38, borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'transparent',
-    border: '1.5px solid var(--border-strong)',
-    color: 'var(--text-2)',
-    cursor: 'pointer', flexShrink: 0,
-    transition: 'border-color 0.18s, background 0.18s, color 0.18s',
-};
 
 export default function Navbar() {
     const { itemCount } = useCart();
@@ -99,41 +29,42 @@ export default function Navbar() {
 
     return (
         <>
-            <nav style={{
-                position: 'sticky', top: 0, zIndex: 100,
-                background: 'rgba(250,250,248,0.97)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                borderBottom: scrolled ? '1px solid var(--border)' : '1px solid transparent',
-                boxShadow: scrolled ? '0 1px 16px rgba(0,0,0,0.05)' : 'none',
-                transition: 'border-color 0.25s, box-shadow 0.25s',
-            }}>
-                <div className="container" style={{ display: 'flex', alignItems: 'center', height: 62, gap: '0.5rem' }}>
+            <nav
+                className="sticky top-0 z-[100] transition-all duration-300"
+                style={{
+                    background: scrolled ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.97)',
+                    backdropFilter: 'blur(20px) saturate(1.2)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(1.2)',
+                    borderBottom: scrolled ? '1px solid #EEEEEE' : '1px solid transparent',
+                    boxShadow: scrolled ? '0 1px 20px rgba(0,0,0,0.04)' : 'none',
+                }}
+            >
+                <div className="container flex items-center h-[64px] gap-3">
 
                     {/* Logo */}
-                    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', textDecoration: 'none', flexShrink: 0, marginRight: '0.5rem' }}>
-                        <div style={{ color: 'var(--amber)', display: 'flex', alignItems: 'center' }}>
-                            <LogoIcon size={24} />
-                        </div>
-                        <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
-                            Bunty<span style={{ color: 'var(--amber)' }}>Pizza</span>
+                    <Link to="/" className="flex items-center gap-[0.5rem] no-underline shrink-0 mr-3 group">
+                        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#E8A317] to-[#F0B429] flex items-center justify-center text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-[-4deg]" style={{ boxShadow: '0 2px 10px rgba(232,163,23,0.25)' }}>
+                            <ChefHat size={20} />
+                        </span>
+                        <span className="font-outfit font-extrabold text-[1.15rem] text-[#0F0F0F] tracking-[-0.02em]">
+                            Bunty<span className="text-[#E8A317]">Pizza</span>
                         </span>
                     </Link>
 
                     {/* Desktop links */}
-                    <div className="hide-mobile" style={{ display: 'flex', gap: '0.1rem', flex: 1 }}>
+                    <div className="hide-mobile flex gap-[0.15rem] flex-1">
                         {navLinks.map((l) => (
-                            <Link key={l.to} to={l.to} style={{
-                                padding: '0.4rem 0.85rem', borderRadius: '6px',
-                                fontFamily: "'Inter', sans-serif",
-                                fontWeight: active(l.to) ? 700 : 500,
-                                fontSize: '0.875rem',
-                                color: active(l.to) ? 'var(--text-1)' : 'var(--text-2)',
-                                background: active(l.to) ? 'var(--amber-light)' : 'transparent',
-                                textDecoration: 'none', transition: 'all 0.18s',
-                            }}
-                                onMouseEnter={(e) => { if (!active(l.to)) e.currentTarget.style.color = 'var(--text-1)'; }}
-                                onMouseLeave={(e) => { if (!active(l.to)) e.currentTarget.style.color = 'var(--text-2)'; }}
+                            <Link
+                                key={l.to}
+                                to={l.to}
+                                className="relative px-4 py-[0.45rem] rounded-lg font-ui text-[0.875rem] no-underline transition-all duration-250"
+                                style={{
+                                    fontWeight: active(l.to) ? 700 : 500,
+                                    color: active(l.to) ? '#E8A317' : '#4A4A4A',
+                                    background: active(l.to) ? 'var(--amber-light)' : 'transparent',
+                                }}
+                                onMouseEnter={(e) => { if (!active(l.to)) { e.currentTarget.style.color = '#0F0F0F'; e.currentTarget.style.background = '#F7F7F5'; } }}
+                                onMouseLeave={(e) => { if (!active(l.to)) { e.currentTarget.style.color = '#4A4A4A'; e.currentTarget.style.background = 'transparent'; } }}
                             >
                                 {l.label}
                             </Link>
@@ -141,24 +72,21 @@ export default function Navbar() {
                     </div>
 
                     {/* Right icons */}
-                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <div className="ml-auto flex items-center gap-[0.5rem]">
 
                         {/* Cart */}
-                        <Link to="/cart" style={{ ...iconBtnStyle, textDecoration: 'none' }}
-                            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--amber)'; el.style.background = 'var(--amber-light)'; el.style.color = 'var(--amber)'; }}
-                            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-strong)'; el.style.background = 'transparent'; el.style.color = 'var(--text-2)'; }}
+                        <Link
+                            to="/cart"
+                            className="relative w-[40px] h-[40px] rounded-xl flex items-center justify-center bg-transparent border-[1.5px] border-[#E0E0DC] text-[#4A4A4A] no-underline shrink-0 transition-all duration-250"
+                            onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = '#E8A317'; el.style.background = '#FFFBF0'; el.style.color = '#E8A317'; el.style.boxShadow = '0 2px 10px rgba(232,163,23,0.12)'; }}
+                            onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = '#E0E0DC'; el.style.background = 'transparent'; el.style.color = '#4A4A4A'; el.style.boxShadow = 'none'; }}
                         >
-                            <CartIcon />
+                            <ShoppingBag size={18} />
                             {itemCount > 0 && (
-                                <span style={{
-                                    position: 'absolute', top: -4, right: -4,
-                                    background: 'var(--dark)', color: '#fff',
-                                    width: 16, height: 16, borderRadius: '50%',
-                                    fontSize: '0.58rem', fontWeight: 800,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '2px solid var(--bg)',
-                                    fontFamily: "'Inter', sans-serif",
-                                }}>
+                                <span
+                                    className="absolute -top-[5px] -right-[5px] min-w-[18px] h-[18px] rounded-full bg-[#E8A317] text-white text-[0.6rem] font-extrabold flex items-center justify-center border-2 border-white font-ui px-1"
+                                    style={{ animation: 'scaleIn 0.3s var(--ease-spring)' }}
+                                >
                                     {itemCount > 9 ? '9+' : itemCount}
                                 </span>
                             )}
@@ -166,69 +94,110 @@ export default function Navbar() {
 
                         {/* Auth */}
                         {isAuthenticated ? (
-                            <div style={{ position: 'relative' }}>
-                                <button onClick={() => setProfileOpen((p) => !p)} style={{
-                                    ...iconBtnStyle,
-                                    background: 'var(--amber-light)', borderColor: 'var(--amber-border)',
-                                    color: '#7a5a00', fontFamily: "'Inter', sans-serif",
-                                    fontWeight: 800, fontSize: '0.9rem',
-                                }}>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setProfileOpen((p) => !p)}
+                                    className="w-[40px] h-[40px] rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-all duration-250 font-ui font-extrabold text-[0.9rem]"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #FFFBF0, #FFE4A3)',
+                                        border: '1.5px solid #F0CA5A',
+                                        color: '#9A7209',
+                                    }}
+                                >
                                     {(user?.name || user?.phone || '?')[0].toUpperCase()}
                                 </button>
                                 {profileOpen && (
-                                    <div style={{ position: 'absolute', top: 46, right: 0, background: 'var(--surface)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)', minWidth: 175, zIndex: 200, overflow: 'hidden' }}>
+                                    <div
+                                        className="absolute top-[48px] right-0 bg-white rounded-2xl border border-[#EEEEEE] min-w-[190px] z-200 overflow-hidden"
+                                        style={{
+                                            boxShadow: '0 8px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)',
+                                            animation: 'slideDown 0.2s var(--ease-spring)',
+                                        }}
+                                    >
                                         {[
-                                            { to: '/profile', Icon: UserIcon, label: 'My Profile' },
-                                            { to: '/profile?tab=orders', Icon: OrdersIcon, label: 'My Orders' },
+                                            { to: '/profile', Icon: User, label: 'My Profile' },
+                                            { to: '/profile?tab=orders', Icon: FileText, label: 'My Orders' },
                                         ].map((item) => (
-                                            <Link key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.8rem 1rem', fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-1)', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}
-                                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-alt)'; }}
-                                                onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
-                                                <item.Icon /> {item.label}
+                                            <Link
+                                                key={item.to}
+                                                to={item.to}
+                                                className="flex items-center gap-[0.6rem] px-5 py-[0.85rem] text-[0.84rem] font-semibold text-[#0F0F0F] border-b border-[#EEEEEE] no-underline hover:bg-[#F7F7F5] transition-colors duration-150"
+                                            >
+                                                <item.Icon size={16} className="text-[#8E8E8E]" /> {item.label}
                                             </Link>
                                         ))}
-                                        <button onClick={signOut} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.8rem 1rem', fontSize: '0.83rem', fontWeight: 600, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer' }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.background = '#FFF1F2'; }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
-                                            <SignOutIcon /> Sign Out
+                                        <button
+                                            onClick={signOut}
+                                            className="w-full flex items-center gap-[0.6rem] px-5 py-[0.85rem] text-[0.84rem] font-semibold text-[#DC2626] bg-none border-none cursor-pointer hover:bg-[#FEF2F2] transition-colors duration-150"
+                                        >
+                                            <LogOut size={16} /> Sign Out
                                         </button>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            <button onClick={() => navigate('/login')} style={{ ...iconBtnStyle }} title="Sign In"
-                                onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = 'var(--amber)'; el.style.background = 'var(--amber-light)'; el.style.color = 'var(--amber)'; }}
-                                onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = 'var(--border-strong)'; el.style.background = 'transparent'; el.style.color = 'var(--text-2)'; }}
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="w-[40px] h-[40px] rounded-xl flex items-center justify-center bg-transparent border-[1.5px] border-[#E0E0DC] text-[#4A4A4A] shrink-0 transition-all duration-250"
+                                title="Sign In"
+                                onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = '#E8A317'; el.style.background = '#FFFBF0'; el.style.color = '#E8A317'; }}
+                                onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = '#E0E0DC'; el.style.background = 'transparent'; el.style.color = '#4A4A4A'; }}
                             >
-                                <UserIcon />
+                                <User size={18} />
                             </button>
                         )}
 
                         {/* Hamburger (mobile) */}
-                        <button className="hide-desktop" onClick={() => setMenuOpen((o) => !o)} style={{ ...iconBtnStyle }} aria-label="Menu">
-                            {menuOpen ? <CloseIcon /> : <BarsIcon />}
+                        <button
+                            className="w-[40px] h-[40px] rounded-xl flex items-center justify-center bg-transparent border-[1.5px] border-[#E0E0DC] text-[#4A4A4A] shrink-0 transition-all duration-250 hide-desktop"
+                            onClick={() => setMenuOpen((o) => !o)}
+                            aria-label="Menu"
+                        >
+                            {menuOpen ? <X size={18} /> : <Menu size={20} />}
                         </button>
                     </div>
                 </div>
 
                 {/* Mobile dropdown */}
                 {menuOpen && (
-                    <div style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '0.5rem clamp(1rem,4vw,2rem) 1rem' }}>
+                    <div
+                        className="bg-white border-t border-[#EEEEEE] py-2 px-[clamp(1rem,4vw,2rem)]"
+                        style={{ animation: 'slideDown 0.2s var(--ease-spring)' }}
+                    >
                         {navLinks.map((l) => (
-                            <Link key={l.to} to={l.to} style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 0.5rem', fontFamily: "'Inter', sans-serif", fontWeight: active(l.to) ? 700 : 500, fontSize: '0.95rem', color: active(l.to) ? 'var(--amber)' : 'var(--text-1)', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}>
+                            <Link
+                                key={l.to}
+                                to={l.to}
+                                className="flex items-center py-3 px-3 font-ui text-[0.95rem] border-b border-[#EEEEEE] no-underline rounded-lg transition-colors duration-150"
+                                style={{
+                                    fontWeight: active(l.to) ? 700 : 500,
+                                    color: active(l.to) ? '#E8A317' : '#0F0F0F',
+                                    background: active(l.to) ? '#FFFBF0' : 'transparent',
+                                }}
+                            >
                                 {l.label}
                             </Link>
                         ))}
                         {!isAuthenticated && (
-                            <button onClick={() => { navigate('/login'); setMenuOpen(false); }} style={{ marginTop: '0.75rem', width: '100%', padding: '0.7rem', borderRadius: 'var(--r-md)', background: 'var(--amber-light)', border: '1.5px solid var(--amber-border)', color: '#7a5a00', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', fontFamily: "'Inter', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                <UserIcon /> Sign In
+                            <button
+                                onClick={() => { navigate('/login'); setMenuOpen(false); }}
+                                className="mt-3 w-full py-[0.75rem] rounded-xl font-bold text-[0.875rem] cursor-pointer font-ui flex items-center justify-center gap-2 transition-colors duration-150"
+                                style={{
+                                    background: 'linear-gradient(135deg, #FFFBF0, #FFE4A3)',
+                                    border: '1.5px solid #F0CA5A',
+                                    color: '#9A7209',
+                                }}
+                            >
+                                <User size={18} /> Sign In
                             </button>
                         )}
                     </div>
                 )}
             </nav>
 
-            {profileOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setProfileOpen(false)} />}
+            {profileOpen && (
+                <div className="fixed inset-0 z-199" onClick={() => setProfileOpen(false)} />
+            )}
         </>
     );
 }

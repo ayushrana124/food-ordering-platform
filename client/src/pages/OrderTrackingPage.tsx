@@ -1,5 +1,9 @@
 import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import {
+    ClipboardList, CheckCircle2, UtensilsCrossed, Bike, Home,
+    XCircle, Pizza, MapPin, Check, ArrowRight
+} from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
@@ -10,14 +14,14 @@ import type { RootState } from '@/redux/store';
 import type { IOrderItem } from '@/types';
 import { orderService } from '@/services/orderService';
 
-type StatusStep = { key: string; label: string; icon: string };
+type StatusStep = { key: string; label: string; icon: any };
 
 const STATUS_STEPS: StatusStep[] = [
-    { key: 'PENDING', label: 'Order Placed', icon: '📋' },
-    { key: 'ACCEPTED', label: 'Accepted', icon: '✅' },
-    { key: 'PREPARING', label: 'Preparing', icon: '👨‍🍳' },
-    { key: 'OUT_FOR_DELIVERY', label: 'On the Way', icon: '🛵' },
-    { key: 'DELIVERED', label: 'Delivered', icon: '🏠' },
+    { key: 'PENDING', label: 'Order Placed', icon: ClipboardList },
+    { key: 'ACCEPTED', label: 'Accepted', icon: CheckCircle2 },
+    { key: 'PREPARING', label: 'Preparing', icon: UtensilsCrossed },
+    { key: 'OUT_FOR_DELIVERY', label: 'On the Way', icon: Bike },
+    { key: 'DELIVERED', label: 'Delivered', icon: Home },
 ];
 
 export default function OrderTrackingPage() {
@@ -37,9 +41,9 @@ export default function OrderTrackingPage() {
 
     if (loading || !currentOrder) {
         return (
-            <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
+            <div className="min-h-screen bg-white">
                 <Navbar />
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '6rem 0' }}>
+                <div className="flex justify-center py-24">
                     <LoadingSpinner size="lg" />
                 </div>
             </div>
@@ -50,39 +54,62 @@ export default function OrderTrackingPage() {
     const isCancelled = currentOrder.status === 'CANCELLED';
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }} className="page-enter">
+        <div className="min-h-screen bg-white page-enter">
             <Navbar />
-            <div className="container" style={{ padding: '2rem 1rem 4rem', maxWidth: 640 }}>
+            <div className="container py-8 px-4 pb-16 max-w-[660px]">
 
                 {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
-                        {isCancelled ? '❌' : currentOrder.status === 'DELIVERED' ? '🎉' : '🍕'}
+                <div className="text-center mb-10">
+                    <div className="flex justify-center mb-5">
+                        <div
+                            className="w-20 h-20 rounded-2xl flex items-center justify-center"
+                            style={{
+                                background: isCancelled ? '#FEF2F2' : currentOrder.status === 'DELIVERED' ? '#F0FDF4' : '#FFFBF0',
+                                color: isCancelled ? '#DC2626' : currentOrder.status === 'DELIVERED' ? '#16A34A' : '#E8A317',
+                                boxShadow: isCancelled ? '0 4px 16px rgba(220,38,38,0.1)' : currentOrder.status === 'DELIVERED' ? '0 4px 16px rgba(22,163,74,0.1)' : '0 4px 16px rgba(232,163,23,0.1)',
+                            }}
+                        >
+                            {isCancelled ? (
+                                <XCircle size={38} />
+                            ) : currentOrder.status === 'DELIVERED' ? (
+                                <CheckCircle2 size={38} />
+                            ) : (
+                                <Pizza size={38} />
+                            )}
+                        </div>
                     </div>
-                    <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: '0.25rem' }}>
+                    <h1 className="font-outfit font-extrabold text-[clamp(1.5rem,4vw,2rem)] mb-1 tracking-[-0.02em]">
                         {isCancelled ? 'Order Cancelled' : currentOrder.status === 'DELIVERED' ? 'Enjoy your meal!' : 'Your pizza is on the way!'}
                     </h1>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Order ID: #{currentOrder.orderId}</p>
+                    <p className="text-[#8E8E8E] text-[0.9rem]">Order ID: #{currentOrder.orderId}</p>
                 </div>
 
                 {/* Status Stepper */}
                 {!isCancelled && (
-                    <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, marginBottom: '1.5rem' }}>Order Status</h3>
-                        <div style={{ display: 'flex', position: 'relative' }}>
+                    <div className="card p-7 mb-6">
+                        <h3 className="font-outfit font-bold mb-6">Order Status</h3>
+                        <div className="flex relative">
                             {STATUS_STEPS.map((step, idx) => {
                                 const isDone = idx < currentStepIdx;
                                 const isActive = idx === currentStepIdx;
                                 return (
                                     <div key={step.key} className="status-step">
-                                        {/* Connector line */}
                                         {idx < STATUS_STEPS.length - 1 && (
                                             <div className={`status-step-line${isDone ? ' done' : ''}`} />
                                         )}
-                                        <div className={`status-step-dot${isActive ? ' active' : isDone ? ' done' : ''}`} style={{ zIndex: 1 }}>
-                                            {isDone ? '✓' : step.icon.slice(0, 2)}
+                                        <div
+                                            className={`status-step-dot${isActive ? ' active' : isDone ? ' done' : ''}`}
+                                            style={{ zIndex: 1 }}
+                                        >
+                                            {isDone ? <Check size={14} /> : <step.icon size={14} />}
                                         </div>
-                                        <span style={{ fontSize: '0.65rem', textAlign: 'center', color: isActive ? 'var(--color-accent)' : isDone ? 'var(--color-success)' : 'var(--color-text-muted)', fontWeight: isActive ? 700 : 500, marginTop: '0.35rem', lineHeight: 1.3 }}>
+                                        <span
+                                            className="text-[0.65rem] text-center mt-[0.4rem] leading-[1.3] font-medium"
+                                            style={{
+                                                color: isActive ? '#E8A317' : isDone ? '#16A34A' : '#8E8E8E',
+                                                fontWeight: isActive ? 700 : 500,
+                                            }}
+                                        >
                                             {step.label}
                                         </span>
                                     </div>
@@ -93,53 +120,58 @@ export default function OrderTrackingPage() {
                 )}
 
                 {/* Order Details */}
-                <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, marginBottom: '1rem' }}>Order Details</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div className="card p-7 mb-6">
+                    <h3 className="font-outfit font-bold mb-4">Order Details</h3>
+                    <div className="flex flex-col gap-[0.6rem]">
                         {currentOrder.items.map((item: IOrderItem, i: number) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>{item.name} × {item.quantity}</span>
-                                <span style={{ fontWeight: 600 }}>₹{item.price * item.quantity}</span>
+                            <div key={i} className="flex justify-between text-[0.9rem]">
+                                <span className="text-[#4A4A4A]">{item.name} × {item.quantity}</span>
+                                <span className="font-semibold">₹{item.price * item.quantity}</span>
                             </div>
                         ))}
                     </div>
                     <div className="divider" />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Subtotal</span>
+                    <div className="flex flex-col gap-2 mt-3">
+                        <div className="flex justify-between text-[0.875rem]">
+                            <span className="text-[#4A4A4A]">Subtotal</span>
                             <span>₹{currentOrder.subtotal}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Delivery</span>
+                        <div className="flex justify-between text-[0.875rem]">
+                            <span className="text-[#4A4A4A]">Delivery</span>
                             <span>₹{currentOrder.deliveryCharges}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Taxes</span>
+                        <div className="flex justify-between text-[0.875rem]">
+                            <span className="text-[#4A4A4A]">Taxes</span>
                             <span>₹{currentOrder.taxes}</span>
                         </div>
-                        <div className="divider" style={{ margin: '0.25rem 0' }} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.05rem' }}>
+                        <div className="divider my-1" />
+                        <div className="flex justify-between font-outfit font-extrabold text-[1.1rem]">
                             <span>Total</span>
-                            <span style={{ color: 'var(--color-accent)' }}>₹{currentOrder.total}</span>
+                            <span className="text-[#E8A317]">₹{currentOrder.total}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Delivery Address */}
-                <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>📍 Delivering to</h3>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{currentOrder.deliveryAddress.addressLine}</p>
+                <div className="card p-6 mb-6">
+                    <h3 className="font-outfit font-bold text-[0.95rem] mb-2 flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-lg bg-[#FFFBF0] flex items-center justify-center text-[#E8A317]">
+                            <MapPin size={16} />
+                        </span>
+                        Delivering to
+                    </h3>
+                    <p className="text-[0.875rem] text-[#4A4A4A] ml-[42px]">{currentOrder.deliveryAddress.addressLine}</p>
                     {currentOrder.deliveryAddress.landmark && (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Near {currentOrder.deliveryAddress.landmark}</p>
+                        <p className="text-[0.8rem] text-[#8E8E8E] ml-[42px]">Near {currentOrder.deliveryAddress.landmark}</p>
                     )}
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <Link to="/menu" className="btn-primary" style={{ flex: 1, justifyContent: 'center', textDecoration: 'none', minWidth: 160 }}>
-                        Order Again 🍕
+                <div className="flex gap-4 flex-wrap">
+                    <Link to="/menu" className="btn-primary flex-1 justify-center no-underline min-w-[160px] flex items-center gap-2 group">
+                        Order Again <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                     </Link>
-                    <Link to="/profile?tab=orders" className="btn-outline" style={{ flex: 1, justifyContent: 'center', textDecoration: 'none', minWidth: 160 }}>
+                    <Link to="/profile?tab=orders" className="btn-outline flex-1 justify-center no-underline min-w-[160px]">
                         All Orders
                     </Link>
                 </div>

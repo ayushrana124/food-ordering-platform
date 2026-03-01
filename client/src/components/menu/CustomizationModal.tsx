@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import type { IMenuItem, IMenuItemCustomization } from '@/types';
 import toast from 'react-hot-toast';
@@ -39,59 +40,64 @@ export default function CustomizationModal({ item, onClose }: CustomizationModal
     return (
         <div
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
             style={{
-                position: 'fixed', inset: 0, zIndex: 1000,
-                background: 'rgba(28,28,30,0.55)',
-                backdropFilter: 'blur(4px)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '1rem',
+                background: 'rgba(15,15,15,0.5)',
+                backdropFilter: 'blur(6px)',
+                animation: 'fadeIn 0.2s ease',
             }}
         >
-            <div style={{
-                background: 'white', borderRadius: 'var(--radius-xl)',
-                padding: '1.5rem', width: '100%', maxWidth: 400,
-                boxShadow: 'var(--shadow-lg)', animation: 'slideUp 0.25s ease',
-            }}>
-                <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }`}</style>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+            <div
+                className="bg-white rounded-[24px] p-7 w-full max-w-[420px] relative"
+                style={{
+                    boxShadow: '0 16px 48px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06)',
+                    animation: 'slideUp 0.25s var(--ease-spring)',
+                }}
+            >
+                {/* Header */}
+                <div className="flex justify-between items-start mb-5">
                     <div>
-                        <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '1.2rem' }}>{item.name}</h3>
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>Choose add-ons</p>
+                        <h3 className="font-outfit font-bold text-[1.2rem] text-[#0F0F0F]">{item.name}</h3>
+                        <p className="text-[#8E8E8E] text-[0.85rem]">Choose add-ons</p>
                     </div>
-                    <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: '1.1rem', cursor: 'pointer', color: 'var(--color-text-secondary)' }}>✕</button>
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white cursor-pointer flex items-center justify-center text-[#4A4A4A] transition-colors hover:bg-[#F7F7F5]"
+                    >
+                        <X size={16} />
+                    </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.25rem' }}>
+                {/* Options */}
+                <div className="flex flex-col gap-[0.6rem] mb-6">
                     {item.customizations.map((c) => {
                         const isSelected = selected.some((s) => s.name === c.name);
                         return (
-                            <label key={c.name} style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)',
-                                border: `1.5px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
-                                background: isSelected ? 'var(--color-accent-light)' : 'white',
-                                cursor: 'pointer', transition: 'all 0.15s ease',
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <label
+                                key={c.name}
+                                className="flex items-center justify-between px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200"
+                                style={{
+                                    border: `1.5px solid ${isSelected ? '#E8A317' : '#E0E0DC'}`,
+                                    background: isSelected ? '#FFFBF0' : 'white',
+                                }}
+                            >
+                                <div className="flex items-center gap-3">
                                     <input
                                         type="checkbox"
                                         checked={isSelected}
                                         onChange={() => toggleCustomization(c)}
-                                        style={{ width: 16, height: 16, accentColor: 'var(--color-accent)' }}
+                                        className="w-4 h-4 accent-[#E8A317]"
                                     />
-                                    <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>{c.name}</span>
+                                    <span className="font-medium text-[0.9rem] text-[#0F0F0F]">{c.name}</span>
                                 </div>
-                                <span style={{ fontWeight: 700, color: 'var(--color-accent)', fontSize: '0.9rem' }}>+₹{c.price}</span>
+                                <span className="font-bold text-[#E8A317] text-[0.9rem]">+₹{c.price}</span>
                             </label>
                         );
                     })}
                 </div>
 
                 <button
-                    className="btn-primary"
-                    style={{ width: '100%', justifyContent: 'center', fontSize: '1rem' }}
+                    className="btn-primary w-full justify-center text-base py-3"
                     onClick={handleAdd}
                 >
                     Add to Cart — ₹{totalPrice}

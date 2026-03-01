@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapPin, CreditCard, Banknote, FileText, Pizza, Check, ArrowRight, ShieldCheck } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -42,7 +43,6 @@ export default function CheckoutPage() {
             setAddresses(u.addresses);
             setSelectedAddr(u.addresses.find((a) => a.isDefault)?._id ?? u.addresses[0]?._id ?? '');
         }).catch(() => { });
-        // Load Razorpay script
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
@@ -70,12 +70,11 @@ export default function CheckoutPage() {
 
             if (paymentMethod === 'COD') {
                 clear();
-                toast.success('Order placed! 🍕 We\'re cooking your pizza.');
+                toast.success('Order placed! We\'re cooking your pizza.');
                 navigate(`/order/${order._id}`);
                 return;
             }
 
-            // Online payment
             const paymentOrder = await paymentService.createPaymentOrder(order._id);
 
             const rzp = new window.Razorpay({
@@ -94,14 +93,14 @@ export default function CheckoutPage() {
                             orderId: order._id,
                         });
                         clear();
-                        toast.success('Payment successful! 🍕');
+                        toast.success('Payment successful!');
                         navigate(`/order/${order._id}`);
                     } catch {
                         toast.error('Payment verification failed. Contact support.');
                     }
                 },
                 prefill: { name: user?.name ?? '', contact: user?.phone ?? '' },
-                theme: { color: '#E63946' },
+                theme: { color: '#E8A317' },
             });
             rzp.open();
         } catch (err: unknown) {
@@ -115,126 +114,169 @@ export default function CheckoutPage() {
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }} className="page-enter">
+        <div className="min-h-screen bg-white page-enter">
             <Navbar />
-            <div className="container" style={{ padding: '2rem 1rem 4rem' }}>
-                <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: '1.75rem' }}>
+            <div className="container py-8 px-4 pb-16">
+                <h1 className="font-outfit font-extrabold text-[clamp(1.6rem,4vw,2.2rem)] mb-8 tracking-[-0.02em]">
                     Checkout
                 </h1>
 
-                <div style={{ display: 'grid', gap: '1.5rem' }}>
-                    <style>{`@media(min-width:900px){ .checkout-grid { grid-template-columns: 1fr 380px !important; } }`}</style>
-                    <div className="checkout-grid" style={{ display: 'grid', gap: '1.5rem' }}>
+                {/* 2-col on md+ */}
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-7">
 
-                        {/* Left: Address + Payment */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                            {/* Addresses */}
-                            <div className="card" style={{ padding: '1.5rem' }}>
-                                <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, marginBottom: '1rem' }}>📍 Delivery Address</h3>
-                                {addresses.length === 0 ? (
-                                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                                        No addresses saved yet. Please add one from your Profile.
-                                    </p>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        {addresses.map((addr) => (
-                                            <label key={addr._id} style={{
-                                                display: 'flex', gap: '0.875rem',
-                                                padding: '0.875rem 1rem',
-                                                borderRadius: 'var(--radius-md)',
-                                                border: `2px solid ${selectedAddr === addr._id ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
-                                                background: selectedAddr === addr._id ? 'var(--color-accent-light)' : 'white',
-                                                cursor: 'pointer', transition: 'all 0.15s',
-                                            }}>
-                                                <input type="radio" name="addr" value={addr._id} checked={selectedAddr === addr._id} onChange={() => setSelectedAddr(addr._id)} style={{ accentColor: 'var(--color-accent)', marginTop: 2 }} />
-                                                <div>
-                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.2rem' }}>
-                                                        <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{addr.label}</span>
-                                                        {addr.isDefault && <span style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', fontSize: '0.7rem', fontWeight: 600, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-sm)' }}>Default</span>}
-                                                    </div>
-                                                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{addr.addressLine}</p>
-                                                    {addr.landmark && <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Near {addr.landmark}</p>}
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                    {/* Left: Address + Payment */}
+                    <div className="flex flex-col gap-6">
 
-                            {/* Payment Method */}
-                            <div className="card" style={{ padding: '1.5rem' }}>
-                                <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, marginBottom: '1rem' }}>💳 Payment Method</h3>
-                                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                    {(['ONLINE', 'COD'] as const).map((m) => (
-                                        <label key={m} style={{
-                                            flex: 1, display: 'flex', alignItems: 'center', gap: '0.625rem',
-                                            padding: '0.875rem 1rem',
-                                            borderRadius: 'var(--radius-md)',
-                                            border: `2px solid ${paymentMethod === m ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
-                                            background: paymentMethod === m ? 'var(--color-accent-light)' : 'white',
-                                            cursor: 'pointer', transition: 'all 0.15s',
-                                        }}>
-                                            <input type="radio" name="payment" value={m} checked={paymentMethod === m} onChange={() => setPaymentMethod(m)} style={{ accentColor: 'var(--color-accent)' }} />
+                        {/* Delivery Address */}
+                        <div className="card p-7">
+                            <h3 className="font-outfit font-bold mb-5 flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl bg-[#FFFBF0] flex items-center justify-center text-[#E8A317]">
+                                    <MapPin size={18} />
+                                </span>
+                                Delivery Address
+                            </h3>
+                            {addresses.length === 0 ? (
+                                <p className="text-[#4A4A4A] text-[0.9rem]">
+                                    No addresses saved yet. Please add one from your Profile.
+                                </p>
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    {addresses.map((addr) => (
+                                        <label
+                                            key={addr._id}
+                                            className="flex gap-4 px-5 py-4 rounded-xl cursor-pointer transition-all duration-200"
+                                            style={{
+                                                border: `2px solid ${selectedAddr === addr._id ? '#E8A317' : '#E0E0DC'}`,
+                                                background: selectedAddr === addr._id ? '#FFFBF0' : 'white',
+                                            }}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="addr"
+                                                value={addr._id}
+                                                checked={selectedAddr === addr._id}
+                                                onChange={() => setSelectedAddr(addr._id)}
+                                                className="accent-[#E8A317] mt-[2px]"
+                                            />
                                             <div>
-                                                <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{m === 'ONLINE' ? '💳 Online' : '💵 Cash on Delivery'}</p>
-                                                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{m === 'ONLINE' ? 'UPI, Cards, Net Banking' : 'Pay when delivered'}</p>
+                                                <div className="flex gap-2 items-center mb-[0.2rem]">
+                                                    <span className="font-bold text-[0.875rem]">{addr.label}</span>
+                                                    {addr.isDefault && (
+                                                        <span className="bg-[#DCFCE7] text-[#16A34A] text-[0.7rem] font-semibold px-2 py-[0.15rem] rounded-md">
+                                                            Default
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[0.875rem] text-[#4A4A4A]">{addr.addressLine}</p>
+                                                {addr.landmark && <p className="text-[0.8rem] text-[#8E8E8E]">Near {addr.landmark}</p>}
                                             </div>
                                         </label>
                                     ))}
                                 </div>
-                            </div>
-
-                            {/* Special instructions */}
-                            <div className="card" style={{ padding: '1.5rem' }}>
-                                <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, marginBottom: '0.875rem' }}>📝 Special Instructions</h3>
-                                <textarea
-                                    className="input"
-                                    rows={3}
-                                    placeholder="Extra cheese, no onions, ring the bell..."
-                                    value={specialInstructions}
-                                    onChange={(e) => setSpecialInstructions(e.target.value)}
-                                    style={{ resize: 'vertical' }}
-                                />
-                            </div>
+                            )}
                         </div>
 
-                        {/* Right: Summary */}
-                        <div className="card" style={{ padding: '1.5rem', height: 'fit-content', position: 'sticky', top: 80 }}>
-                            <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, marginBottom: '1rem' }}>Order Summary</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                                {items.map((i: ICartItem) => (
-                                    <div key={i.cartId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                                        <span>{i.name} × {i.quantity}</span>
-                                        <span style={{ fontWeight: 600 }}>₹{(i.price + i.selectedCustomizations.reduce((s: number, c: IMenuItemCustomization) => s + c.price, 0)) * i.quantity}</span>
-                                    </div>
+                        {/* Payment Method */}
+                        <div className="card p-7">
+                            <h3 className="font-outfit font-bold mb-5 flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
+                                    <CreditCard size={18} />
+                                </span>
+                                Payment Method
+                            </h3>
+                            <div className="flex gap-3">
+                                {(['ONLINE', 'COD'] as const).map((m) => (
+                                    <label
+                                        key={m}
+                                        className="flex-1 flex items-center gap-3 px-5 py-4 rounded-xl cursor-pointer transition-all duration-200"
+                                        style={{
+                                            border: `2px solid ${paymentMethod === m ? '#E8A317' : '#E0E0DC'}`,
+                                            background: paymentMethod === m ? '#FFFBF0' : 'white',
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="payment"
+                                            value={m}
+                                            checked={paymentMethod === m}
+                                            onChange={() => setPaymentMethod(m)}
+                                            className="accent-[#E8A317]"
+                                        />
+                                        <div>
+                                            <p className="font-outfit font-bold text-[0.9rem] flex items-center gap-2">
+                                                {m === 'ONLINE' ? <CreditCard size={16} className="text-[#2563EB]" /> : <Banknote size={16} className="text-[#16A34A]" />}
+                                                {m === 'ONLINE' ? 'Online' : 'Cash on Delivery'}
+                                            </p>
+                                            <p className="text-[0.75rem] text-[#8E8E8E]">{m === 'ONLINE' ? 'UPI, Cards, Net Banking' : 'Pay when delivered'}</p>
+                                        </div>
+                                    </label>
                                 ))}
                             </div>
-                            <div className="divider" />
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', margin: '0.75rem 0' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Delivery</span>
-                                    <span style={{ fontWeight: 600, color: DELIVERY === 0 ? 'var(--color-success)' : '' }}>{DELIVERY === 0 ? 'FREE' : `₹${DELIVERY}`}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Taxes</span>
-                                    <span style={{ fontWeight: 600 }}>₹{TAX}</span>
-                                </div>
-                            </div>
-                            <div className="divider" />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '0.75rem 0 1.5rem' }}>
-                                <span style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.1rem' }}>Total</span>
-                                <span style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.1rem', color: 'var(--color-accent)' }}>₹{TOTAL}</span>
-                            </div>
-
-                            <button
-                                className="btn-primary"
-                                style={{ width: '100%', justifyContent: 'center', padding: '0.875rem', fontSize: '1rem' }}
-                                onClick={handlePlaceOrder}
-                                disabled={loading || addresses.length === 0}
-                            >
-                                {loading ? <LoadingSpinner size="sm" color="white" /> : paymentMethod === 'ONLINE' ? '💳 Pay ₹' + TOTAL : '🍕 Place Order'}
-                            </button>
                         </div>
+
+                        {/* Special Instructions */}
+                        <div className="card p-7">
+                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl bg-[#F5F3FF] flex items-center justify-center text-[#7C3AED]">
+                                    <FileText size={18} />
+                                </span>
+                                Special Instructions
+                            </h3>
+                            <textarea
+                                className="input resize-y"
+                                rows={3}
+                                placeholder="Extra cheese, no onions, ring the bell..."
+                                value={specialInstructions}
+                                onChange={(e) => setSpecialInstructions(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Right: Summary */}
+                    <div className="card p-7 h-fit sticky top-20">
+                        <h3 className="font-outfit font-bold mb-5">Order Summary</h3>
+                        <div className="flex flex-col gap-2.5 mb-4">
+                            {items.map((i: ICartItem) => (
+                                <div key={i.cartId} className="flex justify-between text-[0.875rem] text-[#4A4A4A]">
+                                    <span>{i.name} × {i.quantity}</span>
+                                    <span className="font-semibold">₹{(i.price + i.selectedCustomizations.reduce((s: number, c: IMenuItemCustomization) => s + c.price, 0)) * i.quantity}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="divider" />
+                        <div className="flex flex-col gap-[0.6rem] my-3">
+                            <div className="flex justify-between text-[0.875rem]">
+                                <span className="text-[#4A4A4A]">Delivery</span>
+                                <span className={`font-semibold ${DELIVERY === 0 ? 'text-[#16A34A]' : ''}`}>
+                                    {DELIVERY === 0 ? 'FREE' : `₹${DELIVERY}`}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-[0.875rem]">
+                                <span className="text-[#4A4A4A]">Taxes</span>
+                                <span className="font-semibold">₹{TAX}</span>
+                            </div>
+                        </div>
+                        <div className="divider" />
+                        <div className="flex justify-between mt-3 mb-6">
+                            <span className="font-outfit font-extrabold text-[1.15rem]">Total</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{TOTAL}</span>
+                        </div>
+
+                        <button
+                            className="btn-primary w-full justify-center py-[0.9rem] text-base flex items-center gap-2"
+                            onClick={handlePlaceOrder}
+                            disabled={loading || addresses.length === 0}
+                        >
+                            {loading ? (
+                                <LoadingSpinner size="sm" color="white" />
+                            ) : (
+                                <>
+                                    <ShieldCheck size={18} />
+                                    {paymentMethod === 'ONLINE' ? 'Pay ₹' + TOTAL : 'Place Order'}
+                                    <ArrowRight size={18} className="ml-1" />
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>

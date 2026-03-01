@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { ChefHat, X, ArrowRight, CheckCircle2, Timer, Smartphone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import toast from 'react-hot-toast';
@@ -19,14 +20,12 @@ export default function LoginModal({ onClose }: LoginModalProps) {
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
-    // Close on Escape key
     useEffect(() => {
         const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
     }, [onClose]);
 
-    // Prevent background scroll
     useEffect(() => {
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
@@ -36,10 +35,7 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         setCountdown(30);
         timerRef.current = setInterval(() => {
             setCountdown((p) => {
-                if (p <= 1) {
-                    clearInterval(timerRef.current!);
-                    return 0;
-                }
+                if (p <= 1) { clearInterval(timerRef.current!); return 0; }
                 return p - 1;
             });
         }, 1000);
@@ -77,7 +73,7 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         try {
             const res = await authService.verifyOTP(phone, otp);
             login(res.user, res.token);
-            toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}! 🍕`);
+            toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}!`);
             onClose();
         } catch (err: unknown) {
             const msg = err && typeof err === 'object' && 'response' in err
@@ -92,55 +88,44 @@ export default function LoginModal({ onClose }: LoginModalProps) {
     return (
         <div
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
             style={{
-                position: 'fixed', inset: 0, zIndex: 1000,
-                background: 'rgba(28,28,30,0.6)',
-                backdropFilter: 'blur(4px)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '1rem',
+                background: 'rgba(15,15,15,0.5)',
+                backdropFilter: 'blur(6px)',
                 animation: 'fadeIn 0.2s ease',
             }}
         >
-            <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-
             <div
                 ref={modalRef}
+                className="bg-white rounded-[24px] p-8 w-full max-w-[420px] relative"
                 style={{
-                    background: 'white',
-                    borderRadius: 'var(--radius-xl)',
-                    padding: '2rem',
-                    width: '100%',
-                    maxWidth: 420,
-                    boxShadow: 'var(--shadow-lg)',
-                    animation: 'slideUp 0.25s ease',
-                    position: 'relative',
+                    boxShadow: '0 16px 48px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06)',
+                    animation: 'slideUp 0.25s var(--ease-spring)',
                 }}
             >
                 {/* Close button */}
                 <button
                     onClick={onClose}
-                    style={{
-                        position: 'absolute', top: '1rem', right: '1rem',
-                        width: 32, height: 32, borderRadius: '50%',
-                        border: '1.5px solid var(--color-border-strong)',
-                        background: 'white', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1rem', color: 'var(--color-text-secondary)',
-                    }}
+                    className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white cursor-pointer flex items-center justify-center text-[#4A4A4A] transition-colors hover:bg-[#F7F7F5]"
                 >
-                    ✕
+                    <X size={16} />
                 </button>
 
                 {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🍕</div>
-                    <h2 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>
+                <div className="text-center mb-7">
+                    <div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4"
+                        style={{
+                            background: 'linear-gradient(135deg, #E8A317 0%, #F0B429 100%)',
+                            boxShadow: '0 4px 16px rgba(232,163,23,0.25)',
+                        }}
+                    >
+                        <ChefHat size={30} />
+                    </div>
+                    <h2 className="font-outfit text-[1.5rem] font-extrabold mb-1 text-[#0F0F0F] tracking-[-0.02em]">
                         {step === 'phone' ? 'Welcome back!' : 'Verify OTP'}
                     </h2>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+                    <p className="text-[#8E8E8E] text-[0.9rem]">
                         {step === 'phone'
                             ? 'Login with your phone number to order pizza'
                             : `OTP sent to +91 ${phone}`}
@@ -150,14 +135,12 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                 {/* Phone step */}
                 {step === 'phone' ? (
                     <form onSubmit={handleSendOTP}>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--color-text-primary)' }}>
+                        <label className="block text-[0.875rem] font-semibold mb-[0.4rem] text-[#0F0F0F]">
                             Phone Number
                         </label>
-                        <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
-                            <span style={{
-                                position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)',
-                                fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.95rem',
-                            }}>
+                        <div className="relative mb-5">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-semibold text-[#4A4A4A] text-[0.95rem] flex items-center gap-1.5 border-r border-[#EEEEEE] pr-3">
+                                <Smartphone size={16} className="text-[#8E8E8E]" />
                                 +91
                             </span>
                             <input
@@ -166,49 +149,55 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 placeholder="98765 43210"
-                                style={{ paddingLeft: '3rem' }}
+                                style={{ paddingLeft: '4.5rem' }}
                                 autoFocus
                                 inputMode="numeric"
                                 required
                                 id="phone-input"
                             />
                         </div>
-                        <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
-                            {loading ? '⏳ Sending...' : 'Send OTP →'}
+                        <button type="submit" className="btn-primary w-full justify-center flex items-center gap-2" disabled={loading}>
+                            {loading ? (
+                                <Timer size={20} className="animate-spin" />
+                            ) : (
+                                <>Send OTP <ArrowRight size={18} /></>
+                            )}
                         </button>
                     </form>
                 ) : (
-                    // OTP step
                     <form onSubmit={handleVerifyOTP}>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--color-text-primary)' }}>
+                        <label className="block text-[0.875rem] font-semibold mb-[0.4rem] text-[#0F0F0F]">
                             Enter 6-digit OTP
                         </label>
                         <input
-                            className="input"
+                            className="input text-center tracking-[0.5rem] text-[1.25rem] mb-5"
                             type="text"
                             value={otp}
                             onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="• • • • • •"
-                            style={{ letterSpacing: '0.5rem', fontSize: '1.25rem', textAlign: 'center', marginBottom: '1.25rem' }}
+                            placeholder="------"
                             autoFocus
                             inputMode="numeric"
                             required
                             id="otp-input"
                         />
-                        <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginBottom: '0.75rem' }} disabled={loading}>
-                            {loading ? '⏳ Verifying...' : 'Verify & Login ✓'}
+                        <button type="submit" className="btn-primary w-full justify-center mb-4 flex items-center gap-2" disabled={loading}>
+                            {loading ? (
+                                <Timer size={20} className="animate-spin" />
+                            ) : (
+                                <>Verify & Login <CheckCircle2 size={18} /></>
+                            )}
                         </button>
 
-                        <div style={{ textAlign: 'center' }}>
+                        <div className="text-center">
                             {countdown > 0 ? (
-                                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                                    Resend OTP in <strong>{countdown}s</strong>
+                                <p className="text-[0.85rem] text-[#8E8E8E] flex items-center justify-center gap-1">
+                                    <Timer size={14} /> Resend OTP in <strong>{countdown}s</strong>
                                 </p>
                             ) : (
                                 <button
                                     type="button"
                                     onClick={handleSendOTP}
-                                    style={{ background: 'none', border: 'none', color: 'var(--color-accent)', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}
+                                    className="bg-none border-none text-[#E8A317] font-semibold cursor-pointer text-[0.9rem] hover:underline"
                                 >
                                     Resend OTP
                                 </button>
@@ -216,9 +205,9 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             <button
                                 type="button"
                                 onClick={() => { setStep('phone'); setOtp(''); }}
-                                style={{ display: 'block', margin: '0.4rem auto 0', background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}
+                                className="block mx-auto mt-3 bg-none border-none text-[#4A4A4A] cursor-pointer text-[0.85rem] hover:text-[#0F0F0F] transition-colors"
                             >
-                                ← Change number
+                                Change phone number
                             </button>
                         </div>
                     </form>
