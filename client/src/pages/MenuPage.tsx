@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchMenuItems } from '@/redux/slices/menuSlice';
 import type { RootState } from '@/redux/store';
@@ -33,35 +33,35 @@ export default function MenuPage() {
     });
 
     return (
-        <div className="min-h-screen bg-[#FAFAF8] page-enter flex flex-col">
+        <div className="min-h-screen bg-white page-enter flex flex-col">
             <Navbar />
 
-            {/* Light header */}
-            <div className="bg-[#F4F3EF] border-b border-[#EBEBEB] py-[clamp(1.75rem,4vw,2.5rem)]">
+            {/* Header */}
+            <div className="bg-[#F7F7F5] border-b border-[#EEEEEE] py-[clamp(2rem,4.5vw,3rem)]">
                 <div className="container">
                     <span className="section-label">
-                        Order Online
+                        <SlidersHorizontal size={13} /> Order Online
                     </span>
-                    <h1 className="font-outfit font-extrabold text-[#111] text-[clamp(1.6rem,5vw,2.4rem)] leading-[1.1]">
+                    <h1 className="font-outfit font-extrabold text-[#0F0F0F] text-[clamp(1.8rem,5vw,2.6rem)] leading-[1.1] tracking-[-0.02em]">
                         Our Menu
                     </h1>
-                    <p className="text-[#9B9B9B] text-[0.875rem] mt-[0.3rem]">
+                    <p className="text-[#8E8E8E] text-[0.9rem] mt-[0.4rem]">
                         Fresh handcrafted pizza, sides and more
                     </p>
                 </div>
             </div>
 
             {/* Sticky filters */}
-            <div className="sticky top-[62px] z-90 bg-[rgba(250,250,248,0.97)] backdrop-blur-md border-b border-[#EBEBEB] py-[0.7rem]">
+            <div className="sticky top-[64px] z-90 bg-white/95 backdrop-blur-md border-b border-[#EEEEEE] py-3" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
                 <div className="container">
                     <div className="flex gap-[0.6rem] items-center flex-wrap">
                         {/* Search */}
                         <div className="relative flex-[1_1_180px] min-w-[150px]">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9B9B9B] flex">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E8E] flex">
                                 <Search size={15} strokeWidth={2.5} />
                             </span>
                             <input
-                                className="input pl-9 h-[38px] text-[0.85rem] rounded-full"
+                                className="input pl-10 h-[40px] text-[0.85rem] rounded-full"
                                 placeholder="Search menu..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -71,26 +71,26 @@ export default function MenuPage() {
                         {/* Veg toggle */}
                         <button
                             onClick={() => setVegOnly((v) => !v)}
-                            className="flex items-center gap-[0.4rem] px-[0.85rem] py-[0.4rem] rounded-full font-ui font-bold text-[0.78rem] cursor-pointer transition-all duration-180 shrink-0"
+                            className="flex items-center gap-[0.4rem] px-4 py-[0.45rem] rounded-full font-ui font-bold text-[0.78rem] cursor-pointer transition-all duration-250 shrink-0"
                             style={{
-                                border: `1.5px solid ${vegOnly ? '#2E7D32' : '#D0CFC9'}`,
-                                background: vegOnly ? '#E8F5E9' : '#fff',
-                                color: vegOnly ? '#2E7D32' : '#555',
+                                border: `1.5px solid ${vegOnly ? '#16A34A' : '#E0E0DC'}`,
+                                background: vegOnly ? '#F0FDF4' : '#fff',
+                                color: vegOnly ? '#16A34A' : '#4A4A4A',
                             }}
                         >
                             <span
-                                className="w-[9px] h-[9px] rounded-full inline-block transition-colors duration-180"
-                                style={{ background: vegOnly ? '#4ade80' : '#D0CFC9' }}
+                                className="w-[10px] h-[10px] rounded-full inline-block transition-colors duration-250"
+                                style={{ background: vegOnly ? '#4ade80' : '#D4D4D0' }}
                             />
                             Veg Only
                         </button>
 
                         {/* Category pills */}
-                        <div className="scroll-x-hide flex gap-[0.35rem] flex-[1_1_auto] overflow-x-auto pb-px">
+                        <div className="scroll-x-hide flex gap-[0.4rem] flex-[1_1_auto] overflow-x-auto pb-px">
                             {ALL_CATS.map((cat) => (
                                 <button
                                     key={cat}
-                                    className={`pill shadow-sm${activeCat === cat ? ' active' : ''}`}
+                                    className={`pill${activeCat === cat ? ' active' : ''}`}
                                     onClick={() => setActiveCat(cat)}
                                 >
                                     {cat}
@@ -102,8 +102,8 @@ export default function MenuPage() {
             </div>
 
             {/* Results */}
-            <div className="container flex-1 pt-6 pb-12">
-                <p className="text-[0.75rem] text-[#9B9B9B] mb-4 font-semibold font-ui tracking-[0.04em]">
+            <div className="container flex-1 pt-7 pb-14">
+                <p className="text-[0.75rem] text-[#8E8E8E] mb-5 font-semibold font-ui tracking-[0.04em]">
                     {filtered.length} item{filtered.length !== 1 ? 's' : ''} found
                 </p>
                 {loading ? (
@@ -113,7 +113,7 @@ export default function MenuPage() {
                 ) : filtered.length === 0 ? (
                     <EmptyState title="No items found" description="Try a different search or category" icon={Search} />
                 ) : (
-                    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(clamp(180px,24vw,240px),1fr))' }}>
+                    <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(clamp(180px,24vw,240px),1fr))' }}>
                         {filtered.map((item) => (
                             <MenuItemCard key={item._id} item={item} />
                         ))}

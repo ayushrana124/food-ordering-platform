@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, CreditCard, Banknote, FileText, Pizza, Check, ArrowRight } from 'lucide-react';
+import { MapPin, CreditCard, Banknote, FileText, Pizza, Check, ArrowRight, ShieldCheck } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -70,7 +70,7 @@ export default function CheckoutPage() {
 
             if (paymentMethod === 'COD') {
                 clear();
-                toast.success('Order placed! We\'re cooking your pizza.', { icon: <Pizza size={20} className="text-amber" /> });
+                toast.success('Order placed! We\'re cooking your pizza.');
                 navigate(`/order/${order._id}`);
                 return;
             }
@@ -93,14 +93,14 @@ export default function CheckoutPage() {
                             orderId: order._id,
                         });
                         clear();
-                        toast.success('Payment successful!', { icon: <Check size={20} className="text-green-500" /> });
+                        toast.success('Payment successful!');
                         navigate(`/order/${order._id}`);
                     } catch {
                         toast.error('Payment verification failed. Contact support.');
                     }
                 },
                 prefill: { name: user?.name ?? '', contact: user?.phone ?? '' },
-                theme: { color: '#D4920A' },
+                theme: { color: '#E8A317' },
             });
             rzp.open();
         } catch (err: unknown) {
@@ -114,27 +114,29 @@ export default function CheckoutPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FAFAF8] page-enter">
+        <div className="min-h-screen bg-white page-enter">
             <Navbar />
             <div className="container py-8 px-4 pb-16">
-                <h1 className="font-outfit font-extrabold text-[clamp(1.5rem,4vw,2rem)] mb-7">
+                <h1 className="font-outfit font-extrabold text-[clamp(1.6rem,4vw,2.2rem)] mb-8 tracking-[-0.02em]">
                     Checkout
                 </h1>
 
                 {/* 2-col on md+ */}
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_380px] gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-7">
 
                     {/* Left: Address + Payment */}
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-6">
 
                         {/* Delivery Address */}
-                        <div className="card p-6">
-                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2">
-                                <MapPin size={18} className="text-amber" />
+                        <div className="card p-7">
+                            <h3 className="font-outfit font-bold mb-5 flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl bg-[#FFFBF0] flex items-center justify-center text-[#E8A317]">
+                                    <MapPin size={18} />
+                                </span>
                                 Delivery Address
                             </h3>
                             {addresses.length === 0 ? (
-                                <p className="text-[#555] text-[0.9rem]">
+                                <p className="text-[#4A4A4A] text-[0.9rem]">
                                     No addresses saved yet. Please add one from your Profile.
                                 </p>
                             ) : (
@@ -142,10 +144,10 @@ export default function CheckoutPage() {
                                     {addresses.map((addr) => (
                                         <label
                                             key={addr._id}
-                                            className="flex gap-[0.875rem] px-4 py-[0.875rem] rounded-[10px] cursor-pointer transition-all duration-150"
+                                            className="flex gap-4 px-5 py-4 rounded-xl cursor-pointer transition-all duration-200"
                                             style={{
-                                                border: `2px solid ${selectedAddr === addr._id ? '#D4920A' : '#D0CFC9'}`,
-                                                background: selectedAddr === addr._id ? 'var(--amber-light)' : 'white',
+                                                border: `2px solid ${selectedAddr === addr._id ? '#E8A317' : '#E0E0DC'}`,
+                                                background: selectedAddr === addr._id ? '#FFFBF0' : 'white',
                                             }}
                                         >
                                             <input
@@ -154,19 +156,19 @@ export default function CheckoutPage() {
                                                 value={addr._id}
                                                 checked={selectedAddr === addr._id}
                                                 onChange={() => setSelectedAddr(addr._id)}
-                                                className="accent-[#D4920A] mt-[2px]"
+                                                className="accent-[#E8A317] mt-[2px]"
                                             />
                                             <div>
                                                 <div className="flex gap-2 items-center mb-[0.2rem]">
                                                     <span className="font-bold text-[0.875rem]">{addr.label}</span>
                                                     {addr.isDefault && (
-                                                        <span className="bg-[#DCFCE7] text-[#15803D] text-[0.7rem] font-semibold px-[0.4rem] py-[0.1rem] rounded-[6px]">
+                                                        <span className="bg-[#DCFCE7] text-[#16A34A] text-[0.7rem] font-semibold px-2 py-[0.15rem] rounded-md">
                                                             Default
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-[0.875rem] text-[#555]">{addr.addressLine}</p>
-                                                {addr.landmark && <p className="text-[0.8rem] text-[#9B9B9B]">Near {addr.landmark}</p>}
+                                                <p className="text-[0.875rem] text-[#4A4A4A]">{addr.addressLine}</p>
+                                                {addr.landmark && <p className="text-[0.8rem] text-[#8E8E8E]">Near {addr.landmark}</p>}
                                             </div>
                                         </label>
                                     ))}
@@ -175,19 +177,21 @@ export default function CheckoutPage() {
                         </div>
 
                         {/* Payment Method */}
-                        <div className="card p-6">
-                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2">
-                                <CreditCard size={18} className="text-amber" />
+                        <div className="card p-7">
+                            <h3 className="font-outfit font-bold mb-5 flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
+                                    <CreditCard size={18} />
+                                </span>
                                 Payment Method
                             </h3>
                             <div className="flex gap-3">
                                 {(['ONLINE', 'COD'] as const).map((m) => (
                                     <label
                                         key={m}
-                                        className="flex-1 flex items-center gap-[0.625rem] px-4 py-[0.875rem] rounded-[10px] cursor-pointer transition-all duration-150"
+                                        className="flex-1 flex items-center gap-3 px-5 py-4 rounded-xl cursor-pointer transition-all duration-200"
                                         style={{
-                                            border: `2px solid ${paymentMethod === m ? '#D4920A' : '#D0CFC9'}`,
-                                            background: paymentMethod === m ? 'var(--amber-light)' : 'white',
+                                            border: `2px solid ${paymentMethod === m ? '#E8A317' : '#E0E0DC'}`,
+                                            background: paymentMethod === m ? '#FFFBF0' : 'white',
                                         }}
                                     >
                                         <input
@@ -196,14 +200,14 @@ export default function CheckoutPage() {
                                             value={m}
                                             checked={paymentMethod === m}
                                             onChange={() => setPaymentMethod(m)}
-                                            className="accent-[#D4920A]"
+                                            className="accent-[#E8A317]"
                                         />
                                         <div>
                                             <p className="font-outfit font-bold text-[0.9rem] flex items-center gap-2">
-                                                {m === 'ONLINE' ? <CreditCard size={16} /> : <Banknote size={16} />}
+                                                {m === 'ONLINE' ? <CreditCard size={16} className="text-[#2563EB]" /> : <Banknote size={16} className="text-[#16A34A]" />}
                                                 {m === 'ONLINE' ? 'Online' : 'Cash on Delivery'}
                                             </p>
-                                            <p className="text-[0.75rem] text-[#9B9B9B]">{m === 'ONLINE' ? 'UPI, Cards, Net Banking' : 'Pay when delivered'}</p>
+                                            <p className="text-[0.75rem] text-[#8E8E8E]">{m === 'ONLINE' ? 'UPI, Cards, Net Banking' : 'Pay when delivered'}</p>
                                         </div>
                                     </label>
                                 ))}
@@ -211,9 +215,11 @@ export default function CheckoutPage() {
                         </div>
 
                         {/* Special Instructions */}
-                        <div className="card p-6">
-                            <h3 className="font-outfit font-bold mb-[0.875rem] flex items-center gap-2">
-                                <FileText size={18} className="text-amber" />
+                        <div className="card p-7">
+                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl bg-[#F5F3FF] flex items-center justify-center text-[#7C3AED]">
+                                    <FileText size={18} />
+                                </span>
                                 Special Instructions
                             </h3>
                             <textarea
@@ -227,11 +233,11 @@ export default function CheckoutPage() {
                     </div>
 
                     {/* Right: Summary */}
-                    <div className="card p-6 h-fit sticky top-20">
-                        <h3 className="font-outfit font-bold mb-4">Order Summary</h3>
-                        <div className="flex flex-col gap-2 mb-4">
+                    <div className="card p-7 h-fit sticky top-20">
+                        <h3 className="font-outfit font-bold mb-5">Order Summary</h3>
+                        <div className="flex flex-col gap-2.5 mb-4">
                             {items.map((i: ICartItem) => (
-                                <div key={i.cartId} className="flex justify-between text-[0.875rem] text-[#555]">
+                                <div key={i.cartId} className="flex justify-between text-[0.875rem] text-[#4A4A4A]">
                                     <span>{i.name} × {i.quantity}</span>
                                     <span className="font-semibold">₹{(i.price + i.selectedCustomizations.reduce((s: number, c: IMenuItemCustomization) => s + c.price, 0)) * i.quantity}</span>
                                 </div>
@@ -240,24 +246,24 @@ export default function CheckoutPage() {
                         <div className="divider" />
                         <div className="flex flex-col gap-[0.6rem] my-3">
                             <div className="flex justify-between text-[0.875rem]">
-                                <span className="text-[#555]">Delivery</span>
-                                <span className={`font-semibold ${DELIVERY === 0 ? 'text-[#15803D]' : ''}`}>
+                                <span className="text-[#4A4A4A]">Delivery</span>
+                                <span className={`font-semibold ${DELIVERY === 0 ? 'text-[#16A34A]' : ''}`}>
                                     {DELIVERY === 0 ? 'FREE' : `₹${DELIVERY}`}
                                 </span>
                             </div>
                             <div className="flex justify-between text-[0.875rem]">
-                                <span className="text-[#555]">Taxes</span>
+                                <span className="text-[#4A4A4A]">Taxes</span>
                                 <span className="font-semibold">₹{TAX}</span>
                             </div>
                         </div>
                         <div className="divider" />
                         <div className="flex justify-between mt-3 mb-6">
-                            <span className="font-outfit font-extrabold text-[1.1rem]">Total</span>
-                            <span className="font-outfit font-extrabold text-[1.1rem] text-[#D4920A]">₹{TOTAL}</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem]">Total</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{TOTAL}</span>
                         </div>
 
                         <button
-                            className="btn-primary w-full justify-center py-[0.875rem] text-base flex items-center gap-2"
+                            className="btn-primary w-full justify-center py-[0.9rem] text-base flex items-center gap-2"
                             onClick={handlePlaceOrder}
                             disabled={loading || addresses.length === 0}
                         >
@@ -265,7 +271,7 @@ export default function CheckoutPage() {
                                 <LoadingSpinner size="sm" color="white" />
                             ) : (
                                 <>
-                                    {paymentMethod === 'ONLINE' ? <CreditCard size={18} /> : <Pizza size={18} />}
+                                    <ShieldCheck size={18} />
                                     {paymentMethod === 'ONLINE' ? 'Pay ₹' + TOTAL : 'Place Order'}
                                     <ArrowRight size={18} className="ml-1" />
                                 </>
