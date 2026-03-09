@@ -103,7 +103,7 @@ export interface IOrder {
     deliveryCharges: number;
     taxes: number;
     total: number;
-    status: OrderStatus;
+    orderStatus: OrderStatus;
     specialInstructions?: string;
     estimatedDelivery?: number;
     createdAt: string;

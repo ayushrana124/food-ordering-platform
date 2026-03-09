@@ -30,7 +30,11 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
         // Apply filters
         if (category) query.category = category;
         if (isVeg !== undefined) query.isVeg = isVeg === 'true';
-        if (search) query.name = { $regex: search, $options: 'i' };
+        if (search) {
+            // Escape regex special characters to prevent ReDoS
+            const escaped = (search as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            query.name = { $regex: escaped, $options: 'i' };
+        }
 
         if (minPrice || maxPrice) {
             query.price = {};

@@ -37,6 +37,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
+        // Validate specialInstructions length
+        if (specialInstructions && typeof specialInstructions === 'string' && specialInstructions.length > 500) {
+            res.status(400).json({ message: 'Special instructions must be 500 characters or less' });
+            return;
+        }
+
         // Get restaurant
         const restaurant = await Restaurant.findOne();
 
@@ -79,6 +85,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         const orderItems: any[] = [];
 
         for (const item of items) {
+            // Validate quantity
+            if (!item.quantity || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 50) {
+                res.status(400).json({ message: 'Item quantity must be a positive integer (max 50)' });
+                return;
+            }
+
             const menuItem = await MenuItem.findById(item.menuItemId);
 
             if (!menuItem || !menuItem.isAvailable) {
@@ -90,11 +102,32 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
             let itemPrice = menuItem.price;
 
-            // Add customization prices
+            // Validate customization prices against actual menu item customizations
+            const validatedCustomizations: any[] = [];
             if (item.customizations && Array.isArray(item.customizations)) {
-                item.customizations.forEach((custom: any) => {
-                    itemPrice += custom.price || 0;
-                });
+                for (const custom of item.customizations) {
+                    // Client sends { name, price } — name is the option name
+                    // Server schema: customizations[].options[] = { name, price }
+                    let foundOption: { name: string; price: number } | null = null;
+                    for (const group of (menuItem.customizations ?? [])) {
+                        const opt = group.options?.find(
+                            (o: any) => o.name === custom.name
+                        );
+                        if (opt) { foundOption = opt; break; }
+                    }
+                    if (!foundOption) {
+                        res.status(400).json({
+                            message: `Unknown customization "${custom.name}" for item "${menuItem.name}"`
+                        });
+                        return;
+                    }
+                    // Use server-side price, never trust client price
+                    itemPrice += foundOption.price;
+                    validatedCustomizations.push({
+                        name: foundOption.name,
+                        price: foundOption.price
+                    });
+                }
             }
 
             const itemTotal = itemPrice * item.quantity;
@@ -105,7 +138,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
                 name: menuItem.name,
                 quantity: item.quantity,
                 price: itemPrice,
-                customizations: item.customizations || []
+                customizations: validatedCustomizations
             });
         }
 

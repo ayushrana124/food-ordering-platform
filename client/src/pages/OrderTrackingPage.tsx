@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
     ClipboardList, CheckCircle2, UtensilsCrossed, Bike, Home,
-    XCircle, Pizza, MapPin, Check, ArrowRight
+    XCircle, Pizza, MapPin, Check, ArrowRight, Clock, CreditCard
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -50,8 +50,8 @@ export default function OrderTrackingPage() {
         );
     }
 
-    const currentStepIdx = STATUS_STEPS.findIndex((s) => s.key === currentOrder.status);
-    const isCancelled = currentOrder.status === 'CANCELLED';
+    const currentStepIdx = STATUS_STEPS.findIndex((s) => s.key === currentOrder.orderStatus);
+    const isCancelled = currentOrder.orderStatus === 'CANCELLED';
 
     return (
         <div className="min-h-screen bg-white page-enter">
@@ -64,14 +64,14 @@ export default function OrderTrackingPage() {
                         <div
                             className="w-20 h-20 rounded-2xl flex items-center justify-center"
                             style={{
-                                background: isCancelled ? '#FEF2F2' : currentOrder.status === 'DELIVERED' ? '#F0FDF4' : '#FFFBF0',
-                                color: isCancelled ? '#DC2626' : currentOrder.status === 'DELIVERED' ? '#16A34A' : '#E8A317',
-                                boxShadow: isCancelled ? '0 4px 16px rgba(220,38,38,0.1)' : currentOrder.status === 'DELIVERED' ? '0 4px 16px rgba(22,163,74,0.1)' : '0 4px 16px rgba(232,163,23,0.1)',
+                                background: isCancelled ? '#FEF2F2' : currentOrder.orderStatus === 'DELIVERED' ? '#F0FDF4' : '#FFFBF0',
+                                color: isCancelled ? '#DC2626' : currentOrder.orderStatus === 'DELIVERED' ? '#16A34A' : '#E8A317',
+                                boxShadow: isCancelled ? '0 4px 16px rgba(220,38,38,0.1)' : currentOrder.orderStatus === 'DELIVERED' ? '0 4px 16px rgba(22,163,74,0.1)' : '0 4px 16px rgba(232,163,23,0.1)',
                             }}
                         >
                             {isCancelled ? (
                                 <XCircle size={38} />
-                            ) : currentOrder.status === 'DELIVERED' ? (
+                            ) : currentOrder.orderStatus === 'DELIVERED' ? (
                                 <CheckCircle2 size={38} />
                             ) : (
                                 <Pizza size={38} />
@@ -79,9 +79,21 @@ export default function OrderTrackingPage() {
                         </div>
                     </div>
                     <h1 className="font-outfit font-extrabold text-[clamp(1.5rem,4vw,2rem)] mb-1 tracking-[-0.02em]">
-                        {isCancelled ? 'Order Cancelled' : currentOrder.status === 'DELIVERED' ? 'Enjoy your meal!' : 'Your pizza is on the way!'}
+                        {isCancelled ? 'Order Cancelled' : currentOrder.orderStatus === 'DELIVERED' ? 'Enjoy your meal!' : 'Your pizza is on the way!'}
                     </h1>
                     <p className="text-[#8E8E8E] text-[0.9rem]">Order ID: #{currentOrder.orderId}</p>
+                    <div className="flex flex-wrap justify-center gap-3 mt-3">
+                        <span className="flex items-center gap-1.5 text-[0.8rem] text-[#4A4A4A] bg-[#F7F7F5] px-3 py-1.5 rounded-lg">
+                            <Clock size={13} className="text-[#8E8E8E]" />
+                            {new Date(currentOrder.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className={`flex items-center gap-1.5 text-[0.8rem] font-semibold px-3 py-1.5 rounded-lg ${currentOrder.paymentStatus === 'PAID' ? 'bg-[#F0FDF4] text-[#16A34A]' :
+                            currentOrder.paymentMethod === 'COD' ? 'bg-[#FFFBF0] text-[#D97706]' : 'bg-[#FEF2F2] text-[#DC2626]'
+                            }`}>
+                            <CreditCard size={13} />
+                            {currentOrder.paymentStatus === 'PAID' ? 'Paid' : currentOrder.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Payment Pending'}
+                        </span>
+                    </div>
                 </div>
 
                 {/* Status Stepper */}

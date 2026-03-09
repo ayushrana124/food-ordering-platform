@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { User, MapPin, Package, LogOut, Trash2, ArrowRight } from 'lucide-react';
+import { User, MapPin, Package, LogOut, Trash2, ArrowRight, CreditCard, Banknote } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -209,7 +209,7 @@ export default function ProfilePage() {
                         ) : (
                             <div className="flex flex-col gap-4">
                                 {orders.map((order) => {
-                                    const statusStyle = ORDER_STATUS_COLORS[order.status] ?? { color: '#8E8E8E', bg: '#F7F7F5' };
+                                    const statusStyle = ORDER_STATUS_COLORS[order.orderStatus] ?? { color: '#8E8E8E', bg: '#F7F7F5' };
                                     return (
                                         <div key={order._id} className="card p-6 transition-all duration-200 hover:shadow-md">
                                             <div className="flex justify-between items-start mb-3 flex-wrap gap-2">
@@ -223,12 +223,23 @@ export default function ProfilePage() {
                                                     className="px-3 py-1 rounded-lg text-[0.72rem] font-bold"
                                                     style={{ background: statusStyle.bg, color: statusStyle.color }}
                                                 >
-                                                    {order.status.replace(/_/g, ' ')}
+                                                    {order.orderStatus.replace(/_/g, ' ')}
                                                 </span>
                                             </div>
-                                            <p className="text-[0.85rem] text-[#4A4A4A] mb-3">
+                                            <p className="text-[0.85rem] text-[#4A4A4A] mb-2">
                                                 {order.items.map((i) => `${i.name} ×${i.quantity}`).join(' · ')}
                                             </p>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span className={`flex items-center gap-1 text-[0.7rem] font-semibold px-2 py-[0.15rem] rounded-md ${order.paymentMethod === 'COD' ? 'bg-[#FFF7ED] text-[#EA580C]' : 'bg-[#EFF6FF] text-[#2563EB]'
+                                                    }`}>
+                                                    {order.paymentMethod === 'COD' ? <Banknote size={11} /> : <CreditCard size={11} />}
+                                                    {order.paymentMethod === 'COD' ? 'COD' : 'Online'}
+                                                </span>
+                                                <span className={`text-[0.7rem] font-semibold px-2 py-[0.15rem] rounded-md ${order.paymentStatus === 'PAID' ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FFFBEB] text-[#D97706]'
+                                                    }`}>
+                                                    {order.paymentStatus === 'PAID' ? 'Paid' : 'Pending'}
+                                                </span>
+                                            </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="font-bold text-[#E8A317] text-[1rem]">₹{order.total}</span>
                                                 <Link

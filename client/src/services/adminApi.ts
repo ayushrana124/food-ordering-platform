@@ -47,7 +47,6 @@ export interface IOrderStats {
 
 export interface IAdminOrder extends Omit<IOrder, 'userId'> {
     userId: { _id: string; name?: string; phone: string };
-    orderStatus: string;
     preparationTime?: number;
     estimatedDeliveryTime?: string;
     distance?: number;
@@ -172,7 +171,32 @@ export async function updateRestaurant(payload: Partial<IRestaurant>) {
 
 // ── Offers ─────────────────────────────────────────────────────────────────────
 
+export async function getAdminOffers(page = 1, limit = 20) {
+    const { data } = await adminApi.get<{
+        offers: IOffer[];
+        totalPages: number;
+        currentPage: number;
+        totalOffers: number;
+    }>('/admin/offers', { params: { page, limit } });
+    return data;
+}
+
 export async function createOffer(payload: Partial<IOffer>) {
     const { data } = await adminApi.post<{ message: string; offer: IOffer }>('/admin/offers', payload);
+    return data;
+}
+
+export async function updateOffer(id: string, payload: Partial<IOffer>) {
+    const { data } = await adminApi.put<{ message: string; offer: IOffer }>(`/admin/offers/${id}`, payload);
+    return data;
+}
+
+export async function deleteOffer(id: string) {
+    const { data } = await adminApi.delete<{ message: string }>(`/admin/offers/${id}`);
+    return data;
+}
+
+export async function toggleOfferActive(id: string) {
+    const { data } = await adminApi.put<{ message: string; offer: IOffer }>(`/admin/offers/${id}/toggle`);
     return data;
 }

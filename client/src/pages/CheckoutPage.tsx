@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, CreditCard, Banknote, FileText, Pizza, Check, ArrowRight, ShieldCheck } from 'lucide-react';
+import AddressSelector from '@/components/customer/AddressSelector';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -33,11 +34,16 @@ export default function CheckoutPage() {
     const [specialInstructions, setSpecialInstructions] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const DELIVERY = subtotal >= 499 ? 0 : subtotal >= 299 ? 40 : 60;
     const TAX = Math.round(subtotal * 0.05);
-    const TOTAL = subtotal + DELIVERY + TAX;
+    // Don't show a fake total — delivery is distance-based and determined server-side
+    const ESTIMATED_TOTAL = subtotal + TAX;
 
     useEffect(() => {
+        // Redirect to cart if empty
+        if (items.length === 0) {
+            navigate('/cart', { replace: true });
+            return;
+        }
         if (!restaurant) dispatch(fetchRestaurant());
         userService.getProfile().then((u) => {
             setAddresses(u.addresses);
@@ -46,9 +52,10 @@ export default function CheckoutPage() {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
+        script.onerror = () => toast.error('Failed to load payment gateway. Please refresh.');
         document.body.appendChild(script);
-        return () => { document.body.removeChild(script); };
-    }, [dispatch, restaurant]);
+        return () => { if (document.body.contains(script)) document.body.removeChild(script); };
+    }, [dispatch, restaurant, items.length, navigate]);
 
     const handlePlaceOrder = async () => {
         if (!selectedAddr) { toast.error('Please select a delivery address'); return; }
@@ -78,7 +85,7 @@ export default function CheckoutPage() {
             const paymentOrder = await paymentService.createPaymentOrder(order._id);
 
             const rzp = new window.Razorpay({
-                key: paymentOrder.keyId,
+                key: paymentOrder.key,
                 amount: paymentOrder.amount,
                 currency: paymentOrder.currency,
                 name: 'Bunty Pizza',
@@ -127,54 +134,18 @@ export default function CheckoutPage() {
                     {/* Left: Address + Payment */}
                     <div className="flex flex-col gap-6">
 
-                        {/* Delivery Address */}
-                        <div className="card p-7">
-                            <h3 className="font-outfit font-bold mb-5 flex items-center gap-2.5">
-                                <span className="w-9 h-9 rounded-xl bg-[#FFFBF0] flex items-center justify-center text-[#E8A317]">
-                                    <MapPin size={18} />
-                                </span>
-                                Delivery Address
-                            </h3>
-                            {addresses.length === 0 ? (
-                                <p className="text-[#4A4A4A] text-[0.9rem]">
-                                    No addresses saved yet. Please add one from your Profile.
-                                </p>
-                            ) : (
-                                <div className="flex flex-col gap-3">
-                                    {addresses.map((addr) => (
-                                        <label
-                                            key={addr._id}
-                                            className="flex gap-4 px-5 py-4 rounded-xl cursor-pointer transition-all duration-200"
-                                            style={{
-                                                border: `2px solid ${selectedAddr === addr._id ? '#E8A317' : '#E0E0DC'}`,
-                                                background: selectedAddr === addr._id ? '#FFFBF0' : 'white',
-                                            }}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="addr"
-                                                value={addr._id}
-                                                checked={selectedAddr === addr._id}
-                                                onChange={() => setSelectedAddr(addr._id)}
-                                                className="accent-[#E8A317] mt-[2px]"
-                                            />
-                                            <div>
-                                                <div className="flex gap-2 items-center mb-[0.2rem]">
-                                                    <span className="font-bold text-[0.875rem]">{addr.label}</span>
-                                                    {addr.isDefault && (
-                                                        <span className="bg-[#DCFCE7] text-[#16A34A] text-[0.7rem] font-semibold px-2 py-[0.15rem] rounded-md">
-                                                            Default
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-[0.875rem] text-[#4A4A4A]">{addr.addressLine}</p>
-                                                {addr.landmark && <p className="text-[0.8rem] text-[#8E8E8E]">Near {addr.landmark}</p>}
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        {/* Delivery Address — powered by AddressSelector */}
+                        <AddressSelector
+                            addresses={addresses}
+                            selectedId={selectedAddr}
+                            onSelect={setSelectedAddr}
+                            onAddressesUpdate={(updated) => {
+                                setAddresses(updated);
+                                if (!updated.find((a) => a._id === selectedAddr) && updated.length > 0) {
+                                    setSelectedAddr(updated[0]._id);
+                                }
+                            }}
+                        />
 
                         {/* Payment Method */}
                         <div className="card p-7">
@@ -247,9 +218,7 @@ export default function CheckoutPage() {
                         <div className="flex flex-col gap-[0.6rem] my-3">
                             <div className="flex justify-between text-[0.875rem]">
                                 <span className="text-[#4A4A4A]">Delivery</span>
-                                <span className={`font-semibold ${DELIVERY === 0 ? 'text-[#16A34A]' : ''}`}>
-                                    {DELIVERY === 0 ? 'FREE' : `₹${DELIVERY}`}
-                                </span>
+                                <span className="font-semibold text-[#8E8E8E] text-[0.8rem]">Based on distance</span>
                             </div>
                             <div className="flex justify-between text-[0.875rem]">
                                 <span className="text-[#4A4A4A]">Taxes</span>
@@ -258,8 +227,8 @@ export default function CheckoutPage() {
                         </div>
                         <div className="divider" />
                         <div className="flex justify-between mt-3 mb-6">
-                            <span className="font-outfit font-extrabold text-[1.15rem]">Total</span>
-                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{TOTAL}</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem]">Est. Total</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{ESTIMATED_TOTAL}+</span>
                         </div>
 
                         <button
@@ -272,7 +241,7 @@ export default function CheckoutPage() {
                             ) : (
                                 <>
                                     <ShieldCheck size={18} />
-                                    {paymentMethod === 'ONLINE' ? 'Pay ₹' + TOTAL : 'Place Order'}
+                                    {paymentMethod === 'ONLINE' ? 'Pay & Place Order' : 'Place Order'}
                                     <ArrowRight size={18} className="ml-1" />
                                 </>
                             )}

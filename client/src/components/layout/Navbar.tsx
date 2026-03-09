@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingBag, User, Menu, X, FileText, LogOut, ChefHat } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
+import LoginModal from '@/components/common/LoginModal';
 
 export default function Navbar() {
     const { itemCount } = useCart();
@@ -12,6 +13,7 @@ export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
 
     useEffect(() => {
         const h = () => setScrolled(window.scrollY > 8);
@@ -137,7 +139,7 @@ export default function Navbar() {
                             </div>
                         ) : (
                             <button
-                                onClick={() => navigate('/login')}
+                                onClick={() => setShowLogin(true)}
                                 className="w-[40px] h-[40px] rounded-xl flex items-center justify-center bg-transparent border-[1.5px] border-[#E0E0DC] text-[#4A4A4A] shrink-0 transition-all duration-250"
                                 title="Sign In"
                                 onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = '#E8A317'; el.style.background = '#FFFBF0'; el.style.color = '#E8A317'; }}
@@ -193,11 +195,21 @@ export default function Navbar() {
                         )}
                     </div>
                 )}
+
+                {/* Mobile backdrop */}
+                {menuOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/20 z-[-1] hide-desktop"
+                        onClick={() => setMenuOpen(false)}
+                    />
+                )}
             </nav>
 
             {profileOpen && (
                 <div className="fixed inset-0 z-199" onClick={() => setProfileOpen(false)} />
             )}
+
+            {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
         </>
     );
 }
