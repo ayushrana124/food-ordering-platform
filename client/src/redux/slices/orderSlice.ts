@@ -15,9 +15,9 @@ const orderSlice = createSlice({
         setCurrentOrder(state, action: PayloadAction<IOrder>) {
             state.currentOrder = action.payload;
         },
-        updateCurrentOrderStatus(state, action: PayloadAction<IOrder['status']>) {
+        updateCurrentOrderStatus(state, action: PayloadAction<IOrder['orderStatus']>) {
             if (state.currentOrder) {
-                state.currentOrder.status = action.payload;
+                state.currentOrder.orderStatus = action.payload;
             }
         },
         setOrders(state, action: PayloadAction<IOrder[]>) {

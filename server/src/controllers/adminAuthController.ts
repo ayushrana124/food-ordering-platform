@@ -31,8 +31,9 @@ export const loginController = async (req: Request, res: Response): Promise<void
 
         // Generate JWT token
         const token = jwt.sign(
-            { adminId: admin._id.toString(), role: admin.role, restaurantId: admin.restaurantId?.toString() },
-            config.jwtSecret
+            { adminId: admin._id.toString(), role: admin.role, restaurantId: admin.restaurantId?.toString() || '' },
+            config.jwtSecret,
+            { expiresIn: config.jwtExpire } as jwt.SignOptions
         );
 
         res.status(200).json({

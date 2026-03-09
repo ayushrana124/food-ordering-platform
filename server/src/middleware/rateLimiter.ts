@@ -32,3 +32,14 @@ export const loginLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+// OTP verification rate limiter - 10 attempts per 15 minutes (prevents brute-force)
+export const otpVerifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 attempts per window
+    message: {
+        message: 'Too many OTP verification attempts. Please try again after 15 minutes.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});

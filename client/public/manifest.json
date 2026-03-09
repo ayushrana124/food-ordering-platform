@@ -1,0 +1,23 @@
+{
+    "name": "Bunty Pizza",
+    "short_name": "BuntyPizza",
+    "description": "Fresh, handcrafted pizzas delivered to your doorstep",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#E8A317",
+    "icons": [
+        {
+            "src": "/pizza-hero.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/pizza-hero.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

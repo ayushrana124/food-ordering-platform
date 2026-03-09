@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { IndianRupee, ShoppingBag, Clock, Users, RefreshCw } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { getOrderStats, getOrders, type IOrderStats, type IAdminOrder } from '@/services/adminApi';
+import { useAdminSocket } from '@/hooks/useAdminSocket';
 import toast from 'react-hot-toast';
 
 const STAT_CARDS = [
@@ -42,6 +43,14 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    // Real-time: auto-refresh on new orders
+    const { onRefresh } = useAdminSocket({
+        onNewOrder: (data) => {
+            toast.success(`🆕 New order #${data.orderNumber || ''}`, { duration: 5000 });
+        },
+    });
+    useEffect(() => { onRefresh(fetchData); }, [onRefresh, fetchData]);
 
     return (
         <AdminLayout>
@@ -101,7 +110,7 @@ export default function Dashboard() {
                                     </td>
                                 </tr>
                             ) : recentOrders.map((order) => {
-                                const st = STATUS_COLORS[order.orderStatus || order.status] || STATUS_COLORS.PENDING;
+                                const st = STATUS_COLORS[order.orderStatus] || STATUS_COLORS.PENDING;
                                 return (
                                     <tr key={order._id} className="border-t border-[#F0F0EE] hover:bg-[#FAFAF8] transition-colors">
                                         <td className="px-6 py-4 font-semibold text-[#0F0F0F]">#{order.orderId}</td>
@@ -118,7 +127,7 @@ export default function Dashboard() {
                                                 className="px-2.5 py-[0.2rem] rounded-md text-[0.7rem] font-bold inline-block"
                                                 style={{ background: st.bg, color: st.color }}
                                             >
-                                                {(order.orderStatus || order.status).replace(/_/g, ' ')}
+                                                {(order.orderStatus).replace(/_/g, ' ')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-[#8E8E8E] text-[0.8rem] whitespace-nowrap">

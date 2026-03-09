@@ -3,6 +3,7 @@ import { ClipboardList, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import OrderDetailModal from '@/components/admin/OrderDetailModal';
 import { getOrders, type IAdminOrder, type OrderFilters } from '@/services/adminApi';
+import { useAdminSocket } from '@/hooks/useAdminSocket';
 import toast from 'react-hot-toast';
 
 const STATUS_OPTIONS = ['', 'PENDING', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
@@ -38,6 +39,17 @@ export default function Orders() {
     }, [filters]);
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+    // Real-time: auto-refresh on new or cancelled orders
+    const { onRefresh } = useAdminSocket({
+        onNewOrder: (data) => {
+            toast.success(`🆕 New order #${data.orderNumber || ''}`, { duration: 5000 });
+        },
+        onOrderCancelled: (data) => {
+            toast.error(`❌ Order #${data.orderNumber || ''} cancelled`, { duration: 5000 });
+        },
+    });
+    useEffect(() => { onRefresh(fetchOrders); }, [onRefresh, fetchOrders]);
 
     const setFilter = (key: keyof OrderFilters, value: string | number) => {
         setFilters((prev) => ({ ...prev, [key]: value, page: key === 'page' ? Number(value) : 1 }));
@@ -99,7 +111,7 @@ export default function Orders() {
                             ) : orders.length === 0 ? (
                                 <tr><td colSpan={7} className="px-6 py-10 text-center text-[#8E8E8E]">No orders found</td></tr>
                             ) : orders.map((order) => {
-                                const st = STATUS_COLORS[order.orderStatus || order.status] || STATUS_COLORS.PENDING;
+                                const st = STATUS_COLORS[order.orderStatus] || STATUS_COLORS.PENDING;
                                 return (
                                     <tr
                                         key={order._id}
@@ -121,7 +133,7 @@ export default function Orders() {
                                                 className="px-2.5 py-[0.2rem] rounded-md text-[0.7rem] font-bold"
                                                 style={{ background: st.bg, color: st.color }}
                                             >
-                                                {(order.orderStatus || order.status).replace(/_/g, ' ')}
+                                                {(order.orderStatus).replace(/_/g, ' ')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-[#8E8E8E] text-[0.8rem] whitespace-nowrap">

@@ -563,3 +563,99 @@ button {
     display: none !important;
   }
 }
+
+/* ── Skeleton loading ──────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #F0F0EE 25%, #E8E8E6 50%, #F0F0EE 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+  border-radius: 8px;
+}
+
+.skeleton-text {
+  height: 1em;
+  width: 60%;
+  border-radius: 4px;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+/* ── Staggered fade-in for lists ───────────────────────────────────────── */
+.stagger-fade > * {
+  opacity: 0;
+  animation: fadeUp 0.4s var(--ease-spring) forwards;
+}
+
+.stagger-fade > *:nth-child(1) { animation-delay: 0s; }
+.stagger-fade > *:nth-child(2) { animation-delay: 0.05s; }
+.stagger-fade > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger-fade > *:nth-child(4) { animation-delay: 0.15s; }
+.stagger-fade > *:nth-child(5) { animation-delay: 0.2s; }
+.stagger-fade > *:nth-child(6) { animation-delay: 0.25s; }
+.stagger-fade > *:nth-child(7) { animation-delay: 0.3s; }
+.stagger-fade > *:nth-child(8) { animation-delay: 0.35s; }
+
+/* ── Modal / overlay animations ────────────────────────────────────────── */
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalContentIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-backdrop {
+  animation: modalBackdropIn 0.2s ease forwards;
+}
+
+.modal-content {
+  animation: modalContentIn 0.3s var(--ease-spring) forwards;
+}
+
+/* ── Mobile improvements ───────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Tighter padding on mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Stack checkout payment radio options */
+  .payment-options {
+    flex-direction: column;
+  }
+
+  /* Reduce admin main content padding */
+  .admin-main {
+    padding: 1rem;
+  }
+
+  /* Make admin tables more readable on mobile */
+  .admin-table th,
+  .admin-table td {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ── Focus visible ring ────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

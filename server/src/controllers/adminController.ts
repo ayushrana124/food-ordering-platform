@@ -95,6 +95,12 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
             return;
         }
 
+        const VALID_STATUSES = ['ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+        if (!VALID_STATUSES.includes(status)) {
+            res.status(400).json({ message: `Invalid status. Allowed: ${VALID_STATUSES.join(', ')}` });
+            return;
+        }
+
         const order = await Order.findById(id);
 
         if (!order) {
@@ -192,9 +198,16 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
     try {
         const { id } = req.params;
 
+        // Whitelist allowed fields to prevent mass-assignment
+        const allowed = ['name', 'description', 'category', 'price', 'isVeg', 'isAvailable', 'customizations', 'image'];
+        const update: Record<string, any> = {};
+        for (const key of allowed) {
+            if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
         const menuItem = await MenuItem.findByIdAndUpdate(
             id,
-            req.body,
+            update,
             { new: true, runValidators: true }
         );
 
@@ -264,9 +277,11 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         const query: any = {};
 
         if (search) {
+            // Escape regex special characters to prevent ReDoS
+            const escaped = (search as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } }
+                { name: { $regex: escaped, $options: 'i' } },
+                { phone: { $regex: escaped, $options: 'i' } }
             ];
         }
 
@@ -352,9 +367,16 @@ export const toggleCODBlock = async (req: Request, res: Response): Promise<void>
 // Update restaurant settings
 export const updateRestaurant = async (req: Request, res: Response): Promise<void> => {
     try {
+        // Whitelist allowed fields to prevent mass-assignment
+        const allowed = ['name', 'description', 'phone', 'email', 'deliveryRadius', 'minOrderAmount', 'avgPreparationTime', 'isOpen', 'address', 'openingHours', 'categories'];
+        const update: Record<string, any> = {};
+        for (const key of allowed) {
+            if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
         const restaurant = await Restaurant.findOneAndUpdate(
             {},
-            req.body,
+            update,
             { new: true, runValidators: true }
         );
 
@@ -375,14 +397,114 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
 // Create offer
 export const createOffer = async (req: Request, res: Response): Promise<void> => {
     try {
+        // Whitelist allowed fields
+        const { title, description, discountType, discountValue, minOrderAmount, maxDiscount, validFrom, validTill, isActive } = req.body;
+
         const offer = await Offer.create({
-            ...req.body,
+            title, description, discountType, discountValue, minOrderAmount,
+            maxDiscount, validFrom, validTill, isActive,
             restaurantId: req.admin?.restaurantId
         });
 
         res.status(201).json({ message: 'Offer created successfully', offer });
     } catch (error) {
         console.error('Create Offer Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Get all offers (admin view — includes inactive)
+export const getOffers = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { page = '1', limit = '20' } = req.query;
+        const pageNum = parseInt(page as string, 10);
+        const limitNum = parseInt(limit as string, 10);
+
+        const offers = await Offer.find()
+            .sort({ createdAt: -1 })
+            .limit(limitNum)
+            .skip((pageNum - 1) * limitNum);
+
+        const total = await Offer.countDocuments();
+
+        res.status(200).json({
+            offers,
+            totalPages: Math.ceil(total / limitNum),
+            currentPage: pageNum,
+            totalOffers: total,
+        });
+    } catch (error) {
+        console.error('Get Offers Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Update offer
+export const updateOffer = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // Whitelist allowed fields
+        const allowed = ['title', 'description', 'code', 'discountType', 'discountValue', 'minOrderAmount', 'maxDiscount', 'validFrom', 'validTill', 'isActive'];
+        const update: Record<string, any> = {};
+        for (const key of allowed) {
+            if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
+        const offer = await Offer.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+
+        if (!offer) {
+            res.status(404).json({ message: 'Offer not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Offer updated successfully', offer });
+    } catch (error) {
+        console.error('Update Offer Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Delete offer
+export const deleteOffer = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        const offer = await Offer.findByIdAndDelete(id);
+
+        if (!offer) {
+            res.status(404).json({ message: 'Offer not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Offer deleted successfully' });
+    } catch (error) {
+        console.error('Delete Offer Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Toggle offer active status
+export const toggleOfferActive = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        const offer = await Offer.findById(id);
+
+        if (!offer) {
+            res.status(404).json({ message: 'Offer not found' });
+            return;
+        }
+
+        offer.isActive = !offer.isActive;
+        await offer.save();
+
+        res.status(200).json({
+            message: `Offer ${offer.isActive ? 'activated' : 'deactivated'}`,
+            offer,
+        });
+    } catch (error) {
+        console.error('Toggle Offer Error:', error);
         res.status(500).json({ message: (error as Error).message });
     }
 };

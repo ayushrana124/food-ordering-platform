@@ -4,7 +4,7 @@ export interface RazorpayOrderResponse {
     razorpayOrderId: string;
     amount: number;
     currency: string;
-    keyId: string; // Key is sent from backend — never stored in .env on client
+    key: string; // Key is sent from backend — never stored in .env on client
 }
 
 export interface VerifyPaymentPayload {

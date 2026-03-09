@@ -91,7 +91,8 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
         // Generate JWT token
         const token = jwt.sign(
             { userId: user._id.toString(), phone: user.phone },
-            config.jwtSecret
+            config.jwtSecret,
+            { expiresIn: config.jwtExpire } as jwt.SignOptions
         );
 
         res.status(200).json({
@@ -134,7 +135,8 @@ export const refreshTokenController = async (req: Request, res: Response): Promi
         // Generate new JWT token
         const token = jwt.sign(
             { userId: user._id.toString(), phone: user.phone },
-            config.jwtSecret
+            config.jwtSecret,
+            { expiresIn: config.jwtExpire } as jwt.SignOptions
         );
 
         res.status(200).json({ token });

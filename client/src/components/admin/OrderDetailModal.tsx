@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, User, MapPin, Clock, CreditCard, Check } from 'lucide-react';
+import { X, User, MapPin, Clock, CreditCard, Check, XCircle } from 'lucide-react';
 import { acceptOrder, updateOrderStatus, type IAdminOrder } from '@/services/adminApi';
 import toast from 'react-hot-toast';
 
@@ -15,7 +15,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: Props) {
     const [prepTime, setPrepTime] = useState(30);
     const [loading, setLoading] = useState(false);
 
-    const currentStatus = order.orderStatus || order.status;
+    const currentStatus = order.orderStatus;
 
     const handleAccept = async () => {
         setLoading(true);
@@ -25,6 +25,17 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: Props) {
             onRefresh();
             onClose();
         } catch { toast.error('Failed to accept'); }
+        finally { setLoading(false); }
+    };
+
+    const handleCancel = async () => {
+        setLoading(true);
+        try {
+            await updateOrderStatus(order._id, 'CANCELLED');
+            toast.success('Order cancelled');
+            onRefresh();
+            onClose();
+        } catch { toast.error('Failed to cancel'); }
         finally { setLoading(false); }
     };
 
@@ -134,6 +145,13 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: Props) {
                                 disabled={loading}
                             >
                                 <Check size={18} /> Accept Order
+                            </button>
+                            <button
+                                className="w-full py-[0.55rem] rounded-xl border-[1.5px] border-[#DC2626] text-[#DC2626] bg-white font-semibold text-[0.85rem] cursor-pointer hover:bg-[#FEF2F2] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                onClick={handleCancel}
+                                disabled={loading}
+                            >
+                                <XCircle size={16} /> Reject Order
                             </button>
                         </div>
                     )}

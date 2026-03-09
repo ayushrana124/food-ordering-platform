@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, Pizza, Trash2, Truck, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Pizza, Trash2, Truck, ArrowRight, MapPin } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import EmptyState from '@/components/common/EmptyState';
@@ -10,9 +10,10 @@ export default function CartPage() {
     const navigate = useNavigate();
     const { items, subtotal, itemCount, removeItem, setQuantity } = useCart();
 
-    const DELIVERY_CHARGE = subtotal >= 499 ? 0 : subtotal >= 299 ? 40 : 60;
     const TAX = Math.round(subtotal * 0.05);
-    const TOTAL = subtotal + DELIVERY_CHARGE + TAX;
+    // Delivery charges are distance-based (server-side), so we show an estimate
+    const ESTIMATED_TOTAL_MIN = subtotal + TAX + 20; // min delivery ₹20
+    const ESTIMATED_TOTAL_MAX = subtotal + TAX + 60; // max delivery ₹60
 
     if (items.length === 0) {
         return (
@@ -118,10 +119,8 @@ export default function CartPage() {
                             </div>
                             <div className="flex justify-between text-[0.9rem]">
                                 <span className="text-[#4A4A4A]">Delivery</span>
-                                <span className={`font-semibold flex items-center gap-1 ${DELIVERY_CHARGE === 0 ? 'text-[#16A34A]' : ''}`}>
-                                    {DELIVERY_CHARGE === 0 ? (
-                                        <><Truck size={14} /> FREE</>
-                                    ) : `₹${DELIVERY_CHARGE}`}
+                                <span className="font-semibold text-[#8E8E8E] flex items-center gap-1">
+                                    <MapPin size={13} /> Based on distance
                                 </span>
                             </div>
                             <div className="flex justify-between text-[0.9rem]">
@@ -133,16 +132,14 @@ export default function CartPage() {
                         <div className="divider" />
 
                         <div className="flex justify-between mb-6 mt-3">
-                            <span className="font-outfit font-extrabold text-[1.15rem]">Total</span>
-                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{TOTAL}</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem]">Estimated Total</span>
+                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{ESTIMATED_TOTAL_MIN} – ₹{ESTIMATED_TOTAL_MAX}</span>
                         </div>
 
-                        {subtotal < 499 && (
-                            <div className="bg-[#FFFBF0] rounded-xl px-4 py-3 mb-5 text-[0.8rem] text-[#D97706] font-medium flex items-center gap-2">
-                                <Truck size={15} />
-                                Add ₹{499 - subtotal} more for free delivery!
-                            </div>
-                        )}
+                        <div className="bg-[#FFFBF0] rounded-xl px-4 py-3 mb-5 text-[0.8rem] text-[#D97706] font-medium flex items-center gap-2">
+                            <Truck size={15} />
+                            Delivery charges (₹20–₹60) calculated based on your location at checkout
+                        </div>
 
                         <button
                             className="btn-primary w-full justify-center text-base py-[0.9rem] flex items-center gap-2 group"
