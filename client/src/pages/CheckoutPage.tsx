@@ -13,7 +13,7 @@ import { setCurrentOrder } from '@/redux/slices/orderSlice';
 import { orderService } from '@/services/orderService';
 import { paymentService } from '@/services/paymentService';
 import type { RootState } from '@/redux/store';
-import type { ICartItem, IMenuItemCustomization, IAddress } from '@/types';
+import type { ICartItem, ISelectedCustomization, IAddress } from '@/types';
 import { userService } from '@/services/userService';
 import toast from 'react-hot-toast';
 
@@ -210,7 +210,7 @@ export default function CheckoutPage() {
                             {items.map((i: ICartItem) => (
                                 <div key={i.cartId} className="flex justify-between text-[0.875rem] text-[#4A4A4A]">
                                     <span>{i.name} × {i.quantity}</span>
-                                    <span className="font-semibold">₹{(i.price + i.selectedCustomizations.reduce((s: number, c: IMenuItemCustomization) => s + c.price, 0)) * i.quantity}</span>
+                                    <span className="font-semibold">₹{(i.price + i.selectedCustomizations.reduce((s: number, c: ISelectedCustomization) => s + c.price, 0)) * i.quantity}</span>
                                 </div>
                             ))}
                         </div>

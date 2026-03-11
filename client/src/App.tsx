@@ -21,6 +21,7 @@ const AdminMenuManagement = lazy(() => import('@/pages/admin/MenuManagement'));
 const AdminUsers = lazy(() => import('@/pages/admin/Users'));
 const AdminSettings = lazy(() => import('@/pages/admin/Settings'));
 const AdminOffers = lazy(() => import('@/pages/admin/OfferManagement'));
+const AdminCategories = lazy(() => import('@/pages/admin/CategoryManagement'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
@@ -88,6 +89,7 @@ export default function App() {
                 <Route path="/admin/users" element={<AdminProtectedRoute><AdminUsers /></AdminProtectedRoute>} />
                 <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
                 <Route path="/admin/offers" element={<AdminProtectedRoute><AdminOffers /></AdminProtectedRoute>} />
+                <Route path="/admin/categories" element={<AdminProtectedRoute><AdminCategories /></AdminProtectedRoute>} />
 
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>

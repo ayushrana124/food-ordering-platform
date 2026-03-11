@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Tag, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Save, Loader2 } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Save, Loader2, AlertTriangle } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { getAdminOffers, createOffer, updateOffer, deleteOffer, toggleOfferActive } from '@/services/adminApi';
 import type { IOffer } from '@/types';
 import toast from 'react-hot-toast';
+
+const MAX_OFFERS = 3;
 
 type OfferForm = {
     title: string;
@@ -15,6 +17,10 @@ type OfferForm = {
     maxDiscount: number;
     validFrom: string;
     validTill: string;
+    label: string;
+    headline: string;
+    ctaText: string;
+    colorTheme: string;
 };
 
 const emptyForm: OfferForm = {
@@ -22,6 +28,7 @@ const emptyForm: OfferForm = {
     discountValue: 10, minOrderAmount: 0, maxDiscount: 0,
     validFrom: new Date().toISOString().slice(0, 10),
     validTill: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+    label: '', headline: '', ctaText: 'Order Now', colorTheme: '#E8A317',
 };
 
 export default function OfferManagement() {
@@ -56,6 +63,10 @@ export default function OfferManagement() {
             maxDiscount: (offer as any).maxDiscount || 0,
             validFrom: offer.validTill ? new Date(offer.validTill).toISOString().slice(0, 10) : '',
             validTill: offer.validTill ? new Date(offer.validTill).toISOString().slice(0, 10) : '',
+            label: offer.label || '',
+            headline: offer.headline || '',
+            ctaText: offer.ctaText || 'Order Now',
+            colorTheme: offer.colorTheme || '#E8A317',
         });
         setEditingId(offer._id);
         setShowForm(true);
@@ -105,10 +116,26 @@ export default function OfferManagement() {
                     </span>
                     Offers
                 </h1>
-                <button onClick={openCreate} className="btn-primary flex items-center gap-2 text-[0.85rem]">
+                <button
+                    onClick={openCreate}
+                    disabled={offers.length >= MAX_OFFERS}
+                    className="btn-primary flex items-center gap-2 text-[0.85rem]"
+                    title={offers.length >= MAX_OFFERS ? 'Maximum 3 offers. Delete one first.' : ''}
+                    style={offers.length >= MAX_OFFERS ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                >
                     <Plus size={16} /> New Offer
                 </button>
             </div>
+
+            {/* 3-offer limit warning */}
+            {offers.length >= MAX_OFFERS && (
+                <div className="flex items-center gap-3 p-4 rounded-xl mb-5" style={{ background: '#FEF3C7', border: '1px solid #FCD34D' }}>
+                    <AlertTriangle size={18} className="text-[#D97706] shrink-0" />
+                    <span className="text-[0.84rem] text-[#92400E] font-medium">
+                        Maximum of {MAX_OFFERS} offers reached. Delete an existing offer to add a new one.
+                    </span>
+                </div>
+            )}
 
             {/* Create / Edit form */}
             {showForm && (

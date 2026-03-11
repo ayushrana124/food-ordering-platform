@@ -17,6 +17,8 @@ import config from '../config/config';
 import Admin from '../models/Admin';
 import Restaurant from '../models/Restaurant';
 import MenuItem from '../models/MenuItem';
+import Offer from '../models/Offer';
+import Category from '../models/Category';
 
 async function seed() {
     try {
@@ -327,6 +329,84 @@ async function seed() {
 
             await MenuItem.insertMany(items);
             console.log(`🍕 Created ${items.length} menu items across ${[...new Set(items.map(i => i.category))].length} categories`);
+        }
+
+        // ── 4. Offers ────────────────────────────────────────────────────────
+        const existingOffers = await Offer.countDocuments({ restaurantId });
+        if (existingOffers > 0) {
+            console.log(`🏷️  ${existingOffers} offers already exist — skipping`);
+        } else {
+            const now = new Date();
+            const in90Days = new Date(Date.now() + 90 * 86400000);
+            await Offer.insertMany([
+                {
+                    restaurantId,
+                    title: 'Buy 2 Get 1 FREE',
+                    description: 'On any pizza from our menu. No minimum order required.',
+                    discountType: 'PERCENTAGE',
+                    discountValue: 33,
+                    minOrderAmount: 0,
+                    code: 'B2G1',
+                    validFrom: now,
+                    validTill: in90Days,
+                    isActive: true,
+                    label: 'Today Only',
+                    headline: 'Buy 2\nGet 1 FREE',
+                    ctaText: 'Order Now',
+                    colorTheme: '#E8A317',
+                },
+                {
+                    restaurantId,
+                    title: '50% Off First Order',
+                    description: 'Create an account and place your first online order.',
+                    discountType: 'PERCENTAGE',
+                    discountValue: 50,
+                    minOrderAmount: 0,
+                    code: 'FIRST50',
+                    validFrom: now,
+                    validTill: in90Days,
+                    isActive: true,
+                    label: 'New User',
+                    headline: '50% Off\nFirst Order',
+                    ctaText: 'Claim Offer',
+                    colorTheme: '#16A34A',
+                },
+                {
+                    restaurantId,
+                    title: 'Mega Combo @ ₹599',
+                    description: '2 Pizzas + Garlic Bread + 2 Drinks. Serves 4 people comfortably.',
+                    discountType: 'FLAT',
+                    discountValue: 599,
+                    minOrderAmount: 0,
+                    code: 'COMBO599',
+                    validFrom: now,
+                    validTill: in90Days,
+                    isActive: true,
+                    label: 'Best Value',
+                    headline: 'Mega Combo\n@ ₹599',
+                    ctaText: 'Build Combo',
+                    colorTheme: '#7C3AED',
+                },
+            ]);
+            console.log('🏷️  Created 3 offers');
+        }
+
+        // ── 5. Categories ────────────────────────────────────────────────────
+        const existingCats = await Category.countDocuments({ restaurantId });
+        if (existingCats > 0) {
+            console.log(`📂 ${existingCats} categories already exist — skipping`);
+        } else {
+            await Category.insertMany([
+                { restaurantId, name: 'Pizzas', icon: 'Pizza', displayOrder: 0, colorScheme: { bg: '#FFFCF5', border: '#F0CA5A', color: '#9A7209', iconBg: '#FFFBF0' } },
+                { restaurantId, name: 'Sides', icon: 'Utensils', displayOrder: 1, colorScheme: { bg: '#F0FAF4', border: '#86EFAC', color: '#16A34A', iconBg: '#DCFCE7' } },
+                { restaurantId, name: 'Desserts', icon: 'Cake', displayOrder: 2, colorScheme: { bg: '#FDF2F8', border: '#F0ABFC', color: '#A21CAF', iconBg: '#FAE8FF' } },
+                { restaurantId, name: 'Beverages', icon: 'Coffee', displayOrder: 3, colorScheme: { bg: '#EFF6FF', border: '#93C5FD', color: '#2563EB', iconBg: '#DBEAFE' } },
+                { restaurantId, name: 'Value Deals', icon: 'Tag', displayOrder: 4, colorScheme: { bg: '#FFF7ED', border: '#FDBA74', color: '#EA580C', iconBg: '#FFEDD5' } },
+                { restaurantId, name: 'Combos', icon: 'Package', displayOrder: 5, colorScheme: { bg: '#F5F3FF', border: '#C4B5FD', color: '#7C3AED', iconBg: '#EDE9FE' } },
+                { restaurantId, name: 'Just Launched', icon: 'Zap', displayOrder: 6, colorScheme: { bg: '#ECFDF5', border: '#6EE7B7', color: '#059669', iconBg: '#D1FAE5' } },
+                { restaurantId, name: 'Bestsellers', icon: 'Star', displayOrder: 7, colorScheme: { bg: '#FFFBEB', border: '#FCD34D', color: '#D97706', iconBg: '#FEF3C7' } },
+            ]);
+            console.log('📂 Created 8 categories');
         }
 
         console.log('\n🎉 Seed complete!');

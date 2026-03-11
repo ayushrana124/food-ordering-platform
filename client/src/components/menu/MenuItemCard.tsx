@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Sparkles } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import type { IMenuItem } from '@/types';
@@ -20,9 +20,11 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
     const [imgError, setImgError] = useState(false);
     const countInCart = getItemCount(item._id);
 
+    const hasCustomizations = item.customizations && item.customizations.length > 0;
+
     const handleAddClick = () => {
         if (!isAuthenticated) { setShowLogin(true); return; }
-        if (item.customizations.length > 0) {
+        if (hasCustomizations) {
             setShowCustomize(true);
         } else {
             addItem({ menuItemId: item._id, name: item.name, price: item.price, image: item.image, isVeg: item.isVeg, selectedCustomizations: [] });
@@ -70,6 +72,24 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
                         </span>
                     </span>
 
+                    {/* Customizable badge */}
+                    {hasCustomizations && (
+                        <span className="absolute top-2.5 right-2.5">
+                            <span
+                                className="inline-flex items-center gap-1 px-2 py-[3px] rounded-md text-[0.6rem] font-bold uppercase tracking-wider"
+                                style={{
+                                    background: 'rgba(232,163,23,0.12)',
+                                    color: '#E8A317',
+                                    backdropFilter: 'blur(4px)',
+                                    border: '1px solid rgba(232,163,23,0.2)',
+                                }}
+                            >
+                                <Sparkles size={9} />
+                                Options
+                            </span>
+                        </span>
+                    )}
+
                     {/* Unavailable overlay */}
                     {!item.isAvailable && (
                         <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex items-center justify-center">
@@ -96,9 +116,6 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
                             {item.description}
                         </p>
                     )}
-                    {item.customizations.length > 0 && (
-                        <p className="text-[0.75rem] text-[#8E8E8E] italic">Customizable</p>
-                    )}
 
                     <div className="flex items-center justify-between mt-auto pt-3">
                         <span
@@ -117,7 +134,7 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
                                 </div>
                             ) : (
                                 <button
-                                    className="btn-dark flex items-center gap-1.5"
+                                    className="btn-primary flex items-center gap-1.5"
                                     style={{ padding: '0.4rem 1rem', fontSize: '0.82rem' }}
                                     onClick={handleAddClick}
                                 >

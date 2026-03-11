@@ -21,10 +21,30 @@ export interface IUser {
     lastLogin: string;
 }
 
-export interface IMenuItemCustomization {
+// ─── Customization Types ──────────────────────────────────────────────────────
+
+/** A single option within a customization group (e.g. "Large" +₹150) */
+export interface ICustomizationOption {
     name: string;
     price: number;
 }
+
+/** A customization group on a menu item (e.g. "Size" with options) */
+export interface ICustomizationGroup {
+    name: string;
+    options: ICustomizationOption[];
+    required: boolean;
+}
+
+/** What ends up in the cart / order after user picks options */
+export interface ISelectedCustomization {
+    groupName: string;
+    optionName: string;
+    price: number;
+}
+
+// Legacy alias — kept for backward compatibility in a few places
+export type IMenuItemCustomization = ICustomizationOption;
 
 export interface IMenuItem {
     _id: string;
@@ -35,7 +55,7 @@ export interface IMenuItem {
     image?: string;
     isVeg: boolean;
     isAvailable: boolean;
-    customizations: IMenuItemCustomization[];
+    customizations: ICustomizationGroup[];
 }
 
 export interface IRestaurant {
@@ -69,6 +89,25 @@ export interface IOffer {
     code?: string;
     validTill: string;
     banner?: string;
+    // Landing-page display fields
+    label?: string;
+    headline?: string;
+    ctaText?: string;
+    colorTheme?: string;
+}
+
+export interface ICategory {
+    _id: string;
+    name: string;
+    icon: string;
+    colorScheme: {
+        bg: string;
+        border: string;
+        color: string;
+        iconBg: string;
+    };
+    displayOrder: number;
+    isActive: boolean;
 }
 
 export interface IOrderItem {
@@ -76,7 +115,7 @@ export interface IOrderItem {
     name: string;
     quantity: number;
     price: number;
-    customizations: IMenuItemCustomization[];
+    customizations: ISelectedCustomization[];
 }
 
 export type OrderStatus =
@@ -120,7 +159,7 @@ export interface ICartItem {
     image?: string;
     quantity: number;
     isVeg: boolean;
-    selectedCustomizations: IMenuItemCustomization[];
+    selectedCustomizations: ISelectedCustomization[];
 }
 
 // ─── API Response Types ───────────────────────────────────────────────────────
@@ -162,7 +201,7 @@ export interface MenuState {
     items: IMenuItem[];
     restaurant: IRestaurant | null;
     offers: IOffer[];
-    categories: string[];
+    categories: ICategory[];
     loading: boolean;
     error: string | null;
 }

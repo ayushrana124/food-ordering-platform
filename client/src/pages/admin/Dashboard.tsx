@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { IndianRupee, ShoppingBag, Clock, Users, RefreshCw } from 'lucide-react';
+import { IndianRupee, ShoppingBag, Clock, Users, RefreshCw, Store, Power } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { getOrderStats, getOrders, type IOrderStats, type IAdminOrder } from '@/services/adminApi';
+import { getOrderStats, getOrders, getRestaurantInfo, toggleRestaurantOpen, type IOrderStats, type IAdminOrder } from '@/services/adminApi';
 import { useAdminSocket } from '@/hooks/useAdminSocket';
 import toast from 'react-hot-toast';
 
@@ -25,16 +25,20 @@ export default function Dashboard() {
     const [stats, setStats] = useState<IOrderStats | null>(null);
     const [recentOrders, setRecentOrders] = useState<IAdminOrder[]>([]);
     const [loadingStats, setLoadingStats] = useState(true);
+    const [isOpen, setIsOpen] = useState(true);
+    const [toggling, setToggling] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoadingStats(true);
         try {
-            const [statsData, ordersData] = await Promise.all([
+            const [statsData, ordersData, restData] = await Promise.all([
                 getOrderStats(),
                 getOrders({ limit: 8 }),
+                getRestaurantInfo(),
             ]);
             setStats(statsData);
             setRecentOrders(ordersData.orders);
+            setIsOpen(restData.restaurant?.isOpen ?? true);
         } catch {
             toast.error('Failed to load dashboard data');
         } finally {
@@ -52,9 +56,22 @@ export default function Dashboard() {
     });
     useEffect(() => { onRefresh(fetchData); }, [onRefresh, fetchData]);
 
+    const handleToggleOpen = async () => {
+        setToggling(true);
+        try {
+            const res = await toggleRestaurantOpen(isOpen);
+            setIsOpen(res.restaurant?.isOpen ?? !isOpen);
+            toast.success(res.restaurant?.isOpen ? 'Restaurant is now OPEN' : 'Restaurant is now CLOSED');
+        } catch {
+            toast.error('Failed to toggle restaurant status');
+        } finally {
+            setToggling(false);
+        }
+    };
+
     return (
         <AdminLayout>
-            <div className="flex items-center justify-between mb-7">
+            <div className="flex items-center justify-between mb-7 flex-wrap gap-3">
                 <h1 className="font-outfit font-extrabold text-[1.5rem] text-[#0F0F0F] tracking-[-0.02em]">Dashboard</h1>
                 <button
                     onClick={fetchData}
@@ -62,6 +79,53 @@ export default function Dashboard() {
                 >
                     <RefreshCw size={16} className={loadingStats ? 'animate-spin' : ''} />
                     Refresh
+                </button>
+            </div>
+
+            {/* Restaurant Status Card */}
+            <div
+                className="rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4 transition-all duration-300"
+                style={{
+                    background: isOpen
+                        ? 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)'
+                        : 'linear-gradient(135deg, #FEF2F2 0%, #FECACA 100%)',
+                    border: `1.5px solid ${isOpen ? '#86EFAC' : '#FCA5A5'}`,
+                }}
+            >
+                <div className="flex items-center gap-4">
+                    <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                        style={{
+                            background: isOpen ? '#16A34A' : '#DC2626',
+                            boxShadow: isOpen
+                                ? '0 4px 16px rgba(22,163,74,0.3)'
+                                : '0 4px 16px rgba(220,38,38,0.3)',
+                        }}
+                    >
+                        <Store size={22} className="text-white" />
+                    </div>
+                    <div>
+                        <p className="font-outfit font-bold text-[1.1rem] text-[#0F0F0F]">
+                            Restaurant is {isOpen ? 'Open' : 'Closed'}
+                        </p>
+                        <p className="text-[0.82rem]" style={{ color: isOpen ? '#16A34A' : '#DC2626' }}>
+                            {isOpen ? 'Accepting orders from customers' : 'No orders will be accepted'}
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleToggleOpen}
+                    disabled={toggling}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[0.85rem] cursor-pointer transition-all duration-200 border-none text-white disabled:opacity-50"
+                    style={{
+                        background: isOpen ? '#DC2626' : '#16A34A',
+                        boxShadow: isOpen
+                            ? '0 2px 12px rgba(220,38,38,0.25)'
+                            : '0 2px 12px rgba(22,163,74,0.25)',
+                    }}
+                >
+                    <Power size={16} />
+                    {toggling ? 'Updating...' : isOpen ? 'Close Restaurant' : 'Open Restaurant'}
                 </button>
             </div>
 

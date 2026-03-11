@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { CartState, ICartItem, IMenuItemCustomization } from '@/types';
+import type { CartState, ICartItem, ISelectedCustomization } from '@/types';
 
 const loadCartFromSession = (): ICartItem[] => {
     try {
@@ -41,7 +41,7 @@ interface AddToCartPayload {
     price: number;
     image?: string;
     isVeg: boolean;
-    selectedCustomizations: IMenuItemCustomization[];
+    selectedCustomizations: ISelectedCustomization[];
 }
 
 const cartSlice = createSlice({

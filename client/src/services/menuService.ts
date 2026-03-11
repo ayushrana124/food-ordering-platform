@@ -1,5 +1,5 @@
 import api from './api';
-import type { IRestaurant, IMenuItem, IOffer } from '@/types';
+import type { IRestaurant, IMenuItem, IOffer, ICategory } from '@/types';
 
 export const menuService = {
     getRestaurantInfo: async (): Promise<IRestaurant> => {
@@ -22,5 +22,10 @@ export const menuService = {
     getOffers: async (): Promise<IOffer[]> => {
         const res = await api.get<{ offers: IOffer[] }>('/menu/offers');
         return res.data.offers;
+    },
+
+    getCategories: async (): Promise<ICategory[]> => {
+        const res = await api.get<{ categories: ICategory[] }>('/menu/categories');
+        return res.data.categories;
     },
 };

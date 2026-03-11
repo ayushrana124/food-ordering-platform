@@ -82,7 +82,7 @@ export default function CartPage() {
                                         </div>
                                         {item.selectedCustomizations.length > 0 && (
                                             <p className="text-[0.75rem] text-[#8E8E8E]">
-                                                + {item.selectedCustomizations.map((c) => c.name).join(', ')}
+                                                + {item.selectedCustomizations.map((c) => c.optionName).join(', ')}
                                             </p>
                                         )}
                                         <p className="font-bold text-[#E8A317] mt-1">₹{itemTotal}</p>

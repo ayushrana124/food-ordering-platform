@@ -12,6 +12,11 @@ export interface IOffer extends Document {
     validFrom: Date;
     validTill: Date;
     isActive: boolean;
+    // Landing-page display fields
+    label?: string;        // e.g. "Today Only", "New User"
+    headline?: string;     // e.g. "Buy 2\nGet 1 FREE"
+    ctaText?: string;      // e.g. "Order Now"
+    colorTheme?: string;   // hex e.g. "#E8A317"
     createdAt: Date;
 }
 
@@ -57,6 +62,10 @@ const offerSchema = new Schema<IOffer>({
         type: Boolean,
         default: true
     },
+    label: String,
+    headline: String,
+    ctaText: { type: String, default: 'Order Now' },
+    colorTheme: { type: String, default: '#E8A317' },
     createdAt: {
         type: Date,
         default: Date.now
