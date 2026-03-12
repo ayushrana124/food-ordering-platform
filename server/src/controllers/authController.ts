@@ -29,8 +29,10 @@ export const sendOTPController = async (req: Request, res: Response): Promise<vo
             return;
         }
 
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Generate 6-digit OTP (fixed in dev mode for easy testing)
+        const otp = config.useDummyOtp
+            ? '123456'
+            : Math.floor(100000 + Math.random() * 900000).toString();
 
         // Save OTP to database (TTL index will auto-delete after 5 minutes)
         await OTP.create({ phone, otp });
