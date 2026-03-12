@@ -4,6 +4,7 @@ import Order from '../models/Order';
 import User from '../models/User';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
+import Category from '../models/Category';
 import { v2 as cloudinary } from 'cloudinary';
 
 // ============= ORDER MANAGEMENT =============
@@ -394,15 +395,21 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
 
 // ============= OFFER MANAGEMENT =============
 
-// Create offer
+// Create offer (max 3)
 export const createOffer = async (req: Request, res: Response): Promise<void> => {
     try {
-        // Whitelist allowed fields
-        const { title, description, discountType, discountValue, minOrderAmount, maxDiscount, validFrom, validTill, isActive } = req.body;
+        // Enforce 3-offer limit
+        const existingCount = await Offer.countDocuments({ restaurantId: req.admin?.restaurantId });
+        if (existingCount >= 3) {
+            res.status(400).json({ message: 'Maximum 3 offers allowed. Please delete an existing offer first.' });
+            return;
+        }
+
+        const { title, description, code, discountType, discountValue, minOrderAmount, maxDiscount, validFrom, validTill, isActive, label, headline, ctaText, colorTheme } = req.body;
 
         const offer = await Offer.create({
-            title, description, discountType, discountValue, minOrderAmount,
-            maxDiscount, validFrom, validTill, isActive,
+            title, description, code, discountType, discountValue, minOrderAmount,
+            maxDiscount, validFrom, validTill, isActive, label, headline, ctaText, colorTheme,
             restaurantId: req.admin?.restaurantId
         });
 
@@ -445,7 +452,7 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
         const { id } = req.params;
 
         // Whitelist allowed fields
-        const allowed = ['title', 'description', 'code', 'discountType', 'discountValue', 'minOrderAmount', 'maxDiscount', 'validFrom', 'validTill', 'isActive'];
+        const allowed = ['title', 'description', 'code', 'discountType', 'discountValue', 'minOrderAmount', 'maxDiscount', 'validFrom', 'validTill', 'isActive', 'label', 'headline', 'ctaText', 'colorTheme'];
         const update: Record<string, any> = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) update[key] = req.body[key];
@@ -505,6 +512,76 @@ export const toggleOfferActive = async (req: Request, res: Response): Promise<vo
         });
     } catch (error) {
         console.error('Toggle Offer Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// ============= CATEGORY MANAGEMENT =============
+
+// Get all categories (admin)
+export const getCategories = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const categories = await Category.find({ restaurantId: req.admin?.restaurantId })
+            .sort({ displayOrder: 1, createdAt: 1 });
+        res.status(200).json({ categories });
+    } catch (error) {
+        console.error('Get Categories Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Create category
+export const createCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { name, icon, colorScheme, displayOrder } = req.body;
+        if (!name) { res.status(400).json({ message: 'Category name is required' }); return; }
+
+        const category = await Category.create({
+            name, icon, colorScheme, displayOrder,
+            restaurantId: req.admin?.restaurantId
+        });
+        res.status(201).json({ message: 'Category created', category });
+    } catch (error) {
+        console.error('Create Category Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Update category
+export const updateCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const allowed = ['name', 'icon', 'colorScheme', 'displayOrder', 'isActive'];
+        const update: Record<string, any> = {};
+        for (const key of allowed) { if (req.body[key] !== undefined) update[key] = req.body[key]; }
+
+        const category = await Category.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+        if (!category) { res.status(404).json({ message: 'Category not found' }); return; }
+        res.status(200).json({ message: 'Category updated', category });
+    } catch (error) {
+        console.error('Update Category Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Delete category
+export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) { res.status(404).json({ message: 'Category not found' }); return; }
+
+        // Prevent deletion if menu items use this category
+        const itemCount = await MenuItem.countDocuments({ category: category.name });
+        if (itemCount > 0) {
+            res.status(400).json({
+                message: `Cannot delete — ${itemCount} menu item${itemCount > 1 ? 's' : ''} still use the "${category.name}" category. Remove or reassign them first.`
+            });
+            return;
+        }
+
+        await Category.findByIdAndDelete(req.params.id);
+        res.status(200).json({ message: 'Category deleted' });
+    } catch (error) {
+        console.error('Delete Category Error:', error);
         res.status(500).json({ message: (error as Error).message });
     }
 };

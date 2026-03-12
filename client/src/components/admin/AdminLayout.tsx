@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ClipboardList, UtensilsCrossed, Users, Settings,
-    LogOut, ChevronLeft, Menu, ChefHat, Tag
+    LogOut, ChevronLeft, Menu, ChefHat, Tag, Layers
 } from 'lucide-react';
 import { adminLogout, type IAdmin } from '@/services/adminApi';
 
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
     { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
     { to: '/admin/menu', label: 'Menu', icon: UtensilsCrossed },
+    { to: '/admin/categories', label: 'Categories', icon: Layers },
     { to: '/admin/offers', label: 'Offers', icon: Tag },
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/settings', label: 'Settings', icon: Settings },

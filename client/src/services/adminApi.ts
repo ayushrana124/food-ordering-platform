@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { IMenuItem, IOrder, IUser, IRestaurant, IOffer, IMenuItemCustomization } from '@/types';
+import type { IMenuItem, IOrder, IUser, IRestaurant, IOffer, ICustomizationGroup, ICategory } from '@/types';
 
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 
@@ -169,6 +169,10 @@ export async function updateRestaurant(payload: Partial<IRestaurant>) {
     return data;
 }
 
+export async function toggleRestaurantOpen(currentlyOpen: boolean) {
+    return updateRestaurant({ isOpen: !currentlyOpen } as Partial<IRestaurant>);
+}
+
 // ── Offers ─────────────────────────────────────────────────────────────────────
 
 export async function getAdminOffers(page = 1, limit = 20) {
@@ -198,5 +202,27 @@ export async function deleteOffer(id: string) {
 
 export async function toggleOfferActive(id: string) {
     const { data } = await adminApi.put<{ message: string; offer: IOffer }>(`/admin/offers/${id}/toggle`);
+    return data;
+}
+
+// ── Categories ─────────────────────────────────────────────────────────────────
+
+export async function getAdminCategories() {
+    const { data } = await adminApi.get<{ categories: ICategory[] }>('/admin/categories');
+    return data;
+}
+
+export async function createCategory(payload: Partial<ICategory>) {
+    const { data } = await adminApi.post<{ message: string; category: ICategory }>('/admin/categories', payload);
+    return data;
+}
+
+export async function updateCategory(id: string, payload: Partial<ICategory>) {
+    const { data } = await adminApi.put<{ message: string; category: ICategory }>(`/admin/categories/${id}`, payload);
+    return data;
+}
+
+export async function deleteCategory(id: string) {
+    const { data } = await adminApi.delete<{ message: string }>(`/admin/categories/${id}`);
     return data;
 }

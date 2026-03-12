@@ -14,6 +14,7 @@ interface Config {
     clientUrl: string;
     otpCooldown: number; // minutes
     otpExpiry: number; // minutes
+    useDummyOtp: boolean; // Set to true to bypass real SMS API (for dev without DLT)
 }
 
 const config: Config = {
@@ -42,6 +43,11 @@ const config: Config = {
     // OTP Configuration
     otpCooldown: parseInt(process.env.OTP_COOLDOWN || '10', 10), // 10 minutes
     otpExpiry: parseInt(process.env.OTP_EXPIRY || '5', 10), // 5 minutes
+
+    // Dummy OTP toggle — set USE_DUMMY_OTP=false when DLT registration is done
+    useDummyOtp: process.env.USE_DUMMY_OTP
+        ? process.env.USE_DUMMY_OTP === 'true'
+        : (process.env.NODE_ENV || 'development') === 'development',
 };
 
 // Validate required environment variables

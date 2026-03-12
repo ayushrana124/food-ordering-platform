@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, SlidersHorizontal, AlertTriangle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { fetchMenuItems } from '@/redux/slices/menuSlice';
+import { fetchMenuItems, fetchCategories, fetchRestaurant } from '@/redux/slices/menuSlice';
 import type { RootState } from '@/redux/store';
 import MenuItemCard from '@/components/menu/MenuItemCard';
 import EmptyState from '@/components/common/EmptyState';
@@ -9,20 +9,22 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
-const ALL_CATS = ['All', 'Pizzas', 'Sides', 'Desserts', 'Beverages', 'Value Deals', 'Combos'];
-
 export default function MenuPage() {
     const dispatch = useAppDispatch();
-    const { items, loading } = useAppSelector((s: RootState) => s.menu);
+    const { items, categories, restaurant, loading } = useAppSelector((s: RootState) => s.menu);
     const [search, setSearch] = useState('');
     const [vegOnly, setVegOnly] = useState(false);
     const [activeCat, setActiveCat] = useState('All');
 
+    const catNames = useMemo(() => ['All', ...categories.map(c => c.name)], [categories]);
+
     useEffect(() => {
+        dispatch(fetchMenuItems({}));
+        dispatch(fetchCategories());
+        dispatch(fetchRestaurant());
         const params = new URLSearchParams(window.location.search);
         const cat = params.get('category');
-        if (cat && ALL_CATS.includes(cat)) setActiveCat(cat);
-        dispatch(fetchMenuItems({}));
+        if (cat) setActiveCat(cat);
     }, [dispatch]);
 
     const filtered = items.filter((item) => {
@@ -32,9 +34,32 @@ export default function MenuPage() {
         return matchCat && matchSearch && matchVeg;
     });
 
+    const isClosed = restaurant && restaurant.isOpen === false;
+
     return (
         <div className="min-h-screen bg-white page-enter flex flex-col">
             <Navbar />
+
+            {/* Closed banner */}
+            {isClosed && (
+                <div
+                    className="border-b"
+                    style={{
+                        background: 'linear-gradient(135deg, #FEF2F2 0%, #FECACA 100%)',
+                        borderColor: '#FCA5A5',
+                    }}
+                >
+                    <div className="container py-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-[#DC2626] flex items-center justify-center shrink-0">
+                            <AlertTriangle size={16} className="text-white" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-[0.88rem] text-[#DC2626]">Restaurant is currently closed</p>
+                            <p className="text-[0.78rem] text-[#9B1C1C]">Orders are not being accepted right now. Please check back later.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <div className="bg-[#F7F7F5] border-b border-[#EEEEEE] py-[clamp(2rem,4.5vw,3rem)]">
@@ -87,7 +112,7 @@ export default function MenuPage() {
 
                         {/* Category pills */}
                         <div className="scroll-x-hide flex gap-[0.4rem] flex-[1_1_auto] overflow-x-auto pb-px">
-                            {ALL_CATS.map((cat) => (
+                            {catNames.map((cat) => (
                                 <button
                                     key={cat}
                                     className={`pill${activeCat === cat ? ' active' : ''}`}

@@ -17,7 +17,11 @@ import {
     getOffers,
     updateOffer,
     deleteOffer,
-    toggleOfferActive
+    toggleOfferActive,
+    getCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory
 } from '../controllers/adminController';
 import { loginController, logoutController } from '../controllers/adminAuthController';
 import { adminProtect } from '../middleware/adminAuth';
@@ -74,5 +78,11 @@ router.post('/offers', createOffer);
 router.put('/offers/:id', validateObjectId(), updateOffer);
 router.delete('/offers/:id', validateObjectId(), deleteOffer);
 router.put('/offers/:id/toggle', validateObjectId(), toggleOfferActive);
+
+// Category management
+router.get('/categories', getCategories);
+router.post('/categories', createCategory);
+router.put('/categories/:id', validateObjectId(), updateCategory);
+router.delete('/categories/:id', validateObjectId(), deleteCategory);
 
 export default router;

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import type { MenuState, IMenuItem, IRestaurant, IOffer } from '@/types';
+import type { MenuState, IMenuItem, IRestaurant, IOffer, ICategory } from '@/types';
 import { menuService } from '@/services/menuService';
 
 const initialState: MenuState = {
@@ -47,13 +47,22 @@ export const fetchOffers = createAsyncThunk(
     }
 );
 
+export const fetchCategories = createAsyncThunk(
+    'menu/fetchCategories',
+    async (_, { rejectWithValue }) => {
+        try {
+            const data = await menuService.getCategories();
+            return data;
+        } catch (err) {
+            return rejectWithValue((err as Error).message);
+        }
+    }
+);
+
 const menuSlice = createSlice({
     name: 'menu',
     initialState,
     reducers: {
-        setCategories(state, action: PayloadAction<string[]>) {
-            state.categories = action.payload;
-        },
         clearError(state) {
             state.error = null;
         },
@@ -76,9 +85,6 @@ const menuSlice = createSlice({
             .addCase(fetchMenuItems.pending, (state) => { state.loading = true; })
             .addCase(fetchMenuItems.fulfilled, (state, action: PayloadAction<IMenuItem[]>) => {
                 state.items = action.payload;
-                // Auto-derive categories
-                const cats = [...new Set(action.payload.map((i) => i.category))];
-                state.categories = cats;
                 state.loading = false;
             })
             .addCase(fetchMenuItems.rejected, (state, action) => {
@@ -91,8 +97,14 @@ const menuSlice = createSlice({
             .addCase(fetchOffers.fulfilled, (state, action: PayloadAction<IOffer[]>) => {
                 state.offers = action.payload;
             });
+
+        // Categories
+        builder
+            .addCase(fetchCategories.fulfilled, (state, action: PayloadAction<ICategory[]>) => {
+                state.categories = action.payload;
+            });
     },
 });
 
-export const { setCategories, clearError } = menuSlice.actions;
+export const { clearError } = menuSlice.actions;
 export default menuSlice.reducer;

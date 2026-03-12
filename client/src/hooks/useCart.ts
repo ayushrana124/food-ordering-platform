@@ -1,6 +1,6 @@
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { addToCart, removeFromCart, updateQuantity, clearCart } from '@/redux/slices/cartSlice';
-import type { ICartItem, IMenuItemCustomization } from '@/types';
+import type { ICartItem, ISelectedCustomization } from '@/types';
 
 interface AddPayload {
     menuItemId: string;
@@ -8,7 +8,7 @@ interface AddPayload {
     price: number;
     image?: string;
     isVeg: boolean;
-    selectedCustomizations: IMenuItemCustomization[];
+    selectedCustomizations: ISelectedCustomization[];
 }
 
 export const useCart = () => {

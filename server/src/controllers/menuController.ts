@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import MenuItem from '../models/MenuItem';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
+import Category from '../models/Category';
 
 // Get restaurant information
 export const getRestaurantInfo = async (_req: Request, res: Response): Promise<void> => {
@@ -27,11 +28,9 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
 
         const query: any = { isAvailable: true };
 
-        // Apply filters
         if (category) query.category = category;
         if (isVeg !== undefined) query.isVeg = isVeg === 'true';
         if (search) {
-            // Escape regex special characters to prevent ReDoS
             const escaped = (search as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             query.name = { $regex: escaped, $options: 'i' };
         }
@@ -90,6 +89,18 @@ export const getOffers = async (_req: Request, res: Response): Promise<void> => 
         });
     } catch (error) {
         console.error('Get Offers Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Get active categories (public)
+export const getCategories = async (_req: Request, res: Response): Promise<void> => {
+    try {
+        const categories = await Category.find({ isActive: true })
+            .sort({ displayOrder: 1, createdAt: 1 });
+        res.status(200).json({ categories, count: categories.length });
+    } catch (error) {
+        console.error('Get Categories Error:', error);
         res.status(500).json({ message: (error as Error).message });
     }
 };
