@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import type { IMenuItem, ISelectedCustomization, ICustomizationGroup } from '@/types';
@@ -74,11 +75,16 @@ export default function CustomizationModal({ item, onClose }: CustomizationModal
         onClose();
     };
 
-    return (
+    const modal = (
         <div
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-            className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center"
             style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
                 background: 'rgba(15,15,15,0.5)',
                 backdropFilter: 'blur(6px)',
                 WebkitBackdropFilter: 'blur(6px)',
@@ -86,12 +92,24 @@ export default function CustomizationModal({ item, onClose }: CustomizationModal
             }}
         >
             <div
-                className="bg-white w-full sm:w-auto sm:min-w-[420px] sm:max-w-[480px] sm:rounded-[24px] rounded-t-[24px] relative max-h-[85vh] flex flex-col"
                 style={{
-                    boxShadow: '0 -8px 40px rgba(0,0,0,0.12), 0 16px 48px rgba(0,0,0,0.12)',
+                    width: '100%',
+                    maxWidth: 480,
+                    maxHeight: '90vh',
+                    background: 'white',
+                    borderRadius: '24px 24px 0 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxShadow: '0 -8px 40px rgba(0,0,0,0.12)',
                     animation: 'slideUp 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
                 }}
+                onClick={(e) => e.stopPropagation()}
             >
+                {/* Drag handle on mobile */}
+                <div className="sm:hidden flex justify-center pt-3 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-[#E0E0DC]" />
+                </div>
+
                 {/* Header */}
                 <div className="flex justify-between items-start p-6 pb-3 shrink-0">
                     <div className="flex-1 min-w-0">
@@ -142,9 +160,7 @@ export default function CustomizationModal({ item, onClose }: CustomizationModal
                                                     /* Radio circle */
                                                     <div
                                                         className="w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all shrink-0"
-                                                        style={{
-                                                            borderColor: isActive ? '#E8A317' : '#D4D4D0',
-                                                        }}
+                                                        style={{ borderColor: isActive ? '#E8A317' : '#D4D4D0' }}
                                                     >
                                                         {isActive && (
                                                             <div className="w-[10px] h-[10px] rounded-full bg-[#E8A317]" />
@@ -202,4 +218,6 @@ export default function CustomizationModal({ item, onClose }: CustomizationModal
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 }

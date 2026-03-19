@@ -37,7 +37,7 @@ export default function MenuPage() {
     const isClosed = restaurant && restaurant.isOpen === false;
 
     return (
-        <div className="min-h-screen bg-white page-enter flex flex-col">
+        <div className="min-h-screen bg-white page-enter flex flex-col" style={{ paddingBottom: 80 }}>
             <Navbar />
 
             {/* Closed banner */}
@@ -62,7 +62,7 @@ export default function MenuPage() {
             )}
 
             {/* Header */}
-            <div className="bg-[#F7F7F5] border-b border-[#EEEEEE] py-[clamp(2rem,4.5vw,3rem)]">
+            {/* <div className="bg-[#F7F7F5] border-b border-[#EEEEEE] py-[clamp(2rem,4.5vw,3rem)]">
                 <div className="container">
                     <span className="section-label">
                         <SlidersHorizontal size={13} /> Order Online
@@ -74,7 +74,7 @@ export default function MenuPage() {
                         Fresh handcrafted pizza, sides and more
                     </p>
                 </div>
-            </div>
+            </div> */}
 
             {/* Sticky filters */}
             <div className="sticky top-[64px] z-90 bg-white/95 backdrop-blur-md border-b border-[#EEEEEE] py-3" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
@@ -138,7 +138,7 @@ export default function MenuPage() {
                 ) : filtered.length === 0 ? (
                     <EmptyState title="No items found" description="Try a different search or category" icon={Search} />
                 ) : (
-                    <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(clamp(180px,24vw,240px),1fr))' }}>
+                    <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(clamp(180px,24vw,240px),1fr))]">
                         {filtered.map((item) => (
                             <MenuItemCard key={item._id} item={item} />
                         ))}

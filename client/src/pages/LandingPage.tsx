@@ -277,8 +277,7 @@ export default function LandingPage() {
                         </div>
                     ) : (
                         <div
-                            className="grid gap-[clamp(0.75rem,2vw,1.1rem)]"
-                            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(180px,22vw,240px), 1fr))' }}
+                            className="grid gap-4 sm:gap-[clamp(0.75rem,2vw,1.1rem)] grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(clamp(180px,22vw,240px),1fr))]"
                         >
                             {items.slice(0, 8).map((item) => (
                                 <MenuItemCard key={item._id} item={item} compact />
