@@ -27,14 +27,14 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
         if (hasCustomizations) {
             setShowCustomize(true);
         } else {
-            addItem({ menuItemId: item._id, name: item.name, price: item.price, image: item.image, isVeg: item.isVeg, selectedCustomizations: [] });
+            addItem({ menuItemId: item._id });
             toast.success(`${item.name} added to cart!`);
         }
     };
 
     const handleDecrement = () => {
         const last = [...cartItems].reverse().find((i) => i.menuItemId === item._id);
-        if (last) removeItem(last.cartId);
+        if (last) removeItem(last.cartItemId);
     };
 
     const VegBadge = () => (

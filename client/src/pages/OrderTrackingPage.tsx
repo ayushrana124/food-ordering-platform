@@ -152,10 +152,6 @@ export default function OrderTrackingPage() {
                             <span className="text-[#4A4A4A]">Delivery</span>
                             <span>₹{currentOrder.deliveryCharges}</span>
                         </div>
-                        <div className="flex justify-between text-[0.875rem]">
-                            <span className="text-[#4A4A4A]">Taxes</span>
-                            <span>₹{currentOrder.taxes}</span>
-                        </div>
                         <div className="divider my-1" />
                         <div className="flex justify-between font-outfit font-extrabold text-[1.1rem]">
                             <span>Total</span>

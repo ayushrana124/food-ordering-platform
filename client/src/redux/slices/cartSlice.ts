@@ -1,101 +1,132 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { CartState, ICartItem, ISelectedCustomization } from '@/types';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { cartService, type CartResponse, type ServerCartItem, type CartDiscount } from '@/services/cartService';
 
-const loadCartFromSession = (): ICartItem[] => {
-    try {
-        const raw = sessionStorage.getItem('bp_cart');
-        return raw ? (JSON.parse(raw) as ICartItem[]) : [];
-    } catch {
-        return [];
-    }
-};
+export type { ServerCartItem, CartDiscount };
 
-const saveCartToSession = (items: ICartItem[]) => {
-    try {
-        sessionStorage.setItem('bp_cart', JSON.stringify(items));
-    } catch { /* ignore */ }
-};
-
-const calcSubtotal = (items: ICartItem[]): number =>
-    items.reduce((sum, item) => {
-        const customTotal = item.selectedCustomizations.reduce(
-            (s, c) => s + c.price, 0
-        );
-        return sum + (item.price + customTotal) * item.quantity;
-    }, 0);
-
-const calcItemCount = (items: ICartItem[]): number =>
-    items.reduce((sum, item) => sum + item.quantity, 0);
-
-const storedItems = loadCartFromSession();
+export interface CartState {
+    items: ServerCartItem[];
+    subtotal: number;
+    discount: CartDiscount | null;
+    total: number;
+    itemCount: number;
+    appliedCoupon: string | null;
+    loading: boolean;
+    error: string | null;
+}
 
 const initialState: CartState = {
-    items: storedItems,
-    subtotal: calcSubtotal(storedItems),
-    itemCount: calcItemCount(storedItems),
+    items: [],
+    subtotal: 0,
+    discount: null,
+    total: 0,
+    itemCount: 0,
+    appliedCoupon: null,
+    loading: false,
+    error: null,
 };
 
-interface AddToCartPayload {
-    menuItemId: string;
-    name: string;
-    price: number;
-    image?: string;
-    isVeg: boolean;
-    selectedCustomizations: ISelectedCustomization[];
+function applyCartResponse(state: CartState, data: CartResponse) {
+    state.items = data.items;
+    state.subtotal = data.subtotal;
+    state.discount = data.discount;
+    state.total = data.total;
+    state.itemCount = data.itemCount;
+    state.appliedCoupon = data.appliedCoupon;
+    state.error = null;
 }
+
+// ── Thunks ───────────────────────────────────────────────────────────────────
+
+export const fetchCart = createAsyncThunk('cart/fetch', async (_, { rejectWithValue }) => {
+    try {
+        return await cartService.getCart();
+    } catch (err: any) {
+        return rejectWithValue(err.response?.data?.message ?? 'Failed to fetch cart');
+    }
+});
+
+export const addToCart = createAsyncThunk(
+    'cart/add',
+    async (payload: { menuItemId: string; quantity?: number; selectedCustomizations?: { groupName: string; optionName: string }[] }, { rejectWithValue }) => {
+        try {
+            return await cartService.addItem(
+                payload.menuItemId,
+                payload.quantity ?? 1,
+                payload.selectedCustomizations ?? []
+            );
+        } catch (err: any) {
+            return rejectWithValue(err.response?.data?.message ?? 'Failed to add item');
+        }
+    }
+);
+
+export const updateCartItem = createAsyncThunk(
+    'cart/update',
+    async (payload: { cartItemId: string; quantity: number }, { rejectWithValue }) => {
+        try {
+            return await cartService.updateItem(payload.cartItemId, payload.quantity);
+        } catch (err: any) {
+            return rejectWithValue(err.response?.data?.message ?? 'Failed to update item');
+        }
+    }
+);
+
+export const removeCartItem = createAsyncThunk(
+    'cart/remove',
+    async (cartItemId: string, { rejectWithValue }) => {
+        try {
+            return await cartService.removeItem(cartItemId);
+        } catch (err: any) {
+            return rejectWithValue(err.response?.data?.message ?? 'Failed to remove item');
+        }
+    }
+);
+
+export const clearCartThunk = createAsyncThunk('cart/clear', async (_, { rejectWithValue }) => {
+    try {
+        return await cartService.clearCart();
+    } catch (err: any) {
+        return rejectWithValue(err.response?.data?.message ?? 'Failed to clear cart');
+    }
+});
+
+export const applyCoupon = createAsyncThunk(
+    'cart/applyCoupon',
+    async (code: string, { rejectWithValue }) => {
+        try {
+            return await cartService.applyCoupon(code);
+        } catch (err: any) {
+            return rejectWithValue(err.response?.data?.message ?? 'Failed to apply coupon');
+        }
+    }
+);
+
+export const removeCoupon = createAsyncThunk('cart/removeCoupon', async (_, { rejectWithValue }) => {
+    try {
+        return await cartService.removeCoupon();
+    } catch (err: any) {
+        return rejectWithValue(err.response?.data?.message ?? 'Failed to remove coupon');
+    }
+});
+
+// ── Slice ────────────────────────────────────────────────────────────────────
 
 const cartSlice = createSlice({
     name: 'cart',
     initialState,
     reducers: {
-        addToCart(state, action: PayloadAction<AddToCartPayload>) {
-            const { menuItemId, selectedCustomizations } = action.payload;
-            const customKey = JSON.stringify(selectedCustomizations);
-
-            const existing = state.items.find(
-                (i) => i.menuItemId === menuItemId &&
-                    JSON.stringify(i.selectedCustomizations) === customKey
-            );
-
-            if (existing) {
-                existing.quantity += 1;
-            } else {
-                const cartId = `${menuItemId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-                state.items.push({ ...action.payload, cartId, quantity: 1 });
-            }
-
-            state.subtotal = calcSubtotal(state.items);
-            state.itemCount = calcItemCount(state.items);
-            saveCartToSession(state.items);
-        },
-
-        removeFromCart(state, action: PayloadAction<string>) {
-            state.items = state.items.filter((i) => i.cartId !== action.payload);
-            state.subtotal = calcSubtotal(state.items);
-            state.itemCount = calcItemCount(state.items);
-            saveCartToSession(state.items);
-        },
-
-        updateQuantity(state, action: PayloadAction<{ cartId: string; quantity: number }>) {
-            const item = state.items.find((i) => i.cartId === action.payload.cartId);
-            if (item && action.payload.quantity > 0) {
-                item.quantity = action.payload.quantity;
-            } else if (item && action.payload.quantity <= 0) {
-                state.items = state.items.filter((i) => i.cartId !== action.payload.cartId);
-            }
-            state.subtotal = calcSubtotal(state.items);
-            state.itemCount = calcItemCount(state.items);
-            saveCartToSession(state.items);
-        },
-
-        clearCart(state) {
-            state.items = [];
-            state.subtotal = 0;
-            state.itemCount = 0;
-            try { sessionStorage.removeItem('bp_cart'); } catch { /* ignore */ }
-        },
+        resetCart: () => initialState,
+    },
+    extraReducers: (builder) => {
+        for (const thunk of [fetchCart, addToCart, updateCartItem, removeCartItem, applyCoupon]) {
+            builder.addCase(thunk.pending, (state) => { state.loading = true; });
+            builder.addCase(thunk.fulfilled, (state, action) => { state.loading = false; applyCartResponse(state, action.payload); });
+            builder.addCase(thunk.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; });
+        }
+        builder.addCase(clearCartThunk.fulfilled, (state, action) => { applyCartResponse(state, action.payload); });
+        builder.addCase(removeCoupon.fulfilled, (state, action) => { applyCartResponse(state, action.payload); });
     },
 });
 
-export const { addToCart, removeFromCart, updateQuantity, clearCart } = cartSlice.actions;
+export const { resetCart } = cartSlice.actions;
 export default cartSlice.reducer;

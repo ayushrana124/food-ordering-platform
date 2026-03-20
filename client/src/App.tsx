@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { logout } from '@/redux/slices/authSlice';
+import { fetchCart } from '@/redux/slices/cartSlice';
 import { useAppDispatch } from '@/redux/hooks';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 
@@ -34,6 +35,12 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
 export default function App() {
     const dispatch = useAppDispatch();
+    const { isAuthenticated } = useAuth();
+
+    // Fetch server cart when user is authenticated
+    useEffect(() => {
+        if (isAuthenticated) dispatch(fetchCart());
+    }, [isAuthenticated, dispatch]);
 
     // Handle 401 from API interceptor globally
     useEffect(() => {

@@ -134,7 +134,7 @@ export default function LandingPage() {
                         {[
                             { Icon: Check, text: restaurant.isOpen ? 'Open Now' : 'Closed', amber: restaurant.isOpen },
                             { Icon: Clock, text: `${restaurant.deliveryTime} min delivery` },
-                            { Icon: MapPin, text: (restaurant.address ?? 'Mumbai').split(',')[0] },
+                            { Icon: MapPin, text: (typeof restaurant.address === 'string' ? restaurant.address : (restaurant.address as any)?.addressLine ?? 'Noorpur').split(',')[0] },
                             { Icon: Star, text: `${restaurant.rating ?? '4.8'} rating`, fill: true },
                         ].map((s, i) => (
                             <div
@@ -279,7 +279,7 @@ export default function LandingPage() {
                         <div
                             className="grid gap-4 sm:gap-[clamp(0.75rem,2vw,1.1rem)] grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(clamp(180px,22vw,240px),1fr))]"
                         >
-                            {items.slice(0, 8).map((item) => (
+                            {items?.slice(0, 8).map((item) => (
                                 <MenuItemCard key={item._id} item={item} compact />
                             ))}
                         </div>

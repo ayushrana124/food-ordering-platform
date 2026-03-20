@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, CreditCard, Banknote, FileText, Pizza, Check, ArrowRight, ShieldCheck } from 'lucide-react';
-import AddressSelector from '@/components/customer/AddressSelector';
+import {
+    CreditCard, Banknote, ArrowRight, ShieldCheck, Tag,
+    Lock, UtensilsCrossed, Loader2,
+} from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
@@ -13,7 +14,7 @@ import { setCurrentOrder } from '@/redux/slices/orderSlice';
 import { orderService } from '@/services/orderService';
 import { paymentService } from '@/services/paymentService';
 import type { RootState } from '@/redux/store';
-import type { ICartItem, ISelectedCustomization, IAddress } from '@/types';
+import type { IAddress } from '@/types';
 import { userService } from '@/services/userService';
 import toast from 'react-hot-toast';
 
@@ -25,30 +26,24 @@ interface RazorpayResponse { razorpay_order_id: string; razorpay_payment_id: str
 export default function CheckoutPage() {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { items, subtotal, clear } = useCart();
+    const { items, subtotal, total, discount, itemCount, clear } = useCart();
     const { user } = useAuth();
     const { restaurant } = useAppSelector((s: RootState) => s.menu);
     const [addresses, setAddresses] = useState<IAddress[]>(user?.addresses ?? []);
     const [selectedAddr, setSelectedAddr] = useState<string>(addresses.find((a) => a.isDefault)?._id ?? addresses[0]?._id ?? '');
     const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('ONLINE');
-    const [specialInstructions, setSpecialInstructions] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const TAX = Math.round(subtotal * 0.05);
-    // Don't show a fake total — delivery is distance-based and determined server-side
-    const ESTIMATED_TOTAL = subtotal + TAX;
+    const deliveryAddr = addresses.find((a) => a._id === selectedAddr);
 
     useEffect(() => {
-        // Redirect to cart if empty
-        if (items.length === 0) {
-            navigate('/cart', { replace: true });
-            return;
-        }
+        window.scrollTo(0, 0);
+        if (items.length === 0) { navigate('/cart', { replace: true }); return; }
         if (!restaurant) dispatch(fetchRestaurant());
         userService.getProfile().then((u) => {
             setAddresses(u.addresses);
             setSelectedAddr(u.addresses.find((a) => a.isDefault)?._id ?? u.addresses[0]?._id ?? '');
-        }).catch(() => { });
+        }).catch(() => {});
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
@@ -58,32 +53,26 @@ export default function CheckoutPage() {
     }, [dispatch, restaurant, items.length, navigate]);
 
     const handlePlaceOrder = async () => {
-        if (!selectedAddr) { toast.error('Please select a delivery address'); return; }
+        if (!deliveryAddr) { toast.error('No delivery address found'); return; }
         if (items.length === 0) { toast.error('Your cart is empty'); return; }
-
-        const deliveryAddr = addresses.find((a) => a._id === selectedAddr);
-        if (!deliveryAddr) return;
 
         setLoading(true);
         try {
             const { order } = await orderService.createOrder({
-                items: items.map((i: ICartItem) => ({ menuItemId: i.menuItemId, quantity: i.quantity, customizations: i.selectedCustomizations })),
                 deliveryAddress: deliveryAddr,
                 paymentMethod,
-                specialInstructions,
             });
 
             dispatch(setCurrentOrder(order));
 
             if (paymentMethod === 'COD') {
                 clear();
-                toast.success('Order placed! We\'re cooking your pizza.');
+                toast.success('Order placed successfully!');
                 navigate(`/order/${order._id}`);
                 return;
             }
 
             const paymentOrder = await paymentService.createPaymentOrder(order._id);
-
             const rzp = new window.Razorpay({
                 key: paymentOrder.key,
                 amount: paymentOrder.amount,
@@ -120,136 +109,262 @@ export default function CheckoutPage() {
         }
     };
 
+    /* ── Bottom bar (portal) ─────────────────────────────────────────── */
+    const bottomBar = createPortal(
+        <div
+            style={{
+                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 8000,
+                background: '#0F0F0F', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0 clamp(1rem, 4vw, 2rem)', height: 68,
+                boxShadow: '0 -4px 30px rgba(0,0,0,0.25)',
+                animation: 'slideUp 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
+            }}
+        >
+            <div>
+                <p style={{ fontSize: '0.68rem', opacity: 0.55, fontWeight: 500, lineHeight: 1, marginBottom: 3 }}>
+                    {itemCount} item{itemCount !== 1 ? 's' : ''} • {paymentMethod === 'ONLINE' ? 'Online Payment' : 'Cash on Delivery'}
+                </p>
+                <p style={{ fontSize: '1.15rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif', lineHeight: 1.1 }}>
+                    ₹{total}
+                </p>
+            </div>
+            <button
+                onClick={handlePlaceOrder}
+                disabled={loading || !deliveryAddr}
+                style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    background: loading ? '#555' : '#E8A317',
+                    border: 'none', borderRadius: 12,
+                    color: 'white', fontWeight: 800, fontSize: '0.88rem',
+                    padding: '0.6rem 1.3rem',
+                    cursor: loading ? 'wait' : 'pointer',
+                    boxShadow: '0 2px 16px rgba(232,163,23,0.35)',
+                    whiteSpace: 'nowrap',
+                    transition: 'background 0.2s',
+                }}
+            >
+                {loading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                ) : (
+                    <>
+                        {paymentMethod === 'ONLINE' ? 'Pay Now' : 'Place Order'}
+                        <ArrowRight size={16} />
+                    </>
+                )}
+            </button>
+        </div>,
+        document.body,
+    );
+
     return (
-        <div className="min-h-screen bg-white page-enter">
+        <div style={{ minHeight: '100vh', background: '#F4F4F2', paddingBottom: 84 }} className="page-enter">
             <Navbar />
-            <div className="container py-8 px-4 pb-16">
-                <h1 className="font-outfit font-extrabold text-[clamp(1.6rem,4vw,2.2rem)] mb-8 tracking-[-0.02em]">
+
+            <div style={{ maxWidth: 560, margin: '0 auto', padding: '1.25rem clamp(0.75rem, 3vw, 1.5rem)' }}>
+
+                {/* ── Header ─────────────────────────────────────── */}
+                <h1 style={{
+                    fontFamily: 'Outfit, sans-serif', fontWeight: 900,
+                    fontSize: 'clamp(1.3rem, 4vw, 1.8rem)', color: '#0F0F0F',
+                    marginBottom: '1.25rem', letterSpacing: '-0.02em',
+                }}>
                     Checkout
                 </h1>
 
-                {/* 2-col on md+ */}
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-7">
-
-                    {/* Left: Address + Payment */}
-                    <div className="flex flex-col gap-6">
-
-                        {/* Delivery Address — powered by AddressSelector */}
-                        <AddressSelector
-                            addresses={addresses}
-                            selectedId={selectedAddr}
-                            onSelect={setSelectedAddr}
-                            onAddressesUpdate={(updated) => {
-                                setAddresses(updated);
-                                if (!updated.find((a) => a._id === selectedAddr) && updated.length > 0) {
-                                    setSelectedAddr(updated[0]._id);
-                                }
-                            }}
-                        />
-
-                        {/* Payment Method */}
-                        <div className="card p-7">
-                            <h3 className="font-outfit font-bold mb-5 flex items-center gap-2.5">
-                                <span className="w-9 h-9 rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
-                                    <CreditCard size={18} />
-                                </span>
-                                Payment Method
-                            </h3>
-                            <div className="flex gap-3">
-                                {(['ONLINE', 'COD'] as const).map((m) => (
-                                    <label
-                                        key={m}
-                                        className="flex-1 flex items-center gap-3 px-5 py-4 rounded-xl cursor-pointer transition-all duration-200"
-                                        style={{
-                                            border: `2px solid ${paymentMethod === m ? '#E8A317' : '#E0E0DC'}`,
-                                            background: paymentMethod === m ? '#FFFBF0' : 'white',
-                                        }}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="payment"
-                                            value={m}
-                                            checked={paymentMethod === m}
-                                            onChange={() => setPaymentMethod(m)}
-                                            className="accent-[#E8A317]"
-                                        />
-                                        <div>
-                                            <p className="font-outfit font-bold text-[0.9rem] flex items-center gap-2">
-                                                {m === 'ONLINE' ? <CreditCard size={16} className="text-[#2563EB]" /> : <Banknote size={16} className="text-[#16A34A]" />}
-                                                {m === 'ONLINE' ? 'Online' : 'Cash on Delivery'}
-                                            </p>
-                                            <p className="text-[0.75rem] text-[#8E8E8E]">{m === 'ONLINE' ? 'UPI, Cards, Net Banking' : 'Pay when delivered'}</p>
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Special Instructions */}
-                        <div className="card p-7">
-                            <h3 className="font-outfit font-bold mb-4 flex items-center gap-2.5">
-                                <span className="w-9 h-9 rounded-xl bg-[#F5F3FF] flex items-center justify-center text-[#7C3AED]">
-                                    <FileText size={18} />
-                                </span>
-                                Special Instructions
-                            </h3>
-                            <textarea
-                                className="input resize-y"
-                                rows={3}
-                                placeholder="Extra cheese, no onions, ring the bell..."
-                                value={specialInstructions}
-                                onChange={(e) => setSpecialInstructions(e.target.value)}
-                            />
-                        </div>
+                {/* ── Order Items Card ────────────────────────────── */}
+                <div style={{
+                    background: 'white', borderRadius: 18, overflow: 'hidden',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '0.75rem',
+                }}>
+                    <div style={{
+                        padding: '0.8rem 1.15rem', borderBottom: '1px solid #F0F0EE',
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    }}>
+                        <span style={{
+                            width: 26, height: 26, borderRadius: 7, background: '#FFFBF0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#E8A317', flexShrink: 0,
+                        }}>
+                            <UtensilsCrossed size={12} />
+                        </span>
+                        <span style={{ fontWeight: 800, fontSize: '0.78rem', color: '#0F0F0F', letterSpacing: '0.04em' }}>
+                            ORDER SUMMARY
+                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: '#8E8E8E', fontWeight: 600 }}>
+                            {itemCount} item{itemCount !== 1 ? 's' : ''}
+                        </span>
                     </div>
 
-                    {/* Right: Summary */}
-                    <div className="card p-7 h-fit sticky top-20">
-                        <h3 className="font-outfit font-bold mb-5">Order Summary</h3>
-                        <div className="flex flex-col gap-2.5 mb-4">
-                            {items.map((i: ICartItem) => (
-                                <div key={i.cartId} className="flex justify-between text-[0.875rem] text-[#4A4A4A]">
-                                    <span>{i.name} × {i.quantity}</span>
-                                    <span className="font-semibold">₹{(i.price + i.selectedCustomizations.reduce((s: number, c: ISelectedCustomization) => s + c.price, 0)) * i.quantity}</span>
+                    <div style={{ padding: '0.65rem 1.15rem' }}>
+                        {items.map((item, idx) => (
+                            <div key={item.cartItemId}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '0.55rem 0', gap: '0.5rem',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                                        <span style={{
+                                            width: 11, height: 11, borderRadius: 2,
+                                            border: `1.5px solid ${item.isVeg ? '#16A34A' : '#DC2626'}`,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}>
+                                            <span style={{
+                                                width: 5, height: 5, borderRadius: '50%',
+                                                background: item.isVeg ? '#16A34A' : '#DC2626',
+                                            }} />
+                                        </span>
+                                        <span style={{
+                                            fontSize: '0.82rem', fontWeight: 600, color: '#0F0F0F',
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>
+                                            {item.name}
+                                        </span>
+                                        <span style={{ fontSize: '0.72rem', color: '#8E8E8E', flexShrink: 0 }}>
+                                            ×{item.quantity}
+                                        </span>
+                                    </div>
+                                    <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#0F0F0F', flexShrink: 0 }}>
+                                        ₹{item.itemTotal}
+                                    </span>
                                 </div>
-                            ))}
-                        </div>
-                        <div className="divider" />
-                        <div className="flex flex-col gap-[0.6rem] my-3">
-                            <div className="flex justify-between text-[0.875rem]">
-                                <span className="text-[#4A4A4A]">Delivery</span>
-                                <span className="font-semibold text-[#8E8E8E] text-[0.8rem]">Based on distance</span>
+                                {item.selectedCustomizations.length > 0 && (
+                                    <p style={{ fontSize: '0.65rem', color: '#8E8E8E', marginTop: -4, marginBottom: 4, paddingLeft: 21 }}>
+                                        {item.selectedCustomizations.map((c) => c.optionName).join(' • ')}
+                                    </p>
+                                )}
+                                {idx < items.length - 1 && (
+                                    <div style={{ borderTop: '1px dashed #EEEEEE' }} />
+                                )}
                             </div>
-                            <div className="flex justify-between text-[0.875rem]">
-                                <span className="text-[#4A4A4A]">Taxes</span>
-                                <span className="font-semibold">₹{TAX}</span>
-                            </div>
-                        </div>
-                        <div className="divider" />
-                        <div className="flex justify-between mt-3 mb-6">
-                            <span className="font-outfit font-extrabold text-[1.15rem]">Est. Total</span>
-                            <span className="font-outfit font-extrabold text-[1.15rem] text-[#E8A317]">₹{ESTIMATED_TOTAL}+</span>
-                        </div>
-
-                        <button
-                            className="btn-primary w-full justify-center py-[0.9rem] text-base flex items-center gap-2"
-                            onClick={handlePlaceOrder}
-                            disabled={loading || addresses.length === 0}
-                        >
-                            {loading ? (
-                                <LoadingSpinner size="sm" color="white" />
-                            ) : (
-                                <>
-                                    <ShieldCheck size={18} />
-                                    {paymentMethod === 'ONLINE' ? 'Pay & Place Order' : 'Place Order'}
-                                    <ArrowRight size={18} className="ml-1" />
-                                </>
-                            )}
-                        </button>
+                        ))}
                     </div>
                 </div>
+
+                {/* ── Payment Method Card ─────────────────────────── */}
+                <div style={{
+                    background: 'white', borderRadius: 18, overflow: 'hidden',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '0.75rem',
+                }}>
+                    <div style={{
+                        padding: '0.8rem 1.15rem', borderBottom: '1px solid #F0F0EE',
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    }}>
+                        <span style={{
+                            width: 26, height: 26, borderRadius: 7, background: '#EFF6FF',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#2563EB', flexShrink: 0,
+                        }}>
+                            <CreditCard size={12} />
+                        </span>
+                        <span style={{ fontWeight: 800, fontSize: '0.78rem', color: '#0F0F0F', letterSpacing: '0.04em' }}>
+                            PAYMENT METHOD
+                        </span>
+                    </div>
+
+                    <div style={{ padding: '0.75rem 1.15rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {([
+                            { key: 'ONLINE' as const, icon: CreditCard, iconColor: '#2563EB', iconBg: '#EFF6FF', title: 'Pay Online', sub: 'UPI, Cards, Net Banking' },
+                            { key: 'COD' as const, icon: Banknote, iconColor: '#16A34A', iconBg: '#F0FDF4', title: 'Cash on Delivery', sub: 'Pay when delivered' },
+                        ]).map(({ key, icon: Icon, iconColor, iconBg, title, sub }) => {
+                            const active = paymentMethod === key;
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={() => setPaymentMethod(key)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                        padding: '0.75rem 1rem', borderRadius: 14, width: '100%',
+                                        border: `2px solid ${active ? '#E8A317' : '#EEEEEE'}`,
+                                        background: active ? '#FFFBF0' : 'white',
+                                        cursor: 'pointer', textAlign: 'left',
+                                        transition: 'all 0.15s',
+                                    }}
+                                >
+                                    {/* Radio dot */}
+                                    <span style={{
+                                        width: 18, height: 18, borderRadius: '50%',
+                                        border: `2px solid ${active ? '#E8A317' : '#D4D4D0'}`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        flexShrink: 0,
+                                    }}>
+                                        {active && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#E8A317' }} />}
+                                    </span>
+                                    <span style={{
+                                        width: 36, height: 36, borderRadius: 10, background: iconBg,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: iconColor, flexShrink: 0,
+                                    }}>
+                                        <Icon size={17} />
+                                    </span>
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F' }}>{title}</p>
+                                        <p style={{ fontSize: '0.7rem', color: '#8E8E8E', marginTop: 1 }}>{sub}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* ── Bill Details Card ───────────────────────────── */}
+                <div style={{
+                    background: 'white', borderRadius: 18, overflow: 'hidden',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '0.75rem',
+                }}>
+                    <div style={{
+                        padding: '0.8rem 1.15rem', borderBottom: '1px dashed #D4D4D0',
+                        fontWeight: 800, fontSize: '0.78rem', color: '#0F0F0F', letterSpacing: '0.04em',
+                    }}>
+                        BILL DETAILS
+                    </div>
+
+                    <div style={{ padding: '0.75rem 1.15rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.82rem', color: '#4A4A4A' }}>Item Total</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0F0F0F' }}>₹{subtotal}</span>
+                        </div>
+
+                        {discount && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.82rem', color: '#16A34A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Tag size={11} /> Discount ({discount.code})
+                                </span>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#16A34A' }}>−₹{discount.appliedDiscount}</span>
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                            <span style={{ fontSize: '0.82rem', color: '#4A4A4A' }}>Delivery Fee</span>
+                            <span style={{ fontSize: '0.78rem', color: '#8E8E8E' }}>Based on distance</span>
+                        </div>
+
+                        <div style={{ borderTop: '1.5px dashed #E0E0DC', margin: '0.4rem 0 0.6rem' }} />
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F0F0F' }}>Total</span>
+                            <span style={{ fontWeight: 900, fontSize: '1.05rem', color: '#0F0F0F', fontFamily: 'Outfit, sans-serif' }}>
+                                ₹{total}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Secure badge ────────────────────────────────── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '0.4rem', padding: '0.75rem 0', opacity: 0.45,
+                }}>
+                    <Lock size={11} />
+                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#4A4A4A', letterSpacing: '0.03em' }}>
+                        <ShieldCheck size={11} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 3 }} />
+                        Payments are 100% secure & encrypted
+                    </span>
+                </div>
             </div>
-            <Footer />
+
+            {bottomBar}
         </div>
     );
 }

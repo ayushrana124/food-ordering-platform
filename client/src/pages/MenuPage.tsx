@@ -19,6 +19,7 @@ export default function MenuPage() {
     const catNames = useMemo(() => ['All', ...categories.map(c => c.name)], [categories]);
 
     useEffect(() => {
+        window.scrollTo(0, 0);
         dispatch(fetchMenuItems({}));
         dispatch(fetchCategories());
         dispatch(fetchRestaurant());
@@ -116,7 +117,7 @@ export default function MenuPage() {
                                 <button
                                     key={cat}
                                     className={`pill${activeCat === cat ? ' active' : ''}`}
-                                    onClick={() => setActiveCat(cat)}
+                                    onClick={() => { setActiveCat(cat); window.scrollTo({ top: 0, behavior: 'instant' }); }}
                                 >
                                     {cat}
                                 </button>

@@ -59,7 +59,7 @@ export default function ProfileSidebar({ open, onClose }: Props) {
             style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 2000,
+                zIndex: 9500,
                 background: 'rgba(15,15,15,0.55)',
                 backdropFilter: 'blur(6px)',
                 WebkitBackdropFilter: 'blur(6px)',

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChefHat, X, ArrowRight, CheckCircle2, Timer, Smartphone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
@@ -18,7 +19,8 @@ export default function LoginModal({ onClose }: LoginModalProps) {
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const modalRef = useRef<HTMLDivElement>(null);
+    const phoneInputRef = useRef<HTMLInputElement>(null);
+    const otpInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -30,6 +32,15 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
     }, []);
+
+    // Focus input after sheet animation completes, without scrolling
+    useEffect(() => {
+        const id = setTimeout(() => {
+            const ref = step === 'phone' ? phoneInputRef : otpInputRef;
+            ref.current?.focus({ preventScroll: true });
+        }, 350);
+        return () => clearTimeout(id);
+    }, [step]);
 
     const startCountdown = () => {
         setCountdown(30);
@@ -85,31 +96,50 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         }
     };
 
-    return (
+    const modal = (
         <div
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-            className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
             style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
                 background: 'rgba(15,15,15,0.5)',
                 backdropFilter: 'blur(6px)',
+                WebkitBackdropFilter: 'blur(6px)',
                 animation: 'fadeIn 0.2s ease',
             }}
         >
             <div
-                ref={modalRef}
-                className="bg-white rounded-[24px] p-8 w-full max-w-[420px] relative"
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                    boxShadow: '0 16px 48px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06)',
-                    animation: 'slideUp 0.25s var(--ease-spring)',
+                    position: 'relative',
+                    width: '100%',
+                    maxWidth: 480,
+                    maxHeight: '90vh',
+                    background: 'white',
+                    borderRadius: '24px 24px 0 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxShadow: '0 -8px 40px rgba(0,0,0,0.12)',
+                    animation: 'slideUp 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                    overflowY: 'auto',
+                    padding: '24px 32px 32px',
                 }}
             >
-                {/* Close button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white cursor-pointer flex items-center justify-center text-[#4A4A4A] transition-colors hover:bg-[#F7F7F5]"
-                >
-                    <X size={16} />
-                </button>
+                {/* Top bar: drag handle + close */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ width: 32 }} />
+                    <div style={{ width: 40, height: 4, borderRadius: 9999, background: '#DDDDDD' }} />
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white cursor-pointer flex items-center justify-center text-[#4A4A4A] transition-colors hover:bg-[#F7F7F5] shrink-0"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
 
                 {/* Header */}
                 <div className="text-center mb-7">
@@ -144,13 +174,13 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                                 +91
                             </span>
                             <input
+                                ref={phoneInputRef}
                                 className="input"
                                 type="tel"
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 placeholder="98765 43210"
                                 style={{ paddingLeft: '4.5rem' }}
-                                autoFocus
                                 inputMode="numeric"
                                 required
                                 id="phone-input"
@@ -170,12 +200,12 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             Enter 6-digit OTP
                         </label>
                         <input
+                            ref={otpInputRef}
                             className="input text-center tracking-[0.5rem] text-[1.25rem] mb-5"
                             type="text"
                             value={otp}
                             onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             placeholder="------"
-                            autoFocus
                             inputMode="numeric"
                             required
                             id="otp-input"
@@ -215,4 +245,6 @@ export default function LoginModal({ onClose }: LoginModalProps) {
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 }

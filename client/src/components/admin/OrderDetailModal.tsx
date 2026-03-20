@@ -116,7 +116,6 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: Props) {
                         <div className="flex flex-col gap-[0.35rem] text-[0.84rem]">
                             <div className="flex justify-between"><span className="text-[#4A4A4A]">Subtotal</span><span>₹{order.subtotal}</span></div>
                             <div className="flex justify-between"><span className="text-[#4A4A4A]">Delivery</span><span>₹{order.deliveryCharges}</span></div>
-                            <div className="flex justify-between"><span className="text-[#4A4A4A]">Taxes</span><span>₹{order.taxes}</span></div>
                             <div className="h-[1px] bg-[#E0E0DC] my-1" />
                             <div className="flex justify-between font-extrabold font-outfit text-[1rem]">
                                 <span>Total</span><span className="text-[#E8A317]">₹{order.total}</span>

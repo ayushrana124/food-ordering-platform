@@ -1,31 +1,43 @@
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { addToCart, removeFromCart, updateQuantity, clearCart } from '@/redux/slices/cartSlice';
-import type { ICartItem, ISelectedCustomization } from '@/types';
-
-interface AddPayload {
-    menuItemId: string;
-    name: string;
-    price: number;
-    image?: string;
-    isVeg: boolean;
-    selectedCustomizations: ISelectedCustomization[];
-}
+import {
+    fetchCart,
+    addToCart,
+    updateCartItem,
+    removeCartItem,
+    clearCartThunk,
+    applyCoupon,
+    removeCoupon,
+    resetCart,
+} from '@/redux/slices/cartSlice';
 
 export const useCart = () => {
     const dispatch = useAppDispatch();
-    const { items, subtotal, itemCount } = useAppSelector((s) => s.cart);
+    const cart = useAppSelector((s) => s.cart);
 
     return {
-        items,
-        subtotal,
-        itemCount,
-        addItem: (payload: AddPayload) => dispatch(addToCart(payload)),
-        removeItem: (cartId: string) => dispatch(removeFromCart(cartId)),
-        setQuantity: (cartId: string, quantity: number) => dispatch(updateQuantity({ cartId, quantity })),
-        clear: () => dispatch(clearCart()),
+        items: cart.items,
+        subtotal: cart.subtotal,
+        total: cart.total,
+        itemCount: cart.itemCount,
+        discount: cart.discount,
+        appliedCoupon: cart.appliedCoupon,
+        loading: cart.loading,
+        error: cart.error,
+
+        fetch: () => dispatch(fetchCart()),
+        addItem: (payload: { menuItemId: string; quantity?: number; selectedCustomizations?: { groupName: string; optionName: string }[] }) =>
+            dispatch(addToCart(payload)),
+        setQuantity: (cartItemId: string, quantity: number) =>
+            dispatch(updateCartItem({ cartItemId, quantity })),
+        removeItem: (cartItemId: string) => dispatch(removeCartItem(cartItemId)),
+        clear: () => dispatch(clearCartThunk()),
+        applyCoupon: (code: string) => dispatch(applyCoupon(code)),
+        removeCoupon: () => dispatch(removeCoupon()),
+        reset: () => dispatch(resetCart()),
+
         getItemCount: (menuItemId: string): number =>
-            items
-                .filter((i: ICartItem) => i.menuItemId === menuItemId)
-                .reduce((sum: number, i: ICartItem) => sum + i.quantity, 0),
+            cart.items
+                .filter((i) => i.menuItemId === menuItemId)
+                .reduce((sum, i) => sum + i.quantity, 0),
     };
 };

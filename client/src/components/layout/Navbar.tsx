@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, Menu, X, ChefHat, MapPin, ShoppingBag } from 'lucide-react';
+import { User, Menu, X, ChefHat, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import LoginModal from '@/components/common/LoginModal';
@@ -32,8 +32,6 @@ export default function Navbar() {
     ];
     const active = (to: string) => location.pathname === to;
 
-    // Derive active delivery address
-    const activeAddress = user?.addresses?.find((a) => a.isDefault) ?? user?.addresses?.[0];
 
     return (
         <>
@@ -118,7 +116,7 @@ export default function Navbar() {
                                     color: '#9A7209',
                                 }}
                             >
-                                {(user?.name || user?.phone || '?')[0].toUpperCase()}
+                                {user?.name ? user.name[0].toUpperCase() : <User size={18} />}
                             </button>
                         ) : (
                             <button
@@ -143,17 +141,66 @@ export default function Navbar() {
                     </div>
                 </div>
 
-                {/* Mobile menu dropdown */}
-                {menuOpen && (
+                {/* Mobile menu — rendered via portal below */}
+
+            </nav>
+
+            {/* ── Mobile menu dropdown (portal) ── */}
+            {menuOpen && createPortal(
+                <div
+                    className="hide-desktop"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 99,
+                        background: 'rgba(15,15,15,0.3)',
+                        animation: 'fadeIn 0.15s ease',
+                    }}
+                >
                     <div
-                        className="bg-white border-t border-[#EEEEEE] py-2 px-[clamp(1rem,4vw,2rem)]"
-                        style={{ animation: 'slideDown 0.2s var(--ease-spring)' }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            background: 'white',
+                            borderRadius: '0 0 16px 16px',
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
+                            padding: '16px 16px 20px',
+                            animation: 'slideDown 0.25s var(--ease-spring)',
+                        }}
                     >
+                        {/* Menu header with logo and close */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <Link to="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 no-underline">
+                                <span
+                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                                    style={{ background: 'linear-gradient(135deg, #E8A317, #F0B429)' }}
+                                >
+                                    <ChefHat size={18} />
+                                </span>
+                                <span className="font-outfit font-extrabold text-[1.1rem] text-[#0F0F0F] tracking-[-0.02em]">
+                                    Diamond<span className="text-[#E8A317]">Pizza</span>
+                                </span>
+                            </Link>
+                            <button
+                                onClick={() => setMenuOpen(false)}
+                                className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white cursor-pointer flex items-center justify-center text-[#4A4A4A] transition-colors hover:bg-[#F7F7F5]"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div style={{ height: 1, background: '#EEEEEE', margin: '0 0 8px' }} />
+
                         {navLinks.map((l) => (
                             <Link
                                 key={l.to}
                                 to={l.to}
-                                className="flex items-center py-3 px-3 font-ui text-[0.95rem] border-b border-[#EEEEEE] no-underline rounded-lg transition-colors duration-150"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center py-3 px-3 font-ui text-[0.95rem] no-underline rounded-lg transition-colors duration-150"
                                 style={{
                                     fontWeight: active(l.to) ? 700 : 500,
                                     color: active(l.to) ? '#E8A317' : '#0F0F0F',
@@ -165,8 +212,8 @@ export default function Navbar() {
                         ))}
                         {!isAuthenticated && (
                             <button
-                                onClick={() => { navigate('/login'); setMenuOpen(false); }}
-                                className="mt-3 w-full py-[0.75rem] rounded-xl font-bold text-[0.875rem] cursor-pointer font-ui flex items-center justify-center gap-2 transition-colors duration-150"
+                                onClick={() => { setShowLogin(true); setMenuOpen(false); }}
+                                className="mt-2 w-full py-[0.75rem] rounded-xl font-bold text-[0.875rem] cursor-pointer font-ui flex items-center justify-center gap-2 transition-colors duration-150"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFFBF0, #FFE4A3)',
                                     border: '1.5px solid #F0CA5A',
@@ -177,32 +224,9 @@ export default function Navbar() {
                             </button>
                         )}
                     </div>
-                )}
-
-                {/* Mobile menu backdrop */}
-                {menuOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/20 z-[-1] hide-desktop"
-                        onClick={() => setMenuOpen(false)}
-                    />
-                )}
-
-                {/* Address strip — authenticated users with saved addresses */}
-                {isAuthenticated && activeAddress && (
-                    <div style={{ borderBottom: '1px solid #EEEEEE', background: 'rgba(255,255,255,0.98)' }}>
-                        <div
-                            className="container"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.26rem clamp(1rem,4vw,2rem)' }}
-                        >
-                            <MapPin size={11} style={{ color: '#E8A317', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.7rem', color: '#8E8E8E', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                <span style={{ color: '#0F0F0F', fontWeight: 650 }}>Deliver to {activeAddress.label}:</span>{' '}
-                                {activeAddress.addressLine}{activeAddress.landmark ? `, near ${activeAddress.landmark}` : ''}
-                            </span>
-                        </div>
-                    </div>
-                )}
-            </nav>
+                </div>,
+                document.body
+            )}
 
             {/* ── Floating Cart FAB — home page only ── */}
             {itemCount > 0 && location.pathname === '/' && createPortal(

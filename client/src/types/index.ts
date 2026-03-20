@@ -140,7 +140,6 @@ export interface IOrder {
     razorpayOrderId?: string;
     subtotal: number;
     deliveryCharges: number;
-    taxes: number;
     total: number;
     orderStatus: OrderStatus;
     specialInstructions?: string;

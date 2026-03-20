@@ -65,11 +65,7 @@ export default function CustomizationModal({ item, onClose }: CustomizationModal
         }
         addItem({
             menuItemId: item._id,
-            name: item.name,
-            price: item.price,
-            image: item.image,
-            isVeg: item.isVeg,
-            selectedCustomizations: selected,
+            selectedCustomizations: selected.map((s) => ({ groupName: s.groupName, optionName: s.optionName })),
         });
         toast.success(`${item.name} added — ₹${totalPrice}`);
         onClose();
