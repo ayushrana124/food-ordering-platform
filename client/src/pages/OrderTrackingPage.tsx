@@ -85,6 +85,21 @@ export default function OrderTrackingPage() {
         setRetrying(true);
         try {
             const paymentOrder = await paymentService.retryPayment(currentOrder._id);
+
+            // Dummy payment bypass
+            if (paymentOrder.key === 'dummy_key') {
+                await paymentService.verifyPayment({
+                    razorpay_order_id: paymentOrder.razorpayOrderId,
+                    razorpay_payment_id: `dummy_pay_${Date.now()}`,
+                    razorpay_signature: 'dummy_signature',
+                    orderId: currentOrder._id,
+                });
+                toast.success('Payment successful! (Test Mode)');
+                const updated = await orderService.getOrder(currentOrder._id);
+                dispatch(setCurrentOrder(updated));
+                return;
+            }
+
             const rzp = new window.Razorpay({
                 key: paymentOrder.key,
                 amount: paymentOrder.amount,

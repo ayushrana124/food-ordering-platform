@@ -53,6 +53,22 @@ export const createPaymentOrder = async (req: Request, res: Response): Promise<v
             return;
         }
 
+        // ── Dummy payment bypass ──────────────────────────────────────────
+        if (config.useDummyPayment) {
+            const fakeOrderId = `dummy_order_${Date.now()}`;
+            order.razorpayOrderId = fakeOrderId;
+            order.updatedAt = new Date();
+            await order.save();
+            console.log(`[DUMMY PAYMENT] Created fake order ${fakeOrderId} for order ${order.orderId}`);
+            res.status(200).json({
+                razorpayOrderId: fakeOrderId,
+                amount: Math.round(order.total * 100),
+                currency: 'INR',
+                key: 'dummy_key',
+            });
+            return;
+        }
+
         // If order already has a valid razorpayOrderId created recently (< 15 min), reuse it
         if (order.razorpayOrderId && order.createdAt) {
             const ageMinutes = (Date.now() - new Date(order.updatedAt).getTime()) / 60000;
@@ -116,8 +132,11 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
             .digest('hex');
 
         if (razorpaySignature !== expectedSign) {
-            res.status(400).json({ message: 'Invalid payment signature' });
-            return;
+            // In dummy mode, skip signature check
+            if (!config.useDummyPayment) {
+                res.status(400).json({ message: 'Invalid payment signature' });
+                return;
+            }
         }
 
         // Update order payment status
@@ -141,17 +160,21 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
         }
 
         // Verify payment amount matches order total via Razorpay API
-        try {
-            const rzpPayment = await getRazorpay().payments.fetch(razorpayPaymentId);
-            const expectedAmountPaise = Math.round(order.total * 100);
-            if (Number(rzpPayment.amount) !== expectedAmountPaise) {
-                console.error(`Payment amount mismatch: expected ${expectedAmountPaise}, got ${rzpPayment.amount}`);
-                res.status(400).json({ message: 'Payment amount does not match order total' });
-                return;
+        if (!config.useDummyPayment) {
+            try {
+                const rzpPayment = await getRazorpay().payments.fetch(razorpayPaymentId);
+                const expectedAmountPaise = Math.round(order.total * 100);
+                if (Number(rzpPayment.amount) !== expectedAmountPaise) {
+                    console.error(`Payment amount mismatch: expected ${expectedAmountPaise}, got ${rzpPayment.amount}`);
+                    res.status(400).json({ message: 'Payment amount does not match order total' });
+                    return;
+                }
+            } catch (fetchErr) {
+                console.error('Failed to fetch Razorpay payment for amount verification:', fetchErr);
+                // Continue — signature verification already passed, amount check is belt-and-suspenders
             }
-        } catch (fetchErr) {
-            console.error('Failed to fetch Razorpay payment for amount verification:', fetchErr);
-            // Continue — signature verification already passed, amount check is belt-and-suspenders
+        } else {
+            console.log(`[DUMMY PAYMENT] Skipping Razorpay amount verification for order ${order.orderId}`);
         }
 
         order.paymentStatus = 'PAID';
@@ -318,6 +341,22 @@ export const retryPayment = async (req: Request, res: Response): Promise<void> =
 
         if (order.orderStatus === 'CANCELLED') {
             res.status(400).json({ message: 'Order has been cancelled' });
+            return;
+        }
+
+        // ── Dummy payment bypass ──────────────────────────────────────────
+        if (config.useDummyPayment) {
+            const fakeOrderId = `dummy_retry_${Date.now()}`;
+            order.razorpayOrderId = fakeOrderId;
+            order.updatedAt = new Date();
+            await order.save();
+            console.log(`[DUMMY PAYMENT] Created fake retry order ${fakeOrderId} for order ${order.orderId}`);
+            res.status(200).json({
+                razorpayOrderId: fakeOrderId,
+                amount: Math.round(order.total * 100),
+                currency: 'INR',
+                key: 'dummy_key',
+            });
             return;
         }
 

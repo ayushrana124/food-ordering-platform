@@ -16,6 +16,7 @@ interface Config {
     otpCooldown: number; // minutes
     otpExpiry: number; // minutes
     useDummyOtp: boolean; // Set to true to bypass real SMS API (for dev without DLT)
+    useDummyPayment: boolean; // Set to true to bypass Razorpay (for dev/testing)
 }
 
 const config: Config = {
@@ -49,6 +50,11 @@ const config: Config = {
     // Dummy OTP toggle — set USE_DUMMY_OTP=false when DLT registration is done
     useDummyOtp: process.env.USE_DUMMY_OTP
         ? process.env.USE_DUMMY_OTP === 'true'
+        : (process.env.NODE_ENV || 'development') === 'development',
+
+    // Dummy payment toggle — set USE_DUMMY_PAYMENT=false when Razorpay keys are ready
+    useDummyPayment: process.env.USE_DUMMY_PAYMENT
+        ? process.env.USE_DUMMY_PAYMENT === 'true'
         : (process.env.NODE_ENV || 'development') === 'development',
 };
 

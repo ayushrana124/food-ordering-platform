@@ -130,7 +130,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </aside>
 
             {/* Main content area */}
-            <div className={`flex-1 transition-all duration-300 md:ml-[260px] ${collapsed ? 'md:!ml-[72px]' : ''}`}>
+            <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 md:ml-[260px] ${collapsed ? 'md:!ml-[72px]' : ''}`}>
                 {/* Top bar */}
                 <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-[#EEEEEE]/60 h-[72px] flex items-center px-4 sm:px-6 gap-3">
                     <button

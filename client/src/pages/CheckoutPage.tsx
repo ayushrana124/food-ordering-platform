@@ -73,6 +73,21 @@ export default function CheckoutPage() {
             }
 
             const paymentOrder = await paymentService.createPaymentOrder(order._id);
+
+            // Dummy payment bypass — backend returned a fake key, skip Razorpay SDK
+            if (paymentOrder.key === 'dummy_key') {
+                await paymentService.verifyPayment({
+                    razorpay_order_id: paymentOrder.razorpayOrderId,
+                    razorpay_payment_id: `dummy_pay_${Date.now()}`,
+                    razorpay_signature: 'dummy_signature',
+                    orderId: order._id,
+                });
+                clear();
+                toast.success('Payment successful! (Test Mode)');
+                navigate(`/order/${order._id}`);
+                return;
+            }
+
             const rzp = new window.Razorpay({
                 key: paymentOrder.key,
                 amount: paymentOrder.amount,

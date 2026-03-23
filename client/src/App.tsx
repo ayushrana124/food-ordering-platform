@@ -45,6 +45,16 @@ const AdminRouteLayout = () => (
     </AdminProtectedRoute>
 );
 
+const PageLoader = (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner size="lg" />
+    </div>
+);
+
+const withSuspense = (element: React.ReactElement) => (
+    <Suspense fallback={PageLoader}>{element}</Suspense>
+);
+
 export default function App() {
     const dispatch = useAppDispatch();
     const { isAuthenticated } = useAuth();
@@ -64,58 +74,50 @@ export default function App() {
     }, [dispatch]);
 
     return (
-        <Suspense
-            fallback={
-                <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <LoadingSpinner size="lg" />
-                </div>
-            }
-        >
-            <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/menu" element={<MenuPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route
-                    path="/checkout"
-                    element={
-                        <PrivateRoute>
-                            <CheckoutPage />
-                        </PrivateRoute>
-                    }
-                />
-                <Route
-                    path="/order/:orderId"
-                    element={
-                        <PrivateRoute>
-                            <OrderTrackingPage />
-                        </PrivateRoute>
-                    }
-                />
-                <Route
-                    path="/profile"
-                    element={
-                        <PrivateRoute>
-                            <ProfilePage />
-                        </PrivateRoute>
-                    }
-                />
+        <Routes>
+            <Route path="/" element={withSuspense(<LandingPage />)} />
+            <Route path="/menu" element={withSuspense(<MenuPage />)} />
+            <Route path="/cart" element={withSuspense(<CartPage />)} />
+            <Route
+                path="/checkout"
+                element={
+                    <PrivateRoute>
+                        {withSuspense(<CheckoutPage />)}
+                    </PrivateRoute>
+                }
+            />
+            <Route
+                path="/order/:orderId"
+                element={
+                    <PrivateRoute>
+                        {withSuspense(<OrderTrackingPage />)}
+                    </PrivateRoute>
+                }
+            />
+            <Route
+                path="/profile"
+                element={
+                    <PrivateRoute>
+                        {withSuspense(<ProfilePage />)}
+                    </PrivateRoute>
+                }
+            />
 
-                {/* Admin routes */}
-                <Route path="/admin/login" element={<AdminLogin />} />
-                <Route element={<AdminRouteLayout />}>
-                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                    <Route path="/admin/orders" element={<AdminOrders />} />
-                    <Route path="/admin/menu" element={<AdminMenuManagement />} />
-                    <Route path="/admin/users" element={<AdminUsers />} />
-                    <Route path="/admin/settings" element={<AdminSettings />} />
-                    <Route path="/admin/offers" element={<AdminOffers />} />
-                    <Route path="/admin/categories" element={<AdminCategories />} />
-                    <Route path="/admin/delivery-locations" element={<AdminDeliveryLocations />} />
-                </Route>
+            {/* Admin routes */}
+            <Route path="/admin/login" element={withSuspense(<AdminLogin />)} />
+            <Route element={<AdminRouteLayout />}>
+                <Route path="/admin/dashboard" element={withSuspense(<AdminDashboard />)} />
+                <Route path="/admin/orders" element={withSuspense(<AdminOrders />)} />
+                <Route path="/admin/menu" element={withSuspense(<AdminMenuManagement />)} />
+                <Route path="/admin/users" element={withSuspense(<AdminUsers />)} />
+                <Route path="/admin/settings" element={withSuspense(<AdminSettings />)} />
+                <Route path="/admin/offers" element={withSuspense(<AdminOffers />)} />
+                <Route path="/admin/categories" element={withSuspense(<AdminCategories />)} />
+                <Route path="/admin/delivery-locations" element={withSuspense(<AdminDeliveryLocations />)} />
+            </Route>
 
-                <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-        </Suspense>
+            <Route path="*" element={withSuspense(<NotFoundPage />)} />
+        </Routes>
     );
 }
 
