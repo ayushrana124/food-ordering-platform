@@ -5,13 +5,18 @@ import User from '../models/User';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
 import Category from '../models/Category';
+import DeliveryLocation from '../models/DeliveryLocation';
 import { v2 as cloudinary } from 'cloudinary';
+import { autoCancelUnpaidOrders } from './paymentController';
 
 // ============= ORDER MANAGEMENT =============
 
 // Get all orders with filters
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
     try {
+        // Auto-cancel unpaid online orders older than 15 minutes
+        await autoCancelUnpaidOrders().catch((err) => console.error('Auto-cancel error:', err));
+
         const { status, paymentMethod, startDate, endDate, page = '1', limit = '20' } = req.query;
 
         const query: any = {};
@@ -47,6 +52,18 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
+// Valid status transitions
+const VALID_TRANSITIONS: Record<string, string[]> = {
+    'PENDING': ['ACCEPTED', 'CANCELLED'],
+    'ACCEPTED': ['PREPARING', 'CANCELLED'],
+    'PREPARING': ['OUT_FOR_DELIVERY', 'CANCELLED'],
+    'OUT_FOR_DELIVERY': ['DELIVERED'],
+    'DELIVERED': [],
+    'CANCELLED': [],
+};
+
+const VALID_PREP_TIMES = [20, 30, 45, 60, 90];
+
 // Accept order
 export const acceptOrder = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -58,6 +75,11 @@ export const acceptOrder = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
+        if (!VALID_PREP_TIMES.includes(Number(preparationTime))) {
+            res.status(400).json({ message: `Preparation time must be one of: ${VALID_PREP_TIMES.join(', ')} minutes` });
+            return;
+        }
+
         const order = await Order.findById(id);
 
         if (!order) {
@@ -65,17 +87,33 @@ export const acceptOrder = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
+        // Must be PENDING to accept
+        if (order.orderStatus !== 'PENDING') {
+            res.status(400).json({ message: `Cannot accept order in ${order.orderStatus} status` });
+            return;
+        }
+
+        // Payment guard: don't accept unpaid online orders
+        if (order.paymentMethod === 'ONLINE' && order.paymentStatus !== 'PAID') {
+            res.status(400).json({ message: 'Cannot accept order — online payment is still pending' });
+            return;
+        }
+
         order.orderStatus = 'ACCEPTED';
         order.preparationTime = preparationTime;
         order.estimatedDeliveryTime = new Date(Date.now() + preparationTime * 60000);
+        if (!order.statusHistory) order.statusHistory = [];
+        order.statusHistory.push({ status: 'ACCEPTED', timestamp: new Date() });
+        order.updatedAt = new Date();
         await order.save();
 
-        // Emit socket event to customer
+        // Emit rich socket event to customer
         req.io.to(order.userId.toString()).emit('orderStatusUpdate', {
             orderId: order._id,
             orderNumber: order.orderId,
             status: 'ACCEPTED',
-            estimatedDeliveryTime: order.estimatedDeliveryTime
+            preparationTime: order.preparationTime,
+            estimatedDeliveryTime: order.estimatedDeliveryTime,
         });
 
         res.status(200).json({ message: 'Order accepted successfully', order });
@@ -85,7 +123,7 @@ export const acceptOrder = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
-// Update order status
+// Update order status (with transition validation)
 export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
@@ -96,7 +134,7 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
             return;
         }
 
-        const VALID_STATUSES = ['ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+        const VALID_STATUSES = ['ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
         if (!VALID_STATUSES.includes(status)) {
             res.status(400).json({ message: `Invalid status. Allowed: ${VALID_STATUSES.join(', ')}` });
             return;
@@ -109,20 +147,75 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
             return;
         }
 
+        // Validate status transition
+        const allowed = VALID_TRANSITIONS[order.orderStatus];
+        if (!allowed || !allowed.includes(status)) {
+            res.status(400).json({
+                message: `Cannot transition from ${order.orderStatus} to ${status}. Allowed: ${(allowed || []).join(', ') || 'none'}`
+            });
+            return;
+        }
+
         order.orderStatus = status;
+        if (!order.statusHistory) order.statusHistory = [];
+        order.statusHistory.push({ status, timestamp: new Date() });
         order.updatedAt = new Date();
         await order.save();
 
-        // Emit socket event to customer
+        // Emit rich socket event to customer
         req.io.to(order.userId.toString()).emit('orderStatusUpdate', {
             orderId: order._id,
             orderNumber: order.orderId,
-            status
+            status,
+            preparationTime: order.preparationTime,
+            estimatedDeliveryTime: order.estimatedDeliveryTime,
         });
 
         res.status(200).json({ message: 'Order status updated successfully', order });
     } catch (error) {
         console.error('Update Order Status Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Reject order with optional reason
+export const rejectOrder = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        const order = await Order.findById(id);
+
+        if (!order) {
+            res.status(404).json({ message: 'Order not found' });
+            return;
+        }
+
+        // Can only reject from PENDING or ACCEPTED
+        const allowed = VALID_TRANSITIONS[order.orderStatus];
+        if (!allowed || !allowed.includes('CANCELLED')) {
+            res.status(400).json({ message: `Cannot reject order in ${order.orderStatus} status` });
+            return;
+        }
+
+        order.orderStatus = 'CANCELLED';
+        order.rejectionReason = reason || undefined;
+        if (!order.statusHistory) order.statusHistory = [];
+        order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: reason });
+        order.updatedAt = new Date();
+        await order.save();
+
+        // Emit to customer with rejection reason
+        req.io.to(order.userId.toString()).emit('orderStatusUpdate', {
+            orderId: order._id,
+            orderNumber: order.orderId,
+            status: 'CANCELLED',
+            rejectionReason: order.rejectionReason,
+        });
+
+        res.status(200).json({ message: 'Order rejected', order });
+    } catch (error) {
+        console.error('Reject Order Error:', error);
         res.status(500).json({ message: (error as Error).message });
     }
 };
@@ -224,21 +317,71 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
     }
 };
 
-// Delete menu item
+// Soft-delete menu item
 export const deleteMenuItem = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
 
-        const menuItem = await MenuItem.findByIdAndDelete(id);
+        const menuItem = await MenuItem.findByIdAndUpdate(
+            id,
+            { isDeleted: true, deletedAt: new Date(), isAvailable: false },
+            { new: true }
+        );
 
         if (!menuItem) {
             res.status(404).json({ message: 'Menu item not found' });
             return;
         }
 
-        res.status(200).json({ message: 'Menu item deleted successfully' });
+        res.status(200).json({ message: 'Menu item moved to trash', menuItem });
     } catch (error) {
         console.error('Delete Menu Item Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Restore soft-deleted menu item
+export const restoreMenuItem = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        const menuItem = await MenuItem.findOneAndUpdate(
+            { _id: id, isDeleted: true },
+            { isDeleted: false, deletedAt: null },
+            { new: true }
+        );
+
+        if (!menuItem) {
+            res.status(404).json({ message: 'Deleted menu item not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Menu item restored successfully', menuItem });
+    } catch (error) {
+        console.error('Restore Menu Item Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Get soft-deleted menu items (trash view)
+export const getDeletedMenuItems = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const menuItems = await MenuItem.find({ isDeleted: true }).sort({ deletedAt: -1 });
+        res.status(200).json({ menuItems });
+    } catch (error) {
+        console.error('Get Deleted Menu Items Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Get all menu items for admin (includes unavailable, excludes soft-deleted)
+export const getAdminMenuItems = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const menuItems = await MenuItem.find({ restaurantId: req.admin?.restaurantId })
+            .sort({ category: 1, name: 1 });
+        res.status(200).json({ menuItems });
+    } catch (error) {
+        console.error('Get Admin Menu Items Error:', error);
         res.status(500).json({ message: (error as Error).message });
     }
 };
@@ -582,6 +725,174 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
         res.status(200).json({ message: 'Category deleted' });
     } catch (error) {
         console.error('Delete Category Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// ============= DELIVERY LOCATION MANAGEMENT =============
+
+// Get all delivery locations (admin view — includes inactive)
+export const getDeliveryLocations = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const locations = await DeliveryLocation.find({ restaurantId: req.admin?.restaurantId })
+            .sort({ displayOrder: 1, createdAt: 1 });
+        res.status(200).json({ locations });
+    } catch (error) {
+        console.error('Get Delivery Locations Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Create delivery location
+export const createDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { name, lat, lng, isActive, displayOrder } = req.body;
+
+        if (!name || lat === undefined || lng === undefined) {
+            res.status(400).json({ message: 'Name, latitude, and longitude are required' });
+            return;
+        }
+
+        const location = await DeliveryLocation.create({
+            name,
+            lat: Number(lat),
+            lng: Number(lng),
+            isActive: isActive !== undefined ? isActive : true,
+            displayOrder: displayOrder || 0,
+            restaurantId: req.admin?.restaurantId
+        });
+
+        res.status(201).json({ message: 'Delivery location created', location });
+    } catch (error) {
+        console.error('Create Delivery Location Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Update delivery location
+export const updateDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const allowed = ['name', 'lat', 'lng', 'isActive', 'displayOrder'];
+        const update: Record<string, any> = {};
+        for (const key of allowed) {
+            if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
+        const location = await DeliveryLocation.findByIdAndUpdate(
+            req.params.id, update, { new: true, runValidators: true }
+        );
+
+        if (!location) {
+            res.status(404).json({ message: 'Delivery location not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Delivery location updated', location });
+    } catch (error) {
+        console.error('Update Delivery Location Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// Delete delivery location
+export const deleteDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const location = await DeliveryLocation.findByIdAndDelete(req.params.id);
+
+        if (!location) {
+            res.status(404).json({ message: 'Delivery location not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Delivery location deleted' });
+    } catch (error) {
+        console.error('Delete Delivery Location Error:', error);
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+// ============= DETAILED STATS =============
+
+// Get detailed order statistics for dashboard
+export const getDetailedOrderStats = async (_req: Request, res: Response): Promise<void> => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Basic stats
+        const todayRevenueAgg = await Order.aggregate([
+            { $match: { createdAt: { $gte: today }, paymentStatus: 'PAID' } },
+            { $group: { _id: null, total: { $sum: '$total' } } }
+        ]);
+        const todayOrders = await Order.countDocuments({ createdAt: { $gte: today } });
+        const pendingOrders = await Order.countDocuments({ orderStatus: 'PENDING' });
+        const activeUsers = await User.countDocuments({ isBlocked: false });
+
+        // Weekly revenue (last 7 days)
+        const weeklyRevenue: { date: string; revenue: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+            const dayStart = new Date(today);
+            dayStart.setDate(dayStart.getDate() - i);
+            const dayEnd = new Date(dayStart);
+            dayEnd.setDate(dayEnd.getDate() + 1);
+
+            const dayAgg = await Order.aggregate([
+                { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, paymentStatus: 'PAID' } },
+                { $group: { _id: null, total: { $sum: '$total' } } }
+            ]);
+
+            weeklyRevenue.push({
+                date: dayStart.toISOString().split('T')[0],
+                revenue: dayAgg[0]?.total || 0
+            });
+        }
+
+        // Orders by status
+        const statusAgg = await Order.aggregate([
+            { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
+        ]);
+        const ordersByStatus: Record<string, number> = {};
+        statusAgg.forEach((s: any) => { ordersByStatus[s._id] = s.count; });
+
+        // Revenue by payment method
+        const paymentAgg = await Order.aggregate([
+            { $match: { paymentStatus: 'PAID' } },
+            { $group: { _id: '$paymentMethod', total: { $sum: '$total' } } }
+        ]);
+        const revenueByPayment = { cod: 0, online: 0 };
+        paymentAgg.forEach((p: any) => {
+            if (p._id === 'COD') revenueByPayment.cod = p.total;
+            if (p._id === 'ONLINE') revenueByPayment.online = p.total;
+        });
+
+        // Top 5 selling items
+        const topItemsAgg = await Order.aggregate([
+            { $unwind: '$items' },
+            { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ]);
+        const topItems = topItemsAgg.map((i: any) => ({ name: i._id, count: i.count }));
+
+        // Average order value
+        const avgAgg = await Order.aggregate([
+            { $match: { paymentStatus: 'PAID' } },
+            { $group: { _id: null, avg: { $avg: '$total' } } }
+        ]);
+
+        res.status(200).json({
+            todayRevenue: todayRevenueAgg[0]?.total || 0,
+            todayOrders,
+            pendingOrders,
+            activeUsers,
+            weeklyRevenue,
+            ordersByStatus,
+            revenueByPayment,
+            topItems,
+            avgOrderValue: Math.round(avgAgg[0]?.avg || 0)
+        });
+    } catch (error) {
+        console.error('Get Detailed Order Stats Error:', error);
         res.status(500).json({ message: (error as Error).message });
     }
 };

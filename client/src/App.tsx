@@ -23,15 +23,27 @@ const AdminUsers = lazy(() => import('@/pages/admin/Users'));
 const AdminSettings = lazy(() => import('@/pages/admin/Settings'));
 const AdminOffers = lazy(() => import('@/pages/admin/OfferManagement'));
 const AdminCategories = lazy(() => import('@/pages/admin/CategoryManagement'));
+const AdminDeliveryLocations = lazy(() => import('@/pages/admin/DeliveryLocations'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
+import { Outlet } from 'react-router-dom';
 import AdminProtectedRoute from '@/components/admin/AdminProtectedRoute';
+import { AdminProvider } from '@/contexts/AdminContext';
 
 // Protected route wrapper
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated } = useAuth();
     return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 };
+
+// Wraps all protected admin routes with AdminProvider for shared caching
+const AdminRouteLayout = () => (
+    <AdminProtectedRoute>
+        <AdminProvider>
+            <Outlet />
+        </AdminProvider>
+    </AdminProtectedRoute>
+);
 
 export default function App() {
     const dispatch = useAppDispatch();
@@ -90,13 +102,16 @@ export default function App() {
 
                 {/* Admin routes */}
                 <Route path="/admin/login" element={<AdminLogin />} />
-                <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
-                <Route path="/admin/orders" element={<AdminProtectedRoute><AdminOrders /></AdminProtectedRoute>} />
-                <Route path="/admin/menu" element={<AdminProtectedRoute><AdminMenuManagement /></AdminProtectedRoute>} />
-                <Route path="/admin/users" element={<AdminProtectedRoute><AdminUsers /></AdminProtectedRoute>} />
-                <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
-                <Route path="/admin/offers" element={<AdminProtectedRoute><AdminOffers /></AdminProtectedRoute>} />
-                <Route path="/admin/categories" element={<AdminProtectedRoute><AdminCategories /></AdminProtectedRoute>} />
+                <Route element={<AdminRouteLayout />}>
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    <Route path="/admin/orders" element={<AdminOrders />} />
+                    <Route path="/admin/menu" element={<AdminMenuManagement />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route path="/admin/settings" element={<AdminSettings />} />
+                    <Route path="/admin/offers" element={<AdminOffers />} />
+                    <Route path="/admin/categories" element={<AdminCategories />} />
+                    <Route path="/admin/delivery-locations" element={<AdminDeliveryLocations />} />
+                </Route>
 
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>

@@ -24,4 +24,9 @@ export const paymentService = {
         const res = await api.post<{ message: string }>('/payment/verify', payload);
         return res.data;
     },
+
+    retryPayment: async (orderId: string): Promise<RazorpayOrderResponse> => {
+        const res = await api.post<RazorpayOrderResponse>('/payment/retry', { orderId });
+        return res.data;
+    },
 };

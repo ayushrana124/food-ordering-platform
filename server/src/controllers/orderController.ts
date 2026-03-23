@@ -181,19 +181,23 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
             couponCode,
             total,
             paymentMethod,
-            paymentStatus: 'PENDING',
-            specialInstructions
+            paymentStatus: paymentMethod === 'COD' ? 'PAID' : 'PENDING',
+            specialInstructions,
+            statusHistory: [{ status: 'PENDING', timestamp: new Date() }],
         });
 
         // ── Clear cart ───────────────────────────────────────────────────────
         await Cart.deleteOne({ userId: req.user._id });
 
-        // Emit Socket.io event to admin
+        // Emit Socket.io event to admin with customer info
         req.io.to('admin-room').emit('newOrder', {
             orderId: order._id,
             orderNumber: order.orderId,
             total: order.total,
-            items: order.items.length
+            items: order.items.length,
+            customerName: req.user.name,
+            customerPhone: req.user.phone,
+            paymentMethod: order.paymentMethod,
         });
 
         res.status(201).json({ message: 'Order created successfully', order });

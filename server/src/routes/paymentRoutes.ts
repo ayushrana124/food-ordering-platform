@@ -1,13 +1,17 @@
 import { Router } from 'express';
-import { createPaymentOrder, verifyPayment } from '../controllers/paymentController';
+import { createPaymentOrder, verifyPayment, handleWebhook, retryPayment } from '../controllers/paymentController';
 import { protect } from '../middleware/auth';
+import { paymentLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-// All payment routes require authentication
-router.use(protect);
+// Webhook route — NO auth (Razorpay calls this server-to-server), NO rate limiter
+router.post('/webhook', handleWebhook);
 
-router.post('/create-order', createPaymentOrder);
-router.post('/verify', verifyPayment);
+// Authenticated payment routes
+router.use(protect);
+router.post('/create-order', paymentLimiter, createPaymentOrder);
+router.post('/verify', paymentLimiter, verifyPayment);
+router.post('/retry', paymentLimiter, retryPayment);
 
 export default router;

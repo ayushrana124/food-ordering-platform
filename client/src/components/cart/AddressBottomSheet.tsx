@@ -5,22 +5,11 @@ import {
     ChevronRight, Plus, Check, AlertTriangle, Phone, User,
 } from 'lucide-react';
 import { userService, type AddAddressPayload } from '@/services/userService';
-import { useAppDispatch } from '@/redux/hooks';
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { updateUser } from '@/redux/slices/authSlice';
-import type { IAddress } from '@/types';
+import { getPublicDeliveryLocations } from '@/services/adminApi';
+import type { IAddress, IDeliveryLocation } from '@/types';
 import toast from 'react-hot-toast';
-
-// Restaurant coordinates (source of truth for 10km check)
-const RESTAURANT = { lat: 28.6139, lng: 77.209 };
-const MAX_DELIVERY_KM = 10;
-
-// Predefined manual locations (will come from backend in future)
-const PREDEFINED_LOCATIONS = [
-    { name: 'Noorpur', lat: 28.6139, lng: 77.209 },
-    { name: 'Tajpur', lat: 29.2099, lng: 78.2999 },
-    { name: 'Dolhagarh', lat: 29.2231, lng: 78.2758 },
-    { name: 'Dhampur Choraha', lat: 29.3082, lng: 78.5110 },
-];
 
 /** Haversine distance in km */
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -49,6 +38,18 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     const [locating, setLocating] = useState(false);
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
     const [locationName, setLocationName] = useState('');
+
+    // Fetch delivery locations & restaurant info from API
+    const [predefinedLocations, setPredefinedLocations] = useState<IDeliveryLocation[]>([]);
+    const restaurant = useAppSelector(s => s.menu.restaurant);
+    const RESTAURANT = restaurant?.coordinates ?? { lat: 28.6139, lng: 77.209 };
+    const MAX_DELIVERY_KM = restaurant?.deliveryRadius ?? 10;
+
+    useEffect(() => {
+        getPublicDeliveryLocations()
+            .then(data => setPredefinedLocations(data.locations))
+            .catch(() => {});
+    }, []);
 
     // Form state
     const [name, setName] = useState('');
@@ -103,7 +104,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         );
     };
 
-    const handleSelectManualLocation = (loc: typeof PREDEFINED_LOCATIONS[0]) => {
+    const handleSelectManualLocation = (loc: { name: string; lat: number; lng: number }) => {
         const dist = haversineKm(loc.lat, loc.lng, RESTAURANT.lat, RESTAURANT.lng);
         if (dist > MAX_DELIVERY_KM) {
             setStep('outOfRange');
@@ -390,12 +391,12 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                             <p style={{ fontSize: '0.78rem', color: '#8E8E8E', marginBottom: '0.25rem' }}>
                                 Select your area to check delivery availability
                             </p>
-                            {PREDEFINED_LOCATIONS.map((loc) => {
+                            {predefinedLocations.map((loc) => {
                                 const dist = haversineKm(loc.lat, loc.lng, RESTAURANT.lat, RESTAURANT.lng);
                                 const deliverable = dist <= MAX_DELIVERY_KM;
                                 return (
                                     <button
-                                        key={loc.name}
+                                        key={loc._id}
                                         onClick={() => handleSelectManualLocation(loc)}
                                         style={{
                                             display: 'flex', alignItems: 'center', gap: '0.75rem',

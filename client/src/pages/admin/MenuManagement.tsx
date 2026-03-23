@@ -1,17 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UtensilsCrossed, Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { UtensilsCrossed, Plus, Search, Pencil, Trash2, RotateCcw, Archive, Grid3X3, Settings2 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import AdminCard from '@/components/admin/ui/AdminCard';
+import AdminBadge from '@/components/admin/ui/AdminBadge';
+import AdminToggle from '@/components/admin/ui/AdminToggle';
+import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
+import AdminEmptyState from '@/components/admin/ui/AdminEmptyState';
+import AdminSkeleton from '@/components/admin/ui/AdminSkeleton';
 import MenuItemForm from '@/components/admin/MenuItemForm';
-import { getMenuItems, deleteMenuItem, toggleAvailability } from '@/services/adminApi';
+import { getMenuItems, getDeletedMenuItems, deleteMenuItem, toggleAvailability, restoreMenuItem } from '@/services/adminApi';
 import type { IMenuItem } from '@/types';
 import toast from 'react-hot-toast';
 
 export default function MenuManagement() {
     const [items, setItems] = useState<IMenuItem[]>([]);
+    const [deletedItems, setDeletedItems] = useState<IMenuItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editingItem, setEditingItem] = useState<IMenuItem | null>(null);
+    const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
+    const [categoryFilter, setCategoryFilter] = useState('');
 
     const fetchItems = useCallback(async () => {
         setLoading(true);
@@ -22,144 +31,252 @@ export default function MenuManagement() {
         finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { fetchItems(); }, [fetchItems]);
+    const fetchDeletedItems = useCallback(async () => {
+        try {
+            const data = await getDeletedMenuItems();
+            setDeletedItems(data.menuItems);
+        } catch { /* silent */ }
+    }, []);
+
+    useEffect(() => { fetchItems(); fetchDeletedItems(); }, [fetchItems, fetchDeletedItems]);
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('Are you sure you want to delete this item?')) return;
+        if (!window.confirm('Move this item to trash? You can restore it later.')) return;
         try {
             await deleteMenuItem(id);
-            toast.success('Item deleted');
-            fetchItems();
+            setItems(prev => prev.filter(i => i._id !== id));
+            toast.success('Item moved to trash');
+            fetchDeletedItems();
         } catch { toast.error('Failed to delete'); }
     };
 
     const handleToggle = async (id: string) => {
         try {
-            await toggleAvailability(id);
+            const res = await toggleAvailability(id);
+            setItems(prev => prev.map(i => i._id === id ? { ...i, isAvailable: res.menuItem.isAvailable } : i));
             toast.success('Availability updated');
-            fetchItems();
         } catch { toast.error('Failed to toggle'); }
     };
 
-    const filtered = items.filter((i) =>
-        i.name.toLowerCase().includes(search.toLowerCase()) ||
-        i.category.toLowerCase().includes(search.toLowerCase())
-    );
+    const handleRestore = async (id: string) => {
+        try {
+            await restoreMenuItem(id);
+            setDeletedItems(prev => prev.filter(i => i._id !== id));
+            toast.success('Item restored');
+            fetchItems();
+        } catch { toast.error('Failed to restore'); }
+    };
+
+    const categories = [...new Set(items.map(i => i.category))].sort();
+
+    const filtered = items.filter((i) => {
+        const matchSearch = i.name.toLowerCase().includes(search.toLowerCase()) ||
+            i.category.toLowerCase().includes(search.toLowerCase());
+        const matchCategory = !categoryFilter || i.category === categoryFilter;
+        return matchSearch && matchCategory;
+    });
 
     return (
         <AdminLayout>
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-                <h1 className="font-outfit font-extrabold text-[1.5rem] text-[#0F0F0F] tracking-[-0.02em] flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-xl bg-[#FFFBF0] flex items-center justify-center text-[#E8A317]">
-                        <UtensilsCrossed size={20} />
-                    </span>
-                    Menu Management
-                </h1>
+            <AdminPageHeader
+                title="Menu Management"
+                subtitle={`${items.length} items`}
+                icon={UtensilsCrossed}
+                actions={
+                    <button
+                        onClick={() => { setEditingItem(null); setShowForm(true); }}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8A317] text-white font-bold text-[0.85rem] border-none cursor-pointer hover:bg-[#D49516] transition-colors shadow-[0_2px_12px_rgba(232,163,23,0.25)]"
+                    >
+                        <Plus size={18} /> Add Item
+                    </button>
+                }
+            />
+
+            {/* Tabs */}
+            <div className="flex items-center gap-2 mb-5">
                 <button
-                    onClick={() => { setEditingItem(null); setShowForm(true); }}
-                    className="btn-primary flex items-center gap-2 text-[0.85rem]"
+                    onClick={() => setActiveTab('active')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.82rem] font-semibold border cursor-pointer transition-all ${
+                        activeTab === 'active'
+                            ? 'bg-[#0F0F0F] text-white border-[#0F0F0F]'
+                            : 'bg-white text-[#4A4A4A] border-[#EEEEEE] hover:bg-[#F5F5F3]'
+                    }`}
                 >
-                    <Plus size={18} /> Add Item
+                    <Grid3X3 size={16} /> Active ({items.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('trash')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.82rem] font-semibold border cursor-pointer transition-all ${
+                        activeTab === 'trash'
+                            ? 'bg-[#DC2626] text-white border-[#DC2626]'
+                            : 'bg-white text-[#4A4A4A] border-[#EEEEEE] hover:bg-[#F5F5F3]'
+                    }`}
+                >
+                    <Archive size={16} /> Trash ({deletedItems.length})
                 </button>
             </div>
 
-            {/* Search */}
-            <div className="bg-white rounded-2xl border border-[#EEEEEE] p-4 mb-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                <div className="relative max-w-[360px]">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E8E8E]" />
-                    <input
-                        className="input"
-                        type="text"
-                        placeholder="Search by name or category..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        style={{ paddingLeft: '2.8rem' }}
-                    />
-                </div>
-            </div>
+            {activeTab === 'active' && (
+                <>
+                    {/* Search + Filter */}
+                    <AdminCard className="mb-5 !p-4">
+                        <div className="flex flex-wrap gap-3">
+                            <div className="relative flex-1 min-w-[200px]">
+                                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C4C4C0]" />
+                                <input
+                                    className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.82rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="text"
+                                    placeholder="Search items..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                            </div>
+                            <select
+                                value={categoryFilter}
+                                onChange={(e) => setCategoryFilter(e.target.value)}
+                                className="h-10 px-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.82rem] font-medium text-[#0F0F0F] outline-none focus:border-[#E8A317] transition-colors"
+                            >
+                                <option value="">All Categories</option>
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                    </AdminCard>
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-[#EEEEEE] overflow-hidden" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-[0.85rem]">
-                        <thead>
-                            <tr className="bg-[#F9F9F7] text-[#8E8E8E] text-[0.75rem] uppercase tracking-wider">
-                                <th className="text-left px-6 py-3 font-semibold">Item</th>
-                                <th className="text-left px-6 py-3 font-semibold">Category</th>
-                                <th className="text-left px-6 py-3 font-semibold">Price</th>
-                                <th className="text-left px-6 py-3 font-semibold">Type</th>
-                                <th className="text-left px-6 py-3 font-semibold">Available</th>
-                                <th className="text-left px-6 py-3 font-semibold">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr><td colSpan={6} className="px-6 py-10 text-center text-[#8E8E8E]">Loading...</td></tr>
-                            ) : filtered.length === 0 ? (
-                                <tr><td colSpan={6} className="px-6 py-10 text-center text-[#8E8E8E]">No items found</td></tr>
-                            ) : filtered.map((item) => (
-                                <tr key={item._id} className="border-t border-[#F0F0EE] hover:bg-[#FAFAF8] transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            {item.image ? (
-                                                <img src={item.image} alt={item.name} className="w-11 h-11 rounded-lg object-cover" />
-                                            ) : (
-                                                <div className="w-11 h-11 rounded-lg bg-[#F5F5F3] flex items-center justify-center text-[#8E8E8E]">
-                                                    <UtensilsCrossed size={16} />
-                                                </div>
-                                            )}
-                                            <span className="font-semibold text-[#0F0F0F]">{item.name}</span>
+                    {/* Card Grid */}
+                    {loading ? (
+                        <AdminSkeleton count={6} type="card" />
+                    ) : filtered.length === 0 ? (
+                        <AdminEmptyState
+                            icon={UtensilsCrossed}
+                            title="No menu items found"
+                            description={search ? 'Try a different search term' : 'Add your first menu item'}
+                            action={!search ? { label: 'Add Item', onClick: () => { setEditingItem(null); setShowForm(true); } } : undefined}
+                        />
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {filtered.map((item) => (
+                                <AdminCard key={item._id} padding={false} className="overflow-hidden group">
+                                    {/* Image */}
+                                    <div className="relative h-40 bg-[#F5F5F3] overflow-hidden">
+                                        {item.image ? (
+                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[#C4C4C0]">
+                                                <UtensilsCrossed size={32} />
+                                            </div>
+                                        )}
+                                        {/* Badges overlay */}
+                                        <div className="absolute top-3 left-3 flex gap-1.5">
+                                            <AdminBadge label={item.isVeg ? 'VEG' : 'NON-VEG'} />
+                                            <AdminBadge label={item.category} color="#4A4A4A" bg="#F0F0EE" />
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-[#4A4A4A]">{item.category}</td>
-                                    <td className="px-6 py-4 font-bold">₹{item.price}</td>
-                                    <td className="px-6 py-4">
-                                        <span
-                                            className="px-2 py-[0.15rem] rounded-md text-[0.7rem] font-bold"
-                                            style={{
-                                                background: item.isVeg ? '#F0FDF4' : '#FEF2F2',
-                                                color: item.isVeg ? '#16A34A' : '#DC2626',
-                                            }}
-                                        >
-                                            {item.isVeg ? 'VEG' : 'NON-VEG'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => handleToggle(item._id)}
-                                            className="relative w-11 h-6 rounded-full cursor-pointer border-none transition-colors duration-300"
-                                            style={{ background: item.isAvailable ? '#16A34A' : '#D4D4D0' }}
-                                        >
-                                            <span
-                                                className="absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white transition-transform duration-300"
-                                                style={{ left: item.isAvailable ? '22px' : '3px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
-                                            />
-                                        </button>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => { setEditingItem(item); setShowForm(true); }}
-                                                className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white flex items-center justify-center cursor-pointer text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(item._id)}
-                                                className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white flex items-center justify-center cursor-pointer text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                        {!item.isAvailable && (
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                                <span className="bg-white/90 text-[#DC2626] font-bold text-[0.82rem] px-4 py-1.5 rounded-lg">
+                                                    Unavailable
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="p-4">
+                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                            <h3 className="font-outfit font-bold text-[0.95rem] text-[#0F0F0F] leading-tight">{item.name}</h3>
+                                            <span className="font-outfit font-extrabold text-[1.05rem] text-[#E8A317] shrink-0">{'\u20B9'}{item.price}</span>
                                         </div>
-                                    </td>
-                                </tr>
+
+                                        {item.description && (
+                                            <p className="text-[0.78rem] text-[#8E8E8E] line-clamp-2 mb-3">{item.description}</p>
+                                        )}
+
+                                        {item.customizations && item.customizations.length > 0 && (
+                                            <div className="flex items-center gap-1.5 mb-3">
+                                                <Settings2 size={13} className="text-[#8E8E8E]" />
+                                                <span className="text-[0.72rem] text-[#8E8E8E]">
+                                                    {item.customizations.length} customization{item.customizations.length > 1 ? 's' : ''}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-between pt-3 border-t border-[#F0F0EE]">
+                                            <div className="flex items-center gap-2">
+                                                <AdminToggle checked={item.isAvailable} onChange={() => handleToggle(item._id)} size="sm" />
+                                                <span className="text-[0.75rem] text-[#8E8E8E]">
+                                                    {item.isAvailable ? 'Available' : 'Hidden'}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-1.5">
+                                                <button
+                                                    onClick={() => { setEditingItem(item); setShowForm(true); }}
+                                                    className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white flex items-center justify-center cursor-pointer text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(item._id)}
+                                                    className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white flex items-center justify-center cursor-pointer text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+                                                    title="Move to trash"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </AdminCard>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Trash View */}
+            {activeTab === 'trash' && (
+                <>
+                    {deletedItems.length === 0 ? (
+                        <AdminEmptyState
+                            icon={Archive}
+                            title="Trash is empty"
+                            description="Deleted menu items will appear here"
+                        />
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {deletedItems.map((item) => (
+                                <AdminCard key={item._id} padding={false} className="overflow-hidden opacity-70">
+                                    <div className="relative h-32 bg-[#F5F5F3] overflow-hidden">
+                                        {item.image ? (
+                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[#C4C4C0]">
+                                                <UtensilsCrossed size={28} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-4">
+                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                            <h3 className="font-outfit font-bold text-[0.9rem] text-[#0F0F0F] line-through">{item.name}</h3>
+                                            <span className="font-bold text-[0.9rem] text-[#8E8E8E]">{'\u20B9'}{item.price}</span>
+                                        </div>
+                                        {item.deletedAt && (
+                                            <p className="text-[0.72rem] text-[#DC2626] mb-3">
+                                                Deleted {new Date(item.deletedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                            </p>
+                                        )}
+                                        <button
+                                            onClick={() => handleRestore(item._id)}
+                                            className="w-full h-9 rounded-xl bg-[#0F0F0F] text-white font-semibold text-[0.82rem] border-none cursor-pointer flex items-center justify-center gap-2 hover:bg-[#2A2A2A] transition-colors"
+                                        >
+                                            <RotateCcw size={14} /> Restore
+                                        </button>
+                                    </div>
+                                </AdminCard>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
 
             {showForm && (
                 <MenuItemForm

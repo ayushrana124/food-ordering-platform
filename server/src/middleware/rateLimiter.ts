@@ -7,14 +7,14 @@ export const otpLimiter = rateLimit({
     message: {
         message: 'Too many OTP requests from this IP. Please try again after 10 minutes.'
     },
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 
-// General API rate limiter - 100 requests per 15 minutes
+// General API rate limiter - 500 requests per 15 minutes (scaled for 500-600 active users)
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 500, // 500 requests per window
     message: {
         message: 'Too many requests from this IP. Please try again later.'
     },
@@ -39,6 +39,28 @@ export const otpVerifyLimiter = rateLimit({
     max: 10, // 10 attempts per window
     message: {
         message: 'Too many OTP verification attempts. Please try again after 15 minutes.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Payment-specific limiter - 5 payment attempts per 10 minutes per IP
+export const paymentLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 5,
+    message: {
+        message: 'Too many payment attempts. Please try again later.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Order creation limiter - 10 orders per 15 minutes per IP
+export const orderLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    message: {
+        message: 'Too many orders. Please try again later.'
     },
     standardHeaders: true,
     legacyHeaders: false,

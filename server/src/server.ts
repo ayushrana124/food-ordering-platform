@@ -22,9 +22,16 @@ const io = initializeSocket(server);
 // Connect to database
 connectDB();
 
+// Trust proxy for correct rate limiting behind reverse proxies (nginx, cloudflare)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: config.clientUrl, credentials: true }));
+
+// Raw body for Razorpay webhook signature verification (must come BEFORE json parser)
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 

@@ -1,21 +1,31 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Store, Clock, MapPin, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Store, Clock, MapPin, Save, Loader2, Truck } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { getRestaurantInfo, updateRestaurant } from '@/services/adminApi';
+import AdminCard from '@/components/admin/ui/AdminCard';
+import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
+import AdminToggle from '@/components/admin/ui/AdminToggle';
+import AdminSkeleton from '@/components/admin/ui/AdminSkeleton';
+import { useAdminContext } from '@/contexts/AdminContext';
+import { updateRestaurant } from '@/services/adminApi';
 import type { IRestaurant } from '@/types';
 import toast from 'react-hot-toast';
 
+type TabKey = 'general' | 'delivery' | 'hours';
+
 export default function Settings() {
+    const { restaurant: cachedRestaurant, fetchRestaurant, updateRestaurantCache } = useAdminContext();
     const [restaurant, setRestaurant] = useState<IRestaurant | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabKey>('general');
 
     useEffect(() => {
-        getRestaurantInfo()
-            .then((d) => setRestaurant(d.restaurant))
-            .catch(() => toast.error('Failed to load settings'))
-            .finally(() => setLoading(false));
-    }, []);
+        (async () => {
+            const r = await fetchRestaurant();
+            if (r) setRestaurant({ ...r });
+            setLoading(false);
+        })();
+    }, [fetchRestaurant]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,6 +34,7 @@ export default function Settings() {
         try {
             const res = await updateRestaurant(restaurant);
             setRestaurant(res.restaurant);
+            updateRestaurantCache(res.restaurant);
             toast.success('Settings saved!');
         } catch { toast.error('Failed to save'); }
         finally { setSaving(false); }
@@ -33,99 +44,230 @@ export default function Settings() {
         setRestaurant((prev) => prev ? { ...prev, [key]: value } : prev);
     };
 
+    const tabs: { key: TabKey; label: string; icon: typeof Store }[] = [
+        { key: 'general', label: 'General', icon: Store },
+        { key: 'delivery', label: 'Delivery', icon: Truck },
+        { key: 'hours', label: 'Hours', icon: Clock },
+    ];
+
     if (loading || !restaurant) {
-        return <AdminLayout><div className="flex justify-center py-20 text-[#8E8E8E]">Loading settings...</div></AdminLayout>;
+        return (
+            <AdminLayout>
+                <AdminPageHeader title="Settings" subtitle="Restaurant configuration" icon={SettingsIcon} />
+                <AdminSkeleton count={3} type="card" />
+            </AdminLayout>
+        );
     }
 
     return (
         <AdminLayout>
-            <h1 className="font-outfit font-extrabold text-[1.5rem] text-[#0F0F0F] tracking-[-0.02em] flex items-center gap-3 mb-7">
-                <span className="w-10 h-10 rounded-xl bg-[#F5F3FF] flex items-center justify-center text-[#7C3AED]">
-                    <SettingsIcon size={20} />
-                </span>
-                Restaurant Settings
-            </h1>
+            <AdminPageHeader
+                title="Settings"
+                subtitle="Restaurant configuration"
+                icon={SettingsIcon}
+            />
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-w-[720px]">
-                {/* General */}
-                <div className="bg-white rounded-2xl border border-[#EEEEEE] p-7" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                    <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5">
-                        <Store size={18} className="text-[#E8A317]" /> General
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Restaurant Name</label>
-                            <input className="input" value={restaurant.name} onChange={(e) => update('name', e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Phone</label>
-                            <input className="input" type="tel" value={restaurant.phone} onChange={(e) => update('phone', e.target.value)} />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Description</label>
-                            <textarea className="input resize-y" rows={3} value={restaurant.description} onChange={(e) => update('description', e.target.value)} />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Address</label>
-                            <input className="input" value={restaurant.address} onChange={(e) => update('address', e.target.value)} />
-                        </div>
-                    </div>
-                </div>
+            {/* Tabs */}
+            <div className="flex items-center gap-2 mb-5">
+                {tabs.map(tab => {
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.82rem] font-semibold border cursor-pointer transition-all ${
+                                activeTab === tab.key
+                                    ? 'bg-[#0F0F0F] text-white border-[#0F0F0F]'
+                                    : 'bg-white text-[#4A4A4A] border-[#EEEEEE] hover:bg-[#F5F5F3]'
+                            }`}
+                        >
+                            <Icon size={16} /> {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
 
-                {/* Delivery */}
-                <div className="bg-white rounded-2xl border border-[#EEEEEE] p-7" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                    <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5">
-                        <MapPin size={18} className="text-[#2563EB]" /> Delivery & Orders
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Delivery Radius (km)</label>
-                            <input className="input" type="number" min={1} value={restaurant.deliveryRadius} onChange={(e) => update('deliveryRadius', Number(e.target.value))} />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Min Order (₹)</label>
-                            <input className="input" type="number" min={0} value={restaurant.minOrderAmount} onChange={(e) => update('minOrderAmount', Number(e.target.value))} />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Delivery Time (min)</label>
-                            <input className="input" type="number" min={5} value={restaurant.deliveryTime} onChange={(e) => update('deliveryTime', Number(e.target.value))} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Hours & Status */}
-                <div className="bg-white rounded-2xl border border-[#EEEEEE] p-7" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                    <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5">
-                        <Clock size={18} className="text-[#16A34A]" /> Hours & Status
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Opens at</label>
-                            <input className="input" type="time" value={restaurant.openingHours?.open || ''} onChange={(e) => update('openingHours', { ...restaurant.openingHours, open: e.target.value })} />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-[0.85rem] mb-[0.3rem]">Closes at</label>
-                            <input className="input" type="time" value={restaurant.openingHours?.close || ''} onChange={(e) => update('openingHours', { ...restaurant.openingHours, close: e.target.value })} />
-                        </div>
-                        <div className="flex items-center gap-3 pb-1">
-                            <button
-                                type="button"
-                                onClick={() => update('isOpen', !restaurant.isOpen)}
-                                className="relative w-12 h-7 rounded-full cursor-pointer border-none transition-colors duration-300"
-                                style={{ background: restaurant.isOpen ? '#16A34A' : '#D4D4D0' }}
-                            >
-                                <span
-                                    className="absolute top-[3px] w-[21px] h-[21px] rounded-full bg-white transition-transform duration-300"
-                                    style={{ left: restaurant.isOpen ? '25px' : '3px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+            <form onSubmit={handleSubmit} className="max-w-[720px]">
+                {/* General Tab */}
+                {activeTab === 'general' && (
+                    <AdminCard>
+                        <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5 text-[#0F0F0F]">
+                            <Store size={18} className="text-[#E8A317]" /> General Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Restaurant Name</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    value={restaurant.name}
+                                    onChange={(e) => update('name', e.target.value)}
                                 />
-                            </button>
-                            <span className="font-semibold text-[0.85rem]">{restaurant.isOpen ? 'Open' : 'Closed'}</span>
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Phone</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="tel"
+                                    value={restaurant.phone}
+                                    onChange={(e) => update('phone', e.target.value)}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Description</label>
+                                <textarea
+                                    className="w-full px-4 py-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors resize-y"
+                                    rows={3}
+                                    value={restaurant.description}
+                                    onChange={(e) => update('description', e.target.value)}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Address</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    value={restaurant.address}
+                                    onChange={(e) => update('address', e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </AdminCard>
+                )}
 
-                <button type="submit" className="btn-primary self-start flex items-center gap-2" disabled={saving}>
-                    <Save size={18} />
+                {/* Delivery Tab */}
+                {activeTab === 'delivery' && (
+                    <AdminCard>
+                        <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5 text-[#0F0F0F]">
+                            <MapPin size={18} className="text-[#2563EB]" /> Delivery & Orders
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Delivery Radius (km)</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="number"
+                                    min={1}
+                                    value={restaurant.deliveryRadius}
+                                    onChange={(e) => update('deliveryRadius', Number(e.target.value))}
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Min Order (₹)</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="number"
+                                    min={0}
+                                    value={restaurant.minOrderAmount}
+                                    onChange={(e) => update('minOrderAmount', Number(e.target.value))}
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Delivery Time (min)</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="number"
+                                    min={5}
+                                    value={restaurant.deliveryTime}
+                                    onChange={(e) => update('deliveryTime', Number(e.target.value))}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Coordinates */}
+                        <div className="mt-5 pt-5 border-t border-[#F0F0EE]">
+                            <h4 className="font-semibold text-[0.85rem] text-[#0F0F0F] mb-3">Restaurant Coordinates</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Latitude</label>
+                                    <input
+                                        className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                        type="number"
+                                        step="any"
+                                        value={restaurant.coordinates?.lat || ''}
+                                        onChange={(e) => update('coordinates', { ...restaurant.coordinates, lat: Number(e.target.value) })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Longitude</label>
+                                    <input
+                                        className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                        type="number"
+                                        step="any"
+                                        value={restaurant.coordinates?.lng || ''}
+                                        onChange={(e) => update('coordinates', { ...restaurant.coordinates, lng: Number(e.target.value) })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </AdminCard>
+                )}
+
+                {/* Hours Tab */}
+                {activeTab === 'hours' && (
+                    <AdminCard>
+                        <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5 text-[#0F0F0F]">
+                            <Clock size={18} className="text-[#16A34A]" /> Hours & Status
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 items-end">
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Opens at</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="time"
+                                    value={restaurant.openingHours?.open || ''}
+                                    onChange={(e) => update('openingHours', { ...restaurant.openingHours, open: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Closes at</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="time"
+                                    value={restaurant.openingHours?.close || ''}
+                                    onChange={(e) => update('openingHours', { ...restaurant.openingHours, close: e.target.value })}
+                                />
+                            </div>
+                            <div className="flex items-center gap-3 pb-1">
+                                <AdminToggle
+                                    checked={restaurant.isOpen}
+                                    onChange={() => update('isOpen', !restaurant.isOpen)}
+                                />
+                                <span className={`font-semibold text-[0.85rem] ${restaurant.isOpen ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+                                    {restaurant.isOpen ? 'Open Now' : 'Closed'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Quick hours */}
+                        <div className="mt-4 pt-4 border-t border-[#F0F0EE]">
+                            <p className="text-[0.78rem] text-[#8E8E8E] mb-2">Quick set:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { label: '9 AM - 11 PM', open: '09:00', close: '23:00' },
+                                    { label: '10 AM - 10 PM', open: '10:00', close: '22:00' },
+                                    { label: '11 AM - 12 AM', open: '11:00', close: '00:00' },
+                                    { label: '24 Hours', open: '00:00', close: '23:59' },
+                                ].map(preset => (
+                                    <button
+                                        key={preset.label}
+                                        type="button"
+                                        onClick={() => update('openingHours', { open: preset.open, close: preset.close })}
+                                        className="px-3 py-1.5 rounded-lg text-[0.75rem] font-medium border border-[#EEEEEE] bg-white text-[#4A4A4A] cursor-pointer hover:bg-[#F5F5F3] transition-colors"
+                                    >
+                                        {preset.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </AdminCard>
+                )}
+
+                {/* Save Button */}
+                <button
+                    type="submit"
+                    className="mt-5 flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E8A317] text-white font-bold text-[0.85rem] border-none cursor-pointer hover:bg-[#D49516] transition-colors shadow-[0_2px_12px_rgba(232,163,23,0.25)] disabled:opacity-50"
+                    disabled={saving}
+                >
+                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                     {saving ? 'Saving...' : 'Save Settings'}
                 </button>
             </form>

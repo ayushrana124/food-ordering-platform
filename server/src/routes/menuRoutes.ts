@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getRestaurantInfo, getMenuItems, getMenuItem, getOffers, getCategories } from '../controllers/menuController';
+import { getRestaurantInfo, getMenuItems, getMenuItem, getOffers, getCategories, getPublicDeliveryLocations } from '../controllers/menuController';
 import { validateObjectId } from '../middleware/validateObjectId';
 
 const router = Router();
@@ -10,5 +10,6 @@ router.get('/items', getMenuItems);
 router.get('/items/:id', validateObjectId(), getMenuItem);
 router.get('/offers', getOffers);
 router.get('/categories', getCategories);
+router.get('/delivery-locations', getPublicDeliveryLocations);
 
 export default router;

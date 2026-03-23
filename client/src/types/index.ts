@@ -55,7 +55,19 @@ export interface IMenuItem {
     image?: string;
     isVeg: boolean;
     isAvailable: boolean;
+    isDeleted?: boolean;
+    deletedAt?: string;
     customizations: ICustomizationGroup[];
+}
+
+export interface IDeliveryLocation {
+    _id: string;
+    name: string;
+    lat: number;
+    lng: number;
+    isActive: boolean;
+    displayOrder: number;
+    createdAt?: string;
 }
 
 export interface IRestaurant {
@@ -140,10 +152,14 @@ export interface IOrder {
     razorpayOrderId?: string;
     subtotal: number;
     deliveryCharges: number;
+    discount?: number;
     total: number;
     orderStatus: OrderStatus;
     specialInstructions?: string;
-    estimatedDelivery?: number;
+    preparationTime?: number;
+    estimatedDeliveryTime?: string;
+    rejectionReason?: string;
+    statusHistory?: Array<{ status: string; timestamp: string; note?: string }>;
     createdAt: string;
     updatedAt: string;
 }

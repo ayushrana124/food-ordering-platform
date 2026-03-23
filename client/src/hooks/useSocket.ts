@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAppDispatch } from '@/redux/hooks';
-import { updateCurrentOrderStatus } from '@/redux/slices/orderSlice';
-import type { OrderStatus } from '@/types';
+import { updateCurrentOrder } from '@/redux/slices/orderSlice';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL as string;
 
@@ -28,8 +27,23 @@ export const useSocket = (userId: string | undefined) => {
             socket.emit('join', { userId });
         });
 
-        socket.on('orderStatusUpdate', (data: { status: OrderStatus }) => {
-            dispatch(updateCurrentOrderStatus(data.status));
+        socket.on('orderStatusUpdate', (data: {
+            orderId: string;
+            orderNumber: string;
+            status: string;
+            preparationTime?: number;
+            estimatedDeliveryTime?: string;
+            rejectionReason?: string;
+            paymentStatus?: string;
+        }) => {
+            // Merge all fields from the socket event into the current order
+            dispatch(updateCurrentOrder({
+                orderStatus: data.status as any,
+                ...(data.preparationTime !== undefined && { preparationTime: data.preparationTime }),
+                ...(data.estimatedDeliveryTime !== undefined && { estimatedDeliveryTime: data.estimatedDeliveryTime }),
+                ...(data.rejectionReason !== undefined && { rejectionReason: data.rejectionReason }),
+                ...(data.paymentStatus !== undefined && { paymentStatus: data.paymentStatus as any }),
+            }));
         });
 
         socket.on('connect_error', (err) => {

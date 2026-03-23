@@ -4,7 +4,10 @@ import { io, Socket } from 'socket.io-client';
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL as string;
 
 interface AdminSocketCallbacks {
-    onNewOrder?: (data: { orderId: string; orderNumber: string; total: number; items: number }) => void;
+    onNewOrder?: (data: {
+        orderId: string; orderNumber: string; total: number; items: number;
+        customerName?: string; customerPhone?: string; paymentMethod?: string;
+    }) => void;
     onOrderCancelled?: (data: { orderId: string; orderNumber: string }) => void;
     onPaymentReceived?: (data: { orderId: string; orderNumber: string; amount: number }) => void;
 }

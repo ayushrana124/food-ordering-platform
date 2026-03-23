@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { IMenuItem, IOrder, IUser, IRestaurant, IOffer, ICustomizationGroup, ICategory } from '@/types';
+import type { IMenuItem, IOrder, IUser, IRestaurant, IOffer, ICustomizationGroup, ICategory, IDeliveryLocation } from '@/types';
 
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 
@@ -45,16 +45,27 @@ export interface IOrderStats {
     activeUsers: number;
 }
 
+export interface IDetailedStats extends IOrderStats {
+    weeklyRevenue: { date: string; revenue: number }[];
+    ordersByStatus: Record<string, number>;
+    revenueByPayment: { cod: number; online: number };
+    topItems: { name: string; count: number }[];
+    avgOrderValue: number;
+}
+
 export interface IAdminOrder extends Omit<IOrder, 'userId'> {
     userId: { _id: string; name?: string; phone: string };
     preparationTime?: number;
     estimatedDeliveryTime?: string;
+    rejectionReason?: string;
+    statusHistory?: Array<{ status: string; timestamp: string; note?: string }>;
     distance?: number;
 }
 
 export interface OrderFilters {
     status?: string;
     paymentMethod?: string;
+    search?: string;
     page?: number;
     limit?: number;
 }
@@ -86,6 +97,11 @@ export async function getOrderStats() {
     return data;
 }
 
+export async function getDetailedOrderStats() {
+    const { data } = await adminApi.get<IDetailedStats>('/admin/orders/stats/detailed');
+    return data;
+}
+
 export async function getOrders(filters: OrderFilters = {}) {
     const { data } = await adminApi.get<{
         orders: IAdminOrder[];
@@ -106,10 +122,20 @@ export async function updateOrderStatus(id: string, status: string) {
     return data;
 }
 
+export async function rejectOrder(id: string, reason?: string) {
+    const { data } = await adminApi.put<{ message: string; order: IAdminOrder }>(`/admin/orders/${id}/reject`, { reason });
+    return data;
+}
+
 // ── Menu ───────────────────────────────────────────────────────────────────────
 
 export async function getMenuItems() {
-    const { data } = await adminApi.get<{ menuItems: IMenuItem[] }>('/menu');
+    const { data } = await adminApi.get<{ menuItems: IMenuItem[] }>('/admin/menu');
+    return data;
+}
+
+export async function getDeletedMenuItems() {
+    const { data } = await adminApi.get<{ menuItems: IMenuItem[] }>('/admin/menu/deleted');
     return data;
 }
 
@@ -127,6 +153,11 @@ export async function updateMenuItem(id: string, payload: Partial<IMenuItem>) {
 
 export async function deleteMenuItem(id: string) {
     const { data } = await adminApi.delete<{ message: string }>(`/admin/menu/${id}`);
+    return data;
+}
+
+export async function restoreMenuItem(id: string) {
+    const { data } = await adminApi.put<{ message: string; menuItem: IMenuItem }>(`/admin/menu/${id}/restore`);
     return data;
 }
 
@@ -224,5 +255,37 @@ export async function updateCategory(id: string, payload: Partial<ICategory>) {
 
 export async function deleteCategory(id: string) {
     const { data } = await adminApi.delete<{ message: string }>(`/admin/categories/${id}`);
+    return data;
+}
+
+// ── Delivery Locations ────────────────────────────────────────────────────────
+
+export async function getDeliveryLocations() {
+    const { data } = await adminApi.get<{ locations: IDeliveryLocation[] }>('/admin/delivery-locations');
+    return data;
+}
+
+export async function createDeliveryLocation(payload: Partial<IDeliveryLocation>) {
+    const { data } = await adminApi.post<{ message: string; location: IDeliveryLocation }>('/admin/delivery-locations', payload);
+    return data;
+}
+
+export async function updateDeliveryLocation(id: string, payload: Partial<IDeliveryLocation>) {
+    const { data } = await adminApi.put<{ message: string; location: IDeliveryLocation }>(`/admin/delivery-locations/${id}`, payload);
+    return data;
+}
+
+export async function deleteDeliveryLocation(id: string) {
+    const { data } = await adminApi.delete<{ message: string }>(`/admin/delivery-locations/${id}`);
+    return data;
+}
+
+// ── Public delivery locations (for customer checkout) ─────────────────────────
+
+export async function getPublicDeliveryLocations() {
+    const { data } = await adminApi.get<{
+        locations: IDeliveryLocation[];
+        restaurant: { lat: number; lng: number; deliveryRadius: number } | null;
+    }>('/menu/delivery-locations');
     return data;
 }

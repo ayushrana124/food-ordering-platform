@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layers, Plus, Pencil, Trash2, X, Save, Loader2, GripVertical } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { getAdminCategories, createCategory, updateCategory, deleteCategory } from '@/services/adminApi';
+import AdminCard from '@/components/admin/ui/AdminCard';
+import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
+import AdminEmptyState from '@/components/admin/ui/AdminEmptyState';
+import AdminSkeleton from '@/components/admin/ui/AdminSkeleton';
+import { useAdminContext } from '@/contexts/AdminContext';
+import { createCategory, updateCategory, deleteCategory } from '@/services/adminApi';
 import type { ICategory } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -31,7 +36,8 @@ interface CategoryForm {
 const emptyForm: CategoryForm = { name: '', icon: 'Utensils', colorPresetIdx: 0, displayOrder: 0 };
 
 export default function CategoryManagement() {
-    const [categories, setCategories] = useState<ICategory[]>([]);
+    const { categories, fetchCategories, invalidateCategories } = useAdminContext();
+    const [localCategories, setLocalCategories] = useState<ICategory[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showModal, setShowModal] = useState(false);
@@ -40,16 +46,19 @@ export default function CategoryManagement() {
 
     const load = useCallback(async () => {
         setLoading(true);
-        try {
-            const res = await getAdminCategories();
-            setCategories(res.categories);
-        } catch { toast.error('Failed to load categories'); }
+        const cats = await fetchCategories(true);
+        setLocalCategories(cats);
         setLoading(false);
-    }, []);
+    }, [fetchCategories]);
 
     useEffect(() => { load(); }, [load]);
 
-    const openCreate = () => { setEditingId(null); setForm({ ...emptyForm, displayOrder: categories.length }); setShowModal(true); };
+    const openCreate = () => {
+        setEditingId(null);
+        setForm({ ...emptyForm, displayOrder: localCategories.length });
+        setShowModal(true);
+    };
+
     const openEdit = (cat: ICategory) => {
         const presetIdx = COLOR_PRESETS.findIndex(p => p.bg === cat.colorScheme?.bg);
         setEditingId(cat._id);
@@ -71,6 +80,7 @@ export default function CategoryManagement() {
                 toast.success('Category created');
             }
             setShowModal(false);
+            invalidateCategories();
             load();
         } catch (err: unknown) {
             const msg = err && typeof err === 'object' && 'response' in err
@@ -83,98 +93,143 @@ export default function CategoryManagement() {
 
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this category?')) return;
-        try { await deleteCategory(id); toast.success('Deleted'); load(); }
-        catch { toast.error('Delete failed'); }
+        try {
+            await deleteCategory(id);
+            setLocalCategories(prev => prev.filter(c => c._id !== id));
+            toast.success('Deleted');
+            invalidateCategories();
+        } catch { toast.error('Delete failed'); }
     };
 
     const update = (key: keyof CategoryForm, value: unknown) => setForm(f => ({ ...f, [key]: value }));
 
     return (
         <AdminLayout>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-                <div>
-                    <h1 className="font-outfit font-extrabold text-[1.5rem] text-[#0F0F0F] tracking-[-0.02em] flex items-center gap-3 mb-1">
-                        <span className="w-10 h-10 rounded-xl bg-[#EDE9FE] flex items-center justify-center text-[#7C3AED]">
-                            <Layers size={20} />
-                        </span>
-                        Categories
-                    </h1>
-                    <p className="text-[0.84rem] text-[#8E8E8E] ml-[52px]">Manage menu categories displayed on the landing page</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-[#8E8E8E] text-[0.84rem]">{categories.length} categories</span>
-                    <button onClick={openCreate} className="btn-primary flex items-center gap-2 text-[0.84rem] py-2 px-4">
-                        <Plus size={16} /> Add Category
+            <AdminPageHeader
+                title="Categories"
+                subtitle={`${localCategories.length} categories`}
+                icon={Layers}
+                actions={
+                    <button
+                        onClick={openCreate}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8A317] text-white font-bold text-[0.85rem] border-none cursor-pointer hover:bg-[#D49516] transition-colors shadow-[0_2px_12px_rgba(232,163,23,0.25)]"
+                    >
+                        <Plus size={18} /> Add Category
                     </button>
-                </div>
-            </div>
+                }
+            />
 
-            {/* List */}
             {loading ? (
-                <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-[#E8A317]" /></div>
-            ) : categories.length === 0 ? (
-                <div className="text-center py-16 text-[#8E8E8E]">No categories yet. Add your first one!</div>
+                <AdminSkeleton count={6} type="row" />
+            ) : localCategories.length === 0 ? (
+                <AdminEmptyState
+                    icon={Layers}
+                    title="No categories yet"
+                    description="Add your first category to organize the menu"
+                    action={{ label: 'Add Category', onClick: openCreate }}
+                />
             ) : (
-                <div className="grid gap-3">
-                    {categories.map(cat => (
-                        <div key={cat._id} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#EEEEEE] hover:border-[#E8A317] transition-colors group">
-                            <GripVertical size={16} className="text-[#D4D4D0] shrink-0" />
-                            <div
-                                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[0.9rem] font-bold"
-                                style={{ background: cat.colorScheme?.iconBg || '#F0F0EE', color: cat.colorScheme?.color || '#4A4A4A' }}
-                            >
-                                {cat.icon?.charAt(0) || 'C'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="font-outfit font-bold text-[0.95rem] text-[#0F0F0F]">{cat.name}</div>
-                                <div className="text-[0.75rem] text-[#8E8E8E]">Icon: {cat.icon} · Order: {cat.displayOrder}</div>
-                            </div>
-                            <div
-                                className="w-6 h-6 rounded-md border"
-                                style={{ background: cat.colorScheme?.bg, borderColor: cat.colorScheme?.border }}
-                                title="Color scheme"
-                            />
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => openEdit(cat)} className="p-2 rounded-lg hover:bg-[#F7F7F5] text-[#4A4A4A]"><Pencil size={15} /></button>
-                                <button onClick={() => handleDelete(cat._id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400"><Trash2 size={15} /></button>
-                            </div>
-                        </div>
-                    ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {localCategories.map(cat => {
+                        const preset = cat.colorScheme;
+                        return (
+                            <AdminCard key={cat._id} hover className="group">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1 text-[#D4D4D0] shrink-0">
+                                        <GripVertical size={16} />
+                                        <span className="text-[0.7rem] font-semibold text-[#C4C4C0]">#{cat.displayOrder}</span>
+                                    </div>
+
+                                    <div
+                                        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-[1rem] font-bold"
+                                        style={{ background: preset?.iconBg || '#F0F0EE', color: preset?.color || '#4A4A4A' }}
+                                    >
+                                        {cat.icon?.charAt(0) || 'C'}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-outfit font-bold text-[0.95rem] text-[#0F0F0F]">{cat.name}</h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[0.72rem] text-[#8E8E8E]">{cat.icon}</span>
+                                            <div
+                                                className="w-5 h-5 rounded-md border"
+                                                style={{ background: preset?.bg, borderColor: preset?.border }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => openEdit(cat)}
+                                            className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white flex items-center justify-center cursor-pointer text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
+                                        >
+                                            <Pencil size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(cat._id)}
+                                            className="w-8 h-8 rounded-lg border border-[#EEEEEE] bg-white flex items-center justify-center cursor-pointer text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </AdminCard>
+                        );
+                    })}
                 </div>
             )}
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
-                    <div className="bg-white rounded-[20px] w-full max-w-[480px] p-6" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-                        <div className="flex items-center justify-between mb-5">
-                            <h3 className="font-outfit font-bold text-[1.15rem]">{editingId ? 'Edit' : 'Add'} Category</h3>
-                            <button onClick={() => setShowModal(false)} className="bg-transparent border-none cursor-pointer p-1"><X size={20} /></button>
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+                >
+                    <div
+                        className="bg-white rounded-[20px] w-full max-w-[500px] flex flex-col max-h-[90vh]"
+                        style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'fadeInScale 0.2s ease-out' }}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-[#EEEEEE] shrink-0">
+                            <h3 className="font-outfit font-bold text-[1.1rem] text-[#0F0F0F]">
+                                {editingId ? 'Edit' : 'Add'} Category
+                            </h3>
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="w-8 h-8 rounded-xl border border-[#EEEEEE] flex items-center justify-center bg-white cursor-pointer text-[#4A4A4A] hover:bg-[#F5F5F3] transition-colors"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
 
-                        <div className="flex flex-col gap-4">
+                        {/* Body */}
+                        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
                             {/* Name */}
                             <div>
-                                <label className="block font-semibold text-[0.8rem] mb-1">Name</label>
-                                <input className="input" value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Pizzas" id="cat-name" />
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Name</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    value={form.name}
+                                    onChange={e => update('name', e.target.value)}
+                                    placeholder="e.g. Pizzas"
+                                />
                             </div>
 
                             {/* Icon */}
                             <div>
-                                <label className="block font-semibold text-[0.8rem] mb-1">Icon</label>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Icon</label>
                                 <div className="flex flex-wrap gap-2">
                                     {ICON_OPTIONS.map(ic => (
                                         <button
                                             key={ic}
                                             type="button"
                                             onClick={() => update('icon', ic)}
-                                            className="px-3 py-[0.35rem] rounded-lg text-[0.75rem] font-medium border cursor-pointer transition-all"
-                                            style={{
-                                                background: form.icon === ic ? '#FFFBF0' : 'white',
-                                                borderColor: form.icon === ic ? '#E8A317' : '#EEEEEE',
-                                                color: form.icon === ic ? '#E8A317' : '#4A4A4A',
-                                            }}
+                                            className={`px-3 py-1.5 rounded-lg text-[0.75rem] font-medium border cursor-pointer transition-all ${
+                                                form.icon === ic
+                                                    ? 'bg-[#FFFBF0] border-[#E8A317] text-[#E8A317]'
+                                                    : 'bg-white border-[#EEEEEE] text-[#4A4A4A] hover:bg-[#F5F5F3]'
+                                            }`}
                                         >
                                             {ic}
                                         </button>
@@ -184,18 +239,23 @@ export default function CategoryManagement() {
 
                             {/* Color Preset */}
                             <div>
-                                <label className="block font-semibold text-[0.8rem] mb-1">Color Theme</label>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Color Theme</label>
                                 <div className="flex flex-wrap gap-2">
                                     {COLOR_PRESETS.map((p, i) => (
                                         <button
                                             key={p.label}
                                             type="button"
                                             onClick={() => update('colorPresetIdx', i)}
-                                            className="flex items-center gap-[0.3rem] px-3 py-[0.35rem] rounded-lg text-[0.75rem] font-medium border cursor-pointer transition-all"
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.75rem] font-medium border cursor-pointer transition-all ${
+                                                form.colorPresetIdx === i
+                                                    ? 'ring-2 ring-offset-1'
+                                                    : 'hover:opacity-80'
+                                            }`}
                                             style={{
-                                                background: form.colorPresetIdx === i ? p.bg : 'white',
-                                                borderColor: form.colorPresetIdx === i ? p.border : '#EEEEEE',
+                                                background: p.bg,
+                                                borderColor: p.border,
                                                 color: p.color,
+                                                ...(form.colorPresetIdx === i ? { ringColor: p.border } : {}),
                                             }}
                                         >
                                             <span className="w-3 h-3 rounded-full" style={{ background: p.border }} />
@@ -207,14 +267,55 @@ export default function CategoryManagement() {
 
                             {/* Display Order */}
                             <div>
-                                <label className="block font-semibold text-[0.8rem] mb-1">Display Order</label>
-                                <input className="input" type="number" min={0} value={form.displayOrder} onChange={e => update('displayOrder', Number(e.target.value))} id="cat-order" />
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Display Order</label>
+                                <input
+                                    className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
+                                    type="number"
+                                    min={0}
+                                    value={form.displayOrder}
+                                    onChange={e => update('displayOrder', Number(e.target.value))}
+                                />
+                            </div>
+
+                            {/* Live Preview */}
+                            <div>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Preview</label>
+                                <div
+                                    className="flex items-center gap-3 p-4 rounded-xl border"
+                                    style={{
+                                        background: COLOR_PRESETS[form.colorPresetIdx].bg,
+                                        borderColor: COLOR_PRESETS[form.colorPresetIdx].border,
+                                    }}
+                                >
+                                    <div
+                                        className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-[0.9rem]"
+                                        style={{
+                                            background: COLOR_PRESETS[form.colorPresetIdx].iconBg,
+                                            color: COLOR_PRESETS[form.colorPresetIdx].color,
+                                        }}
+                                    >
+                                        {form.icon.charAt(0)}
+                                    </div>
+                                    <span className="font-outfit font-bold text-[0.9rem]" style={{ color: COLOR_PRESETS[form.colorPresetIdx].color }}>
+                                        {form.name || 'Category Name'}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => setShowModal(false)} className="btn-outline text-[0.84rem] py-2 px-5">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 text-[0.84rem] py-2 px-5">
+                        {/* Footer */}
+                        <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="px-5 py-2.5 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] font-semibold text-[#4A4A4A] cursor-pointer hover:bg-[#F5F5F3] transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E8A317] text-white font-bold text-[0.85rem] border-none cursor-pointer hover:bg-[#D49516] transition-colors disabled:opacity-50"
+                            >
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 {saving ? 'Saving...' : 'Save'}
                             </button>
@@ -222,6 +323,13 @@ export default function CategoryManagement() {
                     </div>
                 </div>
             )}
+
+            <style>{`
+                @keyframes fadeInScale {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            `}</style>
         </AdminLayout>
     );
 }

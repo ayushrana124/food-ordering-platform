@@ -19,7 +19,7 @@ import { userService } from '@/services/userService';
 import toast from 'react-hot-toast';
 
 declare global { interface Window { Razorpay: new (opts: RazorpayOptions) => RazorpayInstance; } }
-interface RazorpayOptions { key: string; amount: number; currency: string; name: string; description: string; order_id: string; handler: (r: RazorpayResponse) => void; prefill?: Record<string, string>; theme?: { color: string }; }
+interface RazorpayOptions { key: string; amount: number; currency: string; name: string; description: string; order_id: string; handler: (r: RazorpayResponse) => void; modal?: { ondismiss?: () => void }; prefill?: Record<string, string>; theme?: { color: string }; }
 interface RazorpayInstance { open(): void; }
 interface RazorpayResponse { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; }
 
@@ -94,6 +94,13 @@ export default function CheckoutPage() {
                     } catch {
                         toast.error('Payment verification failed. Contact support.');
                     }
+                },
+                modal: {
+                    ondismiss: () => {
+                        // User closed Razorpay without paying — redirect to tracking where they can retry
+                        toast('Payment not completed. You can retry from the order page.', { icon: '⚠️' });
+                        navigate(`/order/${order._id}`);
+                    },
                 },
                 prefill: { name: user?.name ?? '', contact: user?.phone ?? '' },
                 theme: { color: '#E8A317' },

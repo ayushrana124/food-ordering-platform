@@ -8,6 +8,7 @@ interface Config {
     smsApiKey: string;
     razorpayKeyId: string;
     razorpayKeySecret: string;
+    razorpayWebhookSecret: string;
     cloudinaryCloudName: string;
     cloudinaryApiKey: string;
     cloudinaryApiSecret: string;
@@ -31,6 +32,7 @@ const config: Config = {
     // Razorpay Configuration
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
     razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || '',
+    razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || '',
 
     // Cloudinary Configuration
     cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',

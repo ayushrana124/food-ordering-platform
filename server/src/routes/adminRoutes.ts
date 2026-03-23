@@ -4,11 +4,16 @@ import {
     getOrders,
     acceptOrder,
     updateOrderStatus,
+    rejectOrder,
     getOrderStats,
+    getDetailedOrderStats,
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
     toggleAvailability,
+    getAdminMenuItems,
+    getDeletedMenuItems,
+    restoreMenuItem,
     getUsers,
     toggleUserBlock,
     toggleCODBlock,
@@ -21,7 +26,11 @@ import {
     getCategories,
     createCategory,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    getDeliveryLocations,
+    createDeliveryLocation,
+    updateDeliveryLocation,
+    deleteDeliveryLocation
 } from '../controllers/adminController';
 import { loginController, logoutController } from '../controllers/adminAuthController';
 import { adminProtect } from '../middleware/adminAuth';
@@ -52,17 +61,28 @@ router.use(adminProtect);
 
 router.post('/logout', logoutController);
 
-// Order management (stats route must come before parameterized :id routes)
+// Order management (stats routes must come before parameterized :id routes)
+router.get('/orders/stats/detailed', getDetailedOrderStats);
 router.get('/orders/stats', getOrderStats);
 router.get('/orders', getOrders);
 router.put('/orders/:id/accept', validateObjectId(), acceptOrder);
+router.put('/orders/:id/reject', validateObjectId(), rejectOrder);
 router.put('/orders/:id/status', validateObjectId(), updateOrderStatus);
 
 // Menu management
+router.get('/menu', getAdminMenuItems);
+router.get('/menu/deleted', getDeletedMenuItems);
 router.post('/menu', upload.single('image'), addMenuItem);
+router.put('/menu/:id/restore', validateObjectId(), restoreMenuItem);
 router.put('/menu/:id', validateObjectId(), updateMenuItem);
 router.delete('/menu/:id', validateObjectId(), deleteMenuItem);
 router.put('/menu/:id/availability', validateObjectId(), toggleAvailability);
+
+// Delivery location management
+router.get('/delivery-locations', getDeliveryLocations);
+router.post('/delivery-locations', createDeliveryLocation);
+router.put('/delivery-locations/:id', validateObjectId(), updateDeliveryLocation);
+router.delete('/delivery-locations/:id', validateObjectId(), deleteDeliveryLocation);
 
 // User management
 router.get('/users', getUsers);

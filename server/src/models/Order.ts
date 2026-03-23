@@ -37,6 +37,8 @@ export interface IOrder extends Document {
     orderStatus: 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
     preparationTime?: number;
     estimatedDeliveryTime?: Date;
+    rejectionReason?: string;
+    statusHistory: Array<{ status: string; timestamp: Date; note?: string }>;
     specialInstructions?: string;
     createdAt: Date;
     updatedAt: Date;
@@ -109,6 +111,12 @@ const orderSchema = new Schema<IOrder>({
     },
     preparationTime: Number,
     estimatedDeliveryTime: Date,
+    rejectionReason: String,
+    statusHistory: [{
+        status: String,
+        timestamp: { type: Date, default: Date.now },
+        note: String,
+    }],
     specialInstructions: String,
     createdAt: {
         type: Date,

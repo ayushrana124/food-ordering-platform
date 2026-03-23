@@ -9,6 +9,8 @@ export interface IMenuItem extends Document {
     image?: string;
     isVeg: boolean;
     isAvailable: boolean;
+    isDeleted: boolean;
+    deletedAt?: Date | null;
     customizations: Array<{
         name: string;
         options: Array<{
@@ -49,6 +51,14 @@ const menuItemSchema = new Schema<IMenuItem>({
         type: Boolean,
         default: true
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    deletedAt: {
+        type: Date,
+        default: null
+    },
     customizations: [{
         name: String,
         options: [{
@@ -63,6 +73,17 @@ const menuItemSchema = new Schema<IMenuItem>({
     }
 });
 
-menuItemSchema.index({ restaurantId: 1, category: 1 });
+// Soft-delete middleware: auto-exclude deleted items from all queries
+function applySoftDeleteFilter(this: any) {
+    if (this.getFilter().isDeleted === undefined) {
+        this.where({ isDeleted: { $ne: true } });
+    }
+}
+
+menuItemSchema.pre('find', applySoftDeleteFilter);
+menuItemSchema.pre('findOne', applySoftDeleteFilter);
+menuItemSchema.pre('countDocuments', applySoftDeleteFilter);
+
+menuItemSchema.index({ restaurantId: 1, isDeleted: 1, category: 1 });
 
 export default mongoose.model<IMenuItem>('MenuItem', menuItemSchema);
