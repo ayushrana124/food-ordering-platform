@@ -3,8 +3,8 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 export interface IDeliveryLocation extends Document {
     restaurantId: Types.ObjectId;
     name: string;
-    lat: number;
-    lng: number;
+    lat?: number;
+    lng?: number;
     isActive: boolean;
     displayOrder: number;
     createdAt: Date;
@@ -23,11 +23,9 @@ const deliveryLocationSchema = new Schema<IDeliveryLocation>({
     },
     lat: {
         type: Number,
-        required: true
     },
     lng: {
         type: Number,
-        required: true
     },
     isActive: {
         type: Boolean,

@@ -117,7 +117,10 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } = req.body;
+        const razorpayOrderId = req.body.razorpayOrderId || req.body.razorpay_order_id;
+        const razorpayPaymentId = req.body.razorpayPaymentId || req.body.razorpay_payment_id;
+        const razorpaySignature = req.body.razorpaySignature || req.body.razorpay_signature;
+        const { orderId } = req.body;
 
         if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !orderId) {
             res.status(400).json({ message: 'Missing payment verification details' });

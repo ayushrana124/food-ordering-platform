@@ -746,17 +746,15 @@ export const getDeliveryLocations = async (req: Request, res: Response): Promise
 // Create delivery location
 export const createDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { name, lat, lng, isActive, displayOrder } = req.body;
+        const { name, isActive, displayOrder } = req.body;
 
-        if (!name || lat === undefined || lng === undefined) {
-            res.status(400).json({ message: 'Name, latitude, and longitude are required' });
+        if (!name) {
+            res.status(400).json({ message: 'Name is required' });
             return;
         }
 
         const location = await DeliveryLocation.create({
             name,
-            lat: Number(lat),
-            lng: Number(lng),
             isActive: isActive !== undefined ? isActive : true,
             displayOrder: displayOrder || 0,
             restaurantId: req.admin?.restaurantId
@@ -772,7 +770,7 @@ export const createDeliveryLocation = async (req: Request, res: Response): Promi
 // Update delivery location
 export const updateDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
     try {
-        const allowed = ['name', 'lat', 'lng', 'isActive', 'displayOrder'];
+        const allowed = ['name', 'isActive', 'displayOrder'];
         const update: Record<string, any> = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) update[key] = req.body[key];

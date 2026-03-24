@@ -92,8 +92,8 @@ export default function MenuManagement() {
                 }
             />
 
-            {/* Tabs */}
-            <div className="flex items-center gap-2 mb-5">
+            {/* Tabs + Category filter */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <button
                     onClick={() => setActiveTab('active')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.82rem] font-semibold border cursor-pointer transition-all ${
@@ -114,33 +114,33 @@ export default function MenuManagement() {
                 >
                     <Archive size={16} /> Trash ({deletedItems.length})
                 </button>
+                {activeTab === 'active' && categories.length > 0 && (
+                    <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="h-9 px-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.82rem] font-medium text-[#0F0F0F] outline-none focus:border-[#E8A317] transition-colors ml-auto"
+                    >
+                        <option value="">All Categories</option>
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                )}
             </div>
 
             {activeTab === 'active' && (
                 <>
-                    {/* Search + Filter */}
-                    <AdminCard className="mb-5 !p-4">
-                        <div className="flex flex-wrap gap-3">
-                            <div className="relative flex-1 min-w-[200px]">
-                                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C4C4C0]" />
-                                <input
-                                    className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.82rem] outline-none focus:border-[#E8A317] transition-colors"
-                                    type="text"
-                                    placeholder="Search items..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
-                            <select
-                                value={categoryFilter}
-                                onChange={(e) => setCategoryFilter(e.target.value)}
-                                className="h-10 px-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.82rem] font-medium text-[#0F0F0F] outline-none focus:border-[#E8A317] transition-colors"
-                            >
-                                <option value="">All Categories</option>
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                    {/* Search */}
+                    <div className="mb-5">
+                        <div className="relative max-w-[360px]">
+                            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C4C4C0]" />
+                            <input
+                                className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.82rem] outline-none focus:border-[#E8A317] transition-colors"
+                                type="text"
+                                placeholder="Search items..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
                         </div>
-                    </AdminCard>
+                    </div>
 
                     {/* Card Grid */}
                     {loading ? (

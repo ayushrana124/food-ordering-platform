@@ -47,7 +47,6 @@ export interface IOrder extends Document {
 const orderSchema = new Schema<IOrder>({
     orderId: {
         type: String,
-        required: true,
         unique: true,
         index: true
     },

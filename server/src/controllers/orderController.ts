@@ -17,8 +17,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
         const { deliveryAddress, paymentMethod, specialInstructions } = req.body;
 
-        if (!deliveryAddress || !deliveryAddress.coordinates) {
-            res.status(400).json({ message: 'Delivery address with coordinates is required' });
+        if (!deliveryAddress) {
+            res.status(400).json({ message: 'Delivery address is required' });
             return;
         }
 
@@ -56,25 +56,33 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         }
 
         // ── Distance & delivery ──────────────────────────────────────────────
-        const distance = calculateDistance(
-            restaurant.address.coordinates.lat,
-            restaurant.address.coordinates.lng,
-            deliveryAddress.coordinates.lat,
-            deliveryAddress.coordinates.lng
-        );
+        let distance = 0;
+        let deliveryCharges = 0;
 
-        if (distance > restaurant.deliveryRadius) {
-            res.status(400).json({
-                message: `Delivery not available. Maximum delivery distance is ${restaurant.deliveryRadius}km. Your location is ${distance}km away.`
-            });
-            return;
-        }
+        if (deliveryAddress.coordinates?.lat && deliveryAddress.coordinates?.lng) {
+            // GPS-based address — calculate and validate distance
+            distance = calculateDistance(
+                restaurant.address.coordinates.lat,
+                restaurant.address.coordinates.lng,
+                deliveryAddress.coordinates.lat,
+                deliveryAddress.coordinates.lng
+            );
 
-        const deliveryCharges = calculateDeliveryCharges(distance);
-        if (deliveryCharges === null) {
-            res.status(400).json({ message: 'Delivery not available for this distance' });
-            return;
+            if (distance > restaurant.deliveryRadius) {
+                res.status(400).json({
+                    message: `Delivery not available. Maximum delivery distance is ${restaurant.deliveryRadius}km. Your location is ${distance}km away.`
+                });
+                return;
+            }
+
+            const charges = calculateDeliveryCharges(distance);
+            if (charges === null) {
+                res.status(400).json({ message: 'Delivery not available for this distance' });
+                return;
+            }
+            deliveryCharges = charges;
         }
+        // Predefined delivery locations added by admin — no distance check needed
 
         // ── Validate items & calculate prices from DB ────────────────────────
         const menuItemIds = cart.items.map((i) => i.menuItemId);

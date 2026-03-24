@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, SlidersHorizontal, AlertTriangle } from 'lucide-react';
+import { Search, AlertTriangle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchMenuItems, fetchCategories, fetchRestaurant } from '@/redux/slices/menuSlice';
 import type { RootState } from '@/redux/store';
 import MenuItemCard from '@/components/menu/MenuItemCard';
+import CategoryFAB from '@/components/menu/CategoryFAB';
+import SearchOverlay from '@/components/menu/SearchOverlay';
 import EmptyState from '@/components/common/EmptyState';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import Navbar from '@/components/layout/Navbar';
@@ -12,9 +14,9 @@ import Footer from '@/components/layout/Footer';
 export default function MenuPage() {
     const dispatch = useAppDispatch();
     const { items, categories, restaurant, loading } = useAppSelector((s: RootState) => s.menu);
-    const [search, setSearch] = useState('');
     const [vegOnly, setVegOnly] = useState(false);
     const [activeCat, setActiveCat] = useState('All');
+    const [searchOpen, setSearchOpen] = useState(false);
 
     const catNames = useMemo(() => ['All', ...categories.map(c => c.name)], [categories]);
 
@@ -30,9 +32,8 @@ export default function MenuPage() {
 
     const filtered = items.filter((item) => {
         const matchCat = activeCat === 'All' || item.category.toLowerCase() === activeCat.toLowerCase();
-        const matchSearch = item.name.toLowerCase().includes(search.toLowerCase()) || item.description.toLowerCase().includes(search.toLowerCase());
         const matchVeg = !vegOnly || item.isVeg;
-        return matchCat && matchSearch && matchVeg;
+        return matchCat && matchVeg;
     });
 
     const isClosed = restaurant && restaurant.isOpen === false;
@@ -62,37 +63,21 @@ export default function MenuPage() {
                 </div>
             )}
 
-            {/* Header */}
-            {/* <div className="bg-[#F7F7F5] border-b border-[#EEEEEE] py-[clamp(2rem,4.5vw,3rem)]">
-                <div className="container">
-                    <span className="section-label">
-                        <SlidersHorizontal size={13} /> Order Online
-                    </span>
-                    <h1 className="font-outfit font-extrabold text-[#0F0F0F] text-[clamp(1.8rem,5vw,2.6rem)] leading-[1.1] tracking-[-0.02em]">
-                        Our Menu
-                    </h1>
-                    <p className="text-[#8E8E8E] text-[0.9rem] mt-[0.4rem]">
-                        Fresh handcrafted pizza, sides and more
-                    </p>
-                </div>
-            </div> */}
-
             {/* Sticky filters */}
-            <div className="sticky top-[64px] z-90 bg-white/95 backdrop-blur-md border-b border-[#EEEEEE] py-3" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
+            <div className="sticky top-[60px] z-90 bg-white backdrop-blur-md border-b border-[#EEEEEE] py-3" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
                 <div className="container">
                     <div className="flex gap-[0.6rem] items-center flex-wrap">
-                        {/* Search */}
-                        <div className="relative flex-[1_1_180px] min-w-[150px]">
+                        {/* Search trigger (opens overlay) */}
+                        <button
+                            onClick={() => setSearchOpen(true)}
+                            className="input pl-10 h-[40px] text-[0.85rem] rounded-full flex-[1_1_180px] min-w-[150px] relative text-left cursor-pointer"
+                            style={{ color: '#8E8E8E' }}
+                        >
                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E8E] flex">
                                 <Search size={15} strokeWidth={2.5} />
                             </span>
-                            <input
-                                className="input pl-10 h-[40px] text-[0.85rem] rounded-full"
-                                placeholder="Search menu..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
+                            Search menu...
+                        </button>
 
                         {/* Veg toggle */}
                         <button
@@ -111,8 +96,8 @@ export default function MenuPage() {
                             Veg Only
                         </button>
 
-                        {/* Category pills */}
-                        <div className="scroll-x-hide flex gap-[0.4rem] flex-[1_1_auto] overflow-x-auto pb-px">
+                        {/* Category pills — desktop only */}
+                        <div className="scroll-x-hide hidden sm:flex gap-[0.4rem] flex-[1_1_auto] overflow-x-auto pb-px">
                             {catNames.map((cat) => (
                                 <button
                                     key={cat}
@@ -137,7 +122,7 @@ export default function MenuPage() {
                         <LoadingSpinner size="lg" />
                     </div>
                 ) : filtered.length === 0 ? (
-                    <EmptyState title="No items found" description="Try a different search or category" icon={Search} />
+                    <EmptyState title="No items found" description="Try a different category" icon={Search} />
                 ) : (
                     <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(clamp(180px,24vw,240px),1fr))]">
                         {filtered.map((item) => (
@@ -148,6 +133,22 @@ export default function MenuPage() {
             </div>
 
             <Footer />
+
+            {/* Mobile category FAB */}
+            <CategoryFAB
+                categories={catNames}
+                activeCat={activeCat}
+                onSelect={(cat) => { setActiveCat(cat); window.scrollTo({ top: 0, behavior: 'instant' }); }}
+            />
+
+            {/* Search overlay */}
+            {searchOpen && (
+                <SearchOverlay
+                    items={items}
+                    vegOnly={vegOnly}
+                    onClose={() => setSearchOpen(false)}
+                />
+            )}
         </div>
     );
 }

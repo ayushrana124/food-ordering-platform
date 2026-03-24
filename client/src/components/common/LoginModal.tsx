@@ -98,13 +98,13 @@ export default function LoginModal({ onClose }: LoginModalProps) {
 
     const modal = (
         <div
+            className="login-modal-backdrop"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
             style={{
                 position: 'fixed',
                 inset: 0,
                 zIndex: 9999,
                 display: 'flex',
-                alignItems: 'flex-end',
                 justifyContent: 'center',
                 background: 'rgba(15,15,15,0.5)',
                 backdropFilter: 'blur(6px)',
@@ -113,18 +113,15 @@ export default function LoginModal({ onClose }: LoginModalProps) {
             }}
         >
             <div
+                className="login-modal-panel"
                 onClick={(e) => e.stopPropagation()}
                 style={{
                     position: 'relative',
                     width: '100%',
                     maxWidth: 480,
-                    maxHeight: '90vh',
                     background: 'white',
-                    borderRadius: '24px 24px 0 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    boxShadow: '0 -8px 40px rgba(0,0,0,0.12)',
-                    animation: 'slideUp 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
                     overflowY: 'auto',
                     padding: '24px 32px 32px',
                 }}

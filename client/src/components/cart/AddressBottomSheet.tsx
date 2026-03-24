@@ -7,7 +7,6 @@ import {
 import { userService, type AddAddressPayload } from '@/services/userService';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { updateUser } from '@/redux/slices/authSlice';
-import { getPublicDeliveryLocations } from '@/services/adminApi';
 import type { IAddress, IDeliveryLocation } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -46,7 +45,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     const MAX_DELIVERY_KM = restaurant?.deliveryRadius ?? 10;
 
     useEffect(() => {
-        getPublicDeliveryLocations()
+        userService.getDeliveryLocations()
             .then(data => setPredefinedLocations(data.locations))
             .catch(() => {});
     }, []);
@@ -104,15 +103,11 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         );
     };
 
-    const handleSelectManualLocation = (loc: { name: string; lat: number; lng: number }) => {
-        const dist = haversineKm(loc.lat, loc.lng, RESTAURANT.lat, RESTAURANT.lng);
-        if (dist > MAX_DELIVERY_KM) {
-            setStep('outOfRange');
-        } else {
-            setCoords({ lat: loc.lat, lng: loc.lng });
-            setLocationName(loc.name);
-            setStep('form');
-        }
+    const handleSelectManualLocation = (loc: { name: string }) => {
+        // Predefined locations are admin-curated — always deliverable, no distance check
+        setCoords(null);
+        setLocationName(loc.name);
+        setStep('form');
     };
 
     const validate = () => {
@@ -128,7 +123,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     };
 
     const handleSave = async () => {
-        if (!validate() || !coords) return;
+        if (!validate()) return;
 
         setSaving(true);
         try {
@@ -136,7 +131,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                 label,
                 addressLine: `${addressLine.trim()}${locationName && locationName !== 'Current Location' ? `, ${locationName}` : ''}`,
                 landmark: landmark.trim() || undefined,
-                coordinates: coords,
+                ...(coords && { coordinates: coords }),
                 isDefault: addresses.length === 0,
             };
             await userService.addAddress(payload);
@@ -389,12 +384,9 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                     {step === 'manual' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
                             <p style={{ fontSize: '0.78rem', color: '#8E8E8E', marginBottom: '0.25rem' }}>
-                                Select your area to check delivery availability
+                                Select your area to continue
                             </p>
-                            {predefinedLocations.map((loc) => {
-                                const dist = haversineKm(loc.lat, loc.lng, RESTAURANT.lat, RESTAURANT.lng);
-                                const deliverable = dist <= MAX_DELIVERY_KM;
-                                return (
+                            {predefinedLocations.map((loc) => (
                                     <button
                                         key={loc._id}
                                         onClick={() => handleSelectManualLocation(loc)}
@@ -403,15 +395,14 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                             padding: '0.85rem 1rem', borderRadius: 14,
                                             border: '1.5px solid #EEEEEE', background: 'white',
                                             cursor: 'pointer', width: '100%', textAlign: 'left',
-                                            opacity: deliverable ? 1 : 0.5,
                                             transition: 'all 0.15s',
                                         }}
                                     >
                                         <span style={{
                                             width: 36, height: 36, borderRadius: 10,
-                                            background: deliverable ? '#F0FDF4' : '#FEF2F2',
+                                            background: '#F0FDF4',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            color: deliverable ? '#16A34A' : '#DC2626', flexShrink: 0,
+                                            color: '#16A34A', flexShrink: 0,
                                         }}>
                                             <MapPin size={16} />
                                         </span>
@@ -419,14 +410,13 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                             <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F0F0F' }}>
                                                 {loc.name}
                                             </p>
-                                            <p style={{ fontSize: '0.7rem', color: deliverable ? '#16A34A' : '#DC2626', fontWeight: 500, marginTop: 1 }}>
-                                                {deliverable ? `${Math.round(dist)} km away — Delivery available` : `${Math.round(dist)} km — Out of range`}
+                                            <p style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 500, marginTop: 1 }}>
+                                                Delivery available
                                             </p>
                                         </div>
                                         <ChevronRight size={16} style={{ color: '#D4D4D0', flexShrink: 0 }} />
                                     </button>
-                                );
-                            })}
+                            ))}
 
                             <button
                                 onClick={() => setStep('method')}

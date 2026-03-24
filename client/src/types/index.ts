@@ -5,7 +5,7 @@ export interface IAddress {
     label: 'Home' | 'Work' | 'Other';
     addressLine: string;
     landmark?: string;
-    coordinates: { lat: number; lng: number };
+    coordinates?: { lat: number; lng: number };
     isDefault: boolean;
 }
 
@@ -63,8 +63,8 @@ export interface IMenuItem {
 export interface IDeliveryLocation {
     _id: string;
     name: string;
-    lat: number;
-    lng: number;
+    lat?: number;
+    lng?: number;
     isActive: boolean;
     displayOrder: number;
     createdAt?: string;

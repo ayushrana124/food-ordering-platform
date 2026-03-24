@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
     X, User, FileText, MapPin, Star, LogOut, ChevronRight, Phone
@@ -54,11 +55,14 @@ export default function ProfileSidebar({ open, onClose }: Props) {
 
     if (!open) return null;
 
-    return (
+    return createPortal(
         <div
             style={{
                 position: 'fixed',
-                inset: 0,
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 zIndex: 9500,
                 background: 'rgba(15,15,15,0.55)',
                 backdropFilter: 'blur(6px)',
@@ -222,6 +226,7 @@ export default function ProfileSidebar({ open, onClose }: Props) {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

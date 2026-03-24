@@ -1,5 +1,5 @@
 import api from './api';
-import type { IUser, IAddress } from '@/types';
+import type { IUser, IAddress, IDeliveryLocation } from '@/types';
 
 export interface UpdateProfilePayload {
     name?: string;
@@ -10,7 +10,7 @@ export interface AddAddressPayload {
     label: 'Home' | 'Work' | 'Other';
     addressLine: string;
     landmark?: string;
-    coordinates: { lat: number; lng: number };
+    coordinates?: { lat: number; lng: number };
     isDefault?: boolean;
 }
 
@@ -40,6 +40,11 @@ export const userService = {
 
     deleteAddress: async (addressId: string): Promise<{ message: string }> => {
         const res = await api.delete<{ message: string }>(`/users/address/${addressId}`);
+        return res.data;
+    },
+
+    getDeliveryLocations: async () => {
+        const res = await api.get<{ locations: IDeliveryLocation[] }>('/menu/delivery-locations');
         return res.data;
     },
 };
