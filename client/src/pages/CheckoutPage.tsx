@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -33,12 +33,13 @@ export default function CheckoutPage() {
     const [selectedAddr, setSelectedAddr] = useState<string>(addresses.find((a) => a.isDefault)?._id ?? addresses[0]?._id ?? '');
     const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('ONLINE');
     const [loading, setLoading] = useState(false);
+    const orderPlacedRef = useRef(false);
 
     const deliveryAddr = addresses.find((a) => a._id === selectedAddr);
 
     useEffect(() => {
         window.scrollTo(0, 0);
-        if (items.length === 0) { navigate('/cart', { replace: true }); return; }
+        if (items.length === 0 && !orderPlacedRef.current) { navigate('/cart', { replace: true }); return; }
         if (!restaurant) dispatch(fetchRestaurant());
         userService.getProfile().then((u) => {
             setAddresses(u.addresses);
@@ -66,6 +67,7 @@ export default function CheckoutPage() {
             dispatch(setCurrentOrder(order));
 
             if (paymentMethod === 'COD') {
+                orderPlacedRef.current = true;
                 clear();
                 toast.success('Order placed successfully!');
                 navigate(`/order/${order._id}`);
@@ -82,6 +84,7 @@ export default function CheckoutPage() {
                     razorpay_signature: 'dummy_signature',
                     orderId: order._id,
                 });
+                orderPlacedRef.current = true;
                 clear();
                 toast.success('Payment successful! (Test Mode)');
                 navigate(`/order/${order._id}`);
@@ -103,6 +106,7 @@ export default function CheckoutPage() {
                             razorpay_signature: response.razorpay_signature,
                             orderId: order._id,
                         });
+                        orderPlacedRef.current = true;
                         clear();
                         toast.success('Payment successful!');
                         navigate(`/order/${order._id}`);

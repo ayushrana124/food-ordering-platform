@@ -6,7 +6,6 @@ import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
 import { getDetailedOrderStats, getOrders, getRestaurantInfo, toggleRestaurantOpen, type IDetailedStats, type IAdminOrder } from '@/services/adminApi';
-import { useAdminSocket } from '@/hooks/useAdminSocket';
 import { useAdminContext } from '@/contexts/AdminContext';
 import toast from 'react-hot-toast';
 
@@ -25,7 +24,7 @@ export default function Dashboard() {
     const [loadingStats, setLoadingStats] = useState(true);
     const [isOpen, setIsOpen] = useState(true);
     const [toggling, setToggling] = useState(false);
-    const { setPendingOrderCount, fetchRestaurant } = useAdminContext();
+    const { setPendingOrderCount, fetchRestaurant, refreshActiveOrders } = useAdminContext();
 
     const fetchData = useCallback(async () => {
         setLoadingStats(true);
@@ -48,12 +47,18 @@ export default function Dashboard() {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const { onRefresh } = useAdminSocket({
-        onNewOrder: (data) => {
-            toast.success(`New order #${data.orderNumber || ''}`, { duration: 5000 });
-        },
-    });
-    useEffect(() => { onRefresh(fetchData); }, [onRefresh, fetchData]);
+    // Re-fetch dashboard data when window regains focus (socket events refresh context automatically)
+    useEffect(() => {
+        const handler = () => { fetchData(); };
+        window.addEventListener('focus', handler);
+        return () => window.removeEventListener('focus', handler);
+    }, [fetchData]);
+
+    // Periodic refresh to pick up socket-triggered changes
+    useEffect(() => {
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
+    }, [fetchData]);
 
     const handleToggleOpen = async () => {
         setToggling(true);

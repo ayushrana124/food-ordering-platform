@@ -10,6 +10,7 @@ import EmptyState from '@/components/common/EmptyState';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import TrackOrderFAB from '@/components/common/TrackOrderFAB';
 
 export default function MenuPage() {
     const dispatch = useAppDispatch();
@@ -149,6 +150,8 @@ export default function MenuPage() {
                     onClose={() => setSearchOpen(false)}
                 />
             )}
+
+            <TrackOrderFAB />
         </div>
     );
 }

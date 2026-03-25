@@ -12,9 +12,82 @@ interface AdminSocketCallbacks {
     onPaymentReceived?: (data: { orderId: string; orderNumber: string; amount: number }) => void;
 }
 
+// ── Sound queue: plays one ring at a time, queues concurrent orders ──────────
+const soundQueue: Array<() => void> = [];
+let isPlaying = false;
+
+function generateRingTone(ctx: AudioContext, startTime: number) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = 'sine';
+    // 8 "ring" bursts over ~4 seconds: ring-ring-ring-ring ring-ring-ring-ring
+    const ringFreq = 880;
+    const burstDuration = 0.35;
+    const pauseDuration = 0.15;
+
+    const times: Array<[number, number]> = [];
+    let t = startTime;
+    for (let i = 0; i < 8; i++) {
+        times.push([t, t + burstDuration]);
+        t += burstDuration + pauseDuration;
+    }
+
+    // Schedule frequency changes
+    osc.frequency.setValueAtTime(ringFreq, startTime);
+    gain.gain.setValueAtTime(0, startTime);
+
+    for (const [on, off] of times) {
+        gain.gain.linearRampToValueAtTime(0.35, on + 0.02);
+        gain.gain.setValueAtTime(0.35, off - 0.02);
+        gain.gain.linearRampToValueAtTime(0, off);
+    }
+
+    const totalDuration = times[times.length - 1][1] - startTime;
+    osc.start(startTime);
+    osc.stop(startTime + totalDuration + 0.05);
+
+    return totalDuration;
+}
+
+function playRingSound() {
+    if (isPlaying) return;
+    if (soundQueue.length === 0) return;
+
+    isPlaying = true;
+    const done = soundQueue.shift()!;
+
+    try {
+        const ctx = new AudioContext();
+        const duration = generateRingTone(ctx, ctx.currentTime);
+
+        setTimeout(() => {
+            ctx.close().catch(() => {});
+            done();
+            isPlaying = false;
+            // Play next in queue if any
+            if (soundQueue.length > 0) playRingSound();
+        }, (duration + 0.1) * 1000);
+    } catch {
+        done();
+        isPlaying = false;
+        if (soundQueue.length > 0) playRingSound();
+    }
+}
+
+function enqueueRingSound() {
+    return new Promise<void>((resolve) => {
+        soundQueue.push(resolve);
+        if (!isPlaying) playRingSound();
+    });
+}
+
 /**
  * Socket hook for admin dashboard pages.
  * Joins the `admin-room` and listens for real-time order events.
+ * Plays a "ring ring ring ring" sound on new orders with queue-based concurrency.
  */
 export const useAdminSocket = (callbacks?: AdminSocketCallbacks) => {
     const socketRef = useRef<Socket | null>(null);
@@ -45,12 +118,8 @@ export const useAdminSocket = (callbacks?: AdminSocketCallbacks) => {
         });
 
         socket.on('newOrder', (data) => {
-            // Play notification bell sound
-            try {
-                const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/24/audio_805cb7e0d3.mp3');
-                audio.volume = 0.5;
-                audio.play().catch(() => { /* autoplay policy may block — ignore */ });
-            } catch { /* ignore audio errors */ }
+            // Queue ring sound — concurrent orders play sequentially, never overlap
+            enqueueRingSound();
             cbRef.current?.onNewOrder?.(data);
             refreshRef.current?.();
         });

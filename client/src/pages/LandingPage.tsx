@@ -9,6 +9,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import MenuItemCard from '@/components/menu/MenuItemCard';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import TrackOrderFAB from '@/components/common/TrackOrderFAB';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchRestaurant, fetchMenuItems, fetchOffers, fetchCategories } from '@/redux/slices/menuSlice';
 import type { RootState } from '@/redux/store';
@@ -327,6 +328,7 @@ export default function LandingPage() {
             </section>
 
             <Footer />
+            <TrackOrderFAB />
         </div>
     );
 }

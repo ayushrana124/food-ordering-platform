@@ -6,12 +6,14 @@ interface AdminCardProps {
     hover?: boolean;
     padding?: boolean;
     onClick?: () => void;
+    style?: React.CSSProperties;
 }
 
-export default function AdminCard({ children, className = '', hover = false, padding = true, onClick }: AdminCardProps) {
+export default function AdminCard({ children, className = '', hover = false, padding = true, onClick, style }: AdminCardProps) {
     return (
         <div
             onClick={onClick}
+            style={style}
             className={`
                 bg-white/90 backdrop-blur-xl border border-[#EEEEEE]/80 rounded-2xl
                 shadow-[0_2px_16px_rgba(0,0,0,0.04)]
