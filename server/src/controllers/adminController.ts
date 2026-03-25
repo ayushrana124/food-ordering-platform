@@ -199,9 +199,10 @@ export const rejectOrder = async (req: Request, res: Response): Promise<void> =>
         }
 
         order.orderStatus = 'CANCELLED';
+        order.cancelledBy = 'RESTAURANT';
         order.rejectionReason = reason || undefined;
         if (!order.statusHistory) order.statusHistory = [];
-        order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: reason });
+        order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: reason || 'Rejected by restaurant' });
         order.updatedAt = new Date();
         await order.save();
 

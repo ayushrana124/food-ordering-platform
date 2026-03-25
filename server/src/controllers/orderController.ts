@@ -270,6 +270,10 @@ export const cancelOrder = async (req: Request, res: Response): Promise<void> =>
         }
 
         order.orderStatus = 'CANCELLED';
+        order.cancelledBy = 'CUSTOMER';
+        if (!order.statusHistory) order.statusHistory = [];
+        order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: 'Cancelled by customer' });
+        order.updatedAt = new Date();
         await order.save();
 
         req.io.to('admin-room').emit('orderCancelled', {

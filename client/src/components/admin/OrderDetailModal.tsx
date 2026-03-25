@@ -129,7 +129,13 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: Props) {
                         {currentStatus === 'CANCELLED' && (
                             <div className="bg-[#FEF2F2] rounded-xl p-4 text-center">
                                 <AdminBadge label="CANCELLED" size="md" />
-                                <p className="text-[0.82rem] text-[#DC2626] mt-2">This order has been cancelled</p>
+                                <p className="text-[0.82rem] mt-2 font-semibold" style={{ color: order.cancelledBy === 'CUSTOMER' ? '#D97706' : '#DC2626' }}>
+                                    {order.cancelledBy === 'CUSTOMER'
+                                        ? 'Cancelled by Customer'
+                                        : order.cancelledBy === 'RESTAURANT'
+                                            ? 'Rejected by Restaurant'
+                                            : 'This order has been cancelled'}
+                                </p>
                                 {order.rejectionReason && (
                                     <p className="text-[0.78rem] text-[#8E8E8E] mt-1">Reason: {order.rejectionReason}</p>
                                 )}

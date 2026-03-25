@@ -38,6 +38,7 @@ export interface IOrder extends Document {
     preparationTime?: number;
     estimatedDeliveryTime?: Date;
     rejectionReason?: string;
+    cancelledBy?: 'CUSTOMER' | 'RESTAURANT';
     statusHistory: Array<{ status: string; timestamp: Date; note?: string }>;
     specialInstructions?: string;
     createdAt: Date;
@@ -111,6 +112,10 @@ const orderSchema = new Schema<IOrder>({
     preparationTime: Number,
     estimatedDeliveryTime: Date,
     rejectionReason: String,
+    cancelledBy: {
+        type: String,
+        enum: ['CUSTOMER', 'RESTAURANT'],
+    },
     statusHistory: [{
         status: String,
         timestamp: { type: Date, default: Date.now },

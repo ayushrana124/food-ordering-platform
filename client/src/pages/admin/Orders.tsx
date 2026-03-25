@@ -14,15 +14,15 @@ import toast from 'react-hot-toast';
 const STATUS_OPTIONS = ['', 'PENDING', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 const PAYMENT_OPTIONS = ['', 'COD', 'ONLINE'];
 
-/** Background color based on order status */
+/** Background color based on order status — each status gets its own tint */
 const getRowBg = (status: string): string => {
     switch (status) {
-        case 'PENDING': return '#FFFDE7';        // highlighted yellow for unaccepted
-        case 'CANCELLED': return '#FEF2F2';       // very light red
-        case 'DELIVERED': return '#F0FDF4';        // very light green
-        case 'ACCEPTED':
-        case 'PREPARING':
-        case 'OUT_FOR_DELIVERY': return '#FFFEF5'; // very light yellow for in-progress
+        case 'PENDING': return '#FFFDE7';        // yellow — unaccepted
+        case 'ACCEPTED': return '#EFF6FF';        // blue
+        case 'PREPARING': return '#F5F3FF';       // purple
+        case 'OUT_FOR_DELIVERY': return '#FFF7ED'; // orange
+        case 'DELIVERED': return '#F0FDF4';        // green
+        case 'CANCELLED': return '#FEF2F2';       // red
         default: return 'white';
     }
 };
@@ -175,6 +175,11 @@ export default function Orders() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <AdminBadge label={order.orderStatus} />
+                                                {order.orderStatus === 'CANCELLED' && (
+                                                    <p className="text-[0.65rem] font-semibold mt-1" style={{ color: order.cancelledBy === 'CUSTOMER' ? '#D97706' : '#DC2626' }}>
+                                                        {order.cancelledBy === 'CUSTOMER' ? 'By Customer' : order.cancelledBy === 'RESTAURANT' ? 'By Restaurant' : 'Unknown'}
+                                                    </p>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-[#8E8E8E] text-[0.8rem] whitespace-nowrap">
                                                 {new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
@@ -212,7 +217,14 @@ export default function Orders() {
                                 <p className="font-bold text-[0.9rem] text-[#0F0F0F]">#{order.orderId}</p>
                                 <p className="text-[0.78rem] text-[#8E8E8E]">{order.userId?.name || 'Guest'}</p>
                             </div>
-                            <AdminBadge label={order.orderStatus} />
+                            <div className="text-right">
+                                <AdminBadge label={order.orderStatus} />
+                                {order.orderStatus === 'CANCELLED' && (
+                                    <p className="text-[0.62rem] font-semibold mt-0.5" style={{ color: order.cancelledBy === 'CUSTOMER' ? '#D97706' : '#DC2626' }}>
+                                        {order.cancelledBy === 'CUSTOMER' ? 'By Customer' : order.cancelledBy === 'RESTAURANT' ? 'By Restaurant' : 'Unknown'}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center justify-between mt-2">
                             <p className="text-[0.82rem] text-[#4A4A4A] truncate flex-1 mr-3">

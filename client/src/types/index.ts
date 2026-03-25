@@ -159,6 +159,7 @@ export interface IOrder {
     preparationTime?: number;
     estimatedDeliveryTime?: string;
     rejectionReason?: string;
+    cancelledBy?: 'CUSTOMER' | 'RESTAURANT';
     statusHistory?: Array<{ status: string; timestamp: string; note?: string }>;
     createdAt: string;
     updatedAt: string;

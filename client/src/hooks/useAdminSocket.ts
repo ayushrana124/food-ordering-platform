@@ -17,42 +17,54 @@ const soundQueue: Array<() => void> = [];
 let isPlaying = false;
 
 function generateRingTone(ctx: AudioContext, startTime: number) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    // Real phone-style ring: two frequencies layered, 4 distinct ring bursts with gaps
+    // Pattern: RING (0.5s) — pause (0.5s) — RING — pause — RING — pause — RING
+    const ringDuration = 0.5;
+    const pauseDuration = 0.5;
+    const rings = 4;
+    const volume = 0.6;
 
-    osc.type = 'sine';
-    // 8 "ring" bursts over ~4 seconds: ring-ring-ring-ring ring-ring-ring-ring
-    const ringFreq = 880;
-    const burstDuration = 0.35;
-    const pauseDuration = 0.15;
-
-    const times: Array<[number, number]> = [];
     let t = startTime;
-    for (let i = 0; i < 8; i++) {
-        times.push([t, t + burstDuration]);
-        t += burstDuration + pauseDuration;
+    for (let i = 0; i < rings; i++) {
+        // Each "ring" is two sine oscillators at 440Hz + 480Hz (US phone ring frequencies)
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        const gain2 = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.value = 440;
+        osc2.frequency.value = 480;
+
+        osc1.connect(gain1);
+        osc2.connect(gain2);
+        gain1.connect(ctx.destination);
+        gain2.connect(ctx.destination);
+
+        // Sharp on/off — no smooth ramp so it sounds like distinct rings
+        gain1.gain.setValueAtTime(0, t);
+        gain1.gain.setValueAtTime(volume, t + 0.005);
+        gain1.gain.setValueAtTime(volume, t + ringDuration - 0.005);
+        gain1.gain.setValueAtTime(0, t + ringDuration);
+
+        gain2.gain.setValueAtTime(0, t);
+        gain2.gain.setValueAtTime(volume * 0.7, t + 0.005);
+        gain2.gain.setValueAtTime(volume * 0.7, t + ringDuration - 0.005);
+        gain2.gain.setValueAtTime(0, t + ringDuration);
+
+        osc1.start(t);
+        osc1.stop(t + ringDuration + 0.01);
+        osc2.start(t);
+        osc2.stop(t + ringDuration + 0.01);
+
+        t += ringDuration + pauseDuration;
     }
 
-    // Schedule frequency changes
-    osc.frequency.setValueAtTime(ringFreq, startTime);
-    gain.gain.setValueAtTime(0, startTime);
-
-    for (const [on, off] of times) {
-        gain.gain.linearRampToValueAtTime(0.35, on + 0.02);
-        gain.gain.setValueAtTime(0.35, off - 0.02);
-        gain.gain.linearRampToValueAtTime(0, off);
-    }
-
-    const totalDuration = times[times.length - 1][1] - startTime;
-    osc.start(startTime);
-    osc.stop(startTime + totalDuration + 0.05);
-
-    return totalDuration;
+    return rings * (ringDuration + pauseDuration); // ~4 seconds total
 }
 
-function playRingSound() {
+async function playRingSound() {
     if (isPlaying) return;
     if (soundQueue.length === 0) return;
 
@@ -61,15 +73,24 @@ function playRingSound() {
 
     try {
         const ctx = new AudioContext();
+        // Browser may suspend new AudioContext — must resume before scheduling
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
         const duration = generateRingTone(ctx, ctx.currentTime);
 
-        setTimeout(() => {
-            ctx.close().catch(() => {});
-            done();
-            isPlaying = false;
-            // Play next in queue if any
-            if (soundQueue.length > 0) playRingSound();
-        }, (duration + 0.1) * 1000);
+        // Keep reference alive and wait the full duration before cleanup
+        await new Promise<void>((resolve) => {
+            setTimeout(() => {
+                ctx.close().catch(() => {});
+                resolve();
+            }, (duration + 0.5) * 1000);
+        });
+
+        done();
+        isPlaying = false;
+        // Play next in queue if any
+        if (soundQueue.length > 0) playRingSound();
     } catch {
         done();
         isPlaying = false;
