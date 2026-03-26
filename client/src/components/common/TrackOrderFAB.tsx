@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Bike, UtensilsCrossed, Clock, CheckCircle2, Package } from 'lucide-react';
+import { Bike, UtensilsCrossed, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { orderService } from '@/services/orderService';
@@ -24,7 +24,8 @@ export default function TrackOrderFAB() {
     const navigate = useNavigate();
     const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
 
-    useSocket(user?._id);
+    // Only connect socket if there's an active order — otherwise no connection at all
+    useSocket(activeOrder ? user?._id : undefined);
 
     const fetchActiveOrder = useCallback(async () => {
         if (!isAuthenticated) { setActiveOrder(null); return; }
@@ -43,13 +44,27 @@ export default function TrackOrderFAB() {
         }
     }, [isAuthenticated]);
 
+    // Check once on mount — no polling. Socket handles real-time after this.
     useEffect(() => {
         fetchActiveOrder();
-        const interval = setInterval(fetchActiveOrder, 30000);
-        return () => clearInterval(interval);
     }, [fetchActiveOrder]);
 
-    // Listen to redux order updates via a simpler approach - poll when socket may have updated
+    // React to real-time socket updates instantly
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const data = (e as CustomEvent).detail;
+            if (!data) return;
+            setActiveOrder((prev) => {
+                if (!prev) return prev;
+                if (['DELIVERED', 'CANCELLED'].includes(data.status)) return null;
+                return { ...prev, orderStatus: data.status };
+            });
+        };
+        window.addEventListener('orderStatusChanged', handler);
+        return () => window.removeEventListener('orderStatusChanged', handler);
+    }, []);
+
+    // Re-check on window focus (user returning from another tab)
     useEffect(() => {
         const handler = () => fetchActiveOrder();
         window.addEventListener('focus', handler);
@@ -90,7 +105,6 @@ export default function TrackOrderFAB() {
                 e.currentTarget.style.boxShadow = `0 4px 20px ${config.color}20, 0 2px 8px rgba(0,0,0,0.08)`;
             }}
         >
-            {/* Pulse indicator */}
             {config.pulse && (
                 <span style={{
                     position: 'absolute', top: -3, right: -3,

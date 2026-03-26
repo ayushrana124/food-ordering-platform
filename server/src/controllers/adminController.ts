@@ -7,6 +7,7 @@ import Offer from '../models/Offer';
 import Category from '../models/Category';
 import DeliveryLocation from '../models/DeliveryLocation';
 import { v2 as cloudinary } from 'cloudinary';
+import fs from 'fs';
 import { autoCancelUnpaidOrders } from './paymentController';
 
 // ============= ORDER MANAGEMENT =============
@@ -268,6 +269,8 @@ export const addMenuItem = async (req: Request, res: Response): Promise<void> =>
                 folder: 'menu-items'
             });
             imageUrl = result.secure_url;
+            // Clean up temp file after successful upload
+            fs.unlink(req.file.path, () => {});
         }
 
         const menuItem = await MenuItem.create({

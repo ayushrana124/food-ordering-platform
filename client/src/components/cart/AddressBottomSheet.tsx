@@ -23,12 +23,14 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 type Step = 'list' | 'gpsLoading' | 'gpsDenied' | 'manual' | 'addressSearch' | 'form' | 'outOfRange';
 
-interface NominatimResult {
-    place_id: number;
-    display_name: string;
-    lat: string;
-    lon: string;
+interface PlacePrediction {
+    placeId: string;
+    text: string;
+    mainText: string;
+    secondaryText: string;
 }
+
+const GPLACES_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY as string;
 
 interface Props {
     addresses: IAddress[];
@@ -54,12 +56,14 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
 
     // Address autocomplete state
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
+    const [searchResults, setSearchResults] = useState<PlacePrediction[]>([]);
     const [searching, setSearching] = useState(false);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const searchCacheRef = useRef<Map<string, NominatimResult[]>>(new Map());
+    const searchCacheRef = useRef<Map<string, PlacePrediction[]>>(new Map());
     const searchInputRef = useRef<HTMLInputElement>(null);
+    // Session token bundles autocomplete + place details into one billing event
+    const sessionTokenRef = useRef(crypto.randomUUID());
 
     useEffect(() => {
         userService.getDeliveryLocations()
@@ -120,9 +124,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         );
     }, [step, RESTAURANT.lat, RESTAURANT.lng, MAX_DELIVERY_KM]);
 
-    // ── Address autocomplete via Nominatim (OSM) ──
-    // Policy: max 1 req/sec, valid User-Agent, no bulk, cache results
-    // https://operations.osmfoundation.org/policies/nominatim/
+    // ── Address autocomplete via Google Places API (New) ──
     const searchAddress = useCallback((query: string) => {
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         if (query.trim().length < 3) {
@@ -132,42 +134,60 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         }
         setSearching(true);
 
-        const fullQuery = selectedPredefinedLocation
-            ? `${query}, ${selectedPredefinedLocation}, India`
-            : `${query}, India`;
+        const cacheKey = `${query}|${selectedPredefinedLocation}`;
 
         // Return cached results if available
-        const cached = searchCacheRef.current.get(fullQuery);
+        const cached = searchCacheRef.current.get(cacheKey);
         if (cached) {
             setSearchResults(cached);
             setSearching(false);
             return;
         }
 
-        // 400ms debounce — caching prevents duplicate requests to Nominatim
+        // 400ms debounce
         searchTimeoutRef.current = setTimeout(async () => {
-            // Abort any in-flight request
             if (abortControllerRef.current) abortControllerRef.current.abort();
             abortControllerRef.current = new AbortController();
 
             try {
-                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(fullQuery)}&limit=6&countrycodes=in&addressdetails=1`;
-                const res = await fetch(url, {
+                const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+                    method: 'POST',
                     signal: abortControllerRef.current.signal,
                     headers: {
-                        'Accept-Language': 'en',
-                        'User-Agent': 'BuntyPizza-FoodOrdering/1.0 (contact@buntypizza.com)',
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GPLACES_KEY,
                     },
+                    body: JSON.stringify({
+                        input: selectedPredefinedLocation
+                            ? `${query}, ${selectedPredefinedLocation}`
+                            : query,
+                        includedRegionCodes: ['in'],
+                        languageCode: 'en',
+                        sessionToken: sessionTokenRef.current,
+                        locationBias: {
+                            circle: {
+                                center: { latitude: RESTAURANT.lat, longitude: RESTAURANT.lng },
+                                radius: MAX_DELIVERY_KM * 1000, // meters
+                            },
+                        },
+                    }),
                 });
-                const data: NominatimResult[] = await res.json();
-                // Cache the result to avoid duplicate requests
-                searchCacheRef.current.set(fullQuery, data);
-                // Keep cache small — evict oldest if >50 entries
+                const json = await res.json();
+                const predictions: PlacePrediction[] = (json.suggestions || [])
+                    .filter((s: any) => s.placePrediction)
+                    .map((s: any) => ({
+                        placeId: s.placePrediction.placeId,
+                        text: s.placePrediction.text?.text || '',
+                        mainText: s.placePrediction.structuredFormat?.mainText?.text || '',
+                        secondaryText: s.placePrediction.structuredFormat?.secondaryText?.text || '',
+                    }));
+
+                searchCacheRef.current.set(cacheKey, predictions);
                 if (searchCacheRef.current.size > 50) {
                     const firstKey = searchCacheRef.current.keys().next().value;
                     if (firstKey) searchCacheRef.current.delete(firstKey);
                 }
-                setSearchResults(data);
+                setSearchResults(predictions);
             } catch (err) {
                 if (err instanceof DOMException && err.name === 'AbortError') return;
                 setSearchResults([]);
@@ -175,27 +195,51 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                 setSearching(false);
             }
         }, 400);
-    }, [selectedPredefinedLocation]);
+    }, [selectedPredefinedLocation, RESTAURANT.lat, RESTAURANT.lng, MAX_DELIVERY_KM]);
 
-    const handleSelectSearchResult = (result: NominatimResult) => {
-        const lat = parseFloat(result.lat);
-        const lng = parseFloat(result.lon);
-        const dist = haversineKm(lat, lng, RESTAURANT.lat, RESTAURANT.lng);
+    const handleSelectSearchResult = async (result: PlacePrediction) => {
+        setSearching(true);
+        try {
+            // Fetch place details for coordinates — session token bundles this with autocomplete (1 billing event)
+            const res = await fetch(
+                `https://places.googleapis.com/v1/places/${result.placeId}?sessionToken=${sessionTokenRef.current}`,
+                {
+                    headers: {
+                        'X-Goog-Api-Key': GPLACES_KEY,
+                        'X-Goog-FieldMask': 'location,displayName,formattedAddress',
+                    },
+                },
+            );
+            const place = await res.json();
+            // Reset session token for next search session
+            sessionTokenRef.current = crypto.randomUUID();
 
-        if (dist > MAX_DELIVERY_KM) {
-            setDistanceInfo({ distance: Math.round(dist * 10) / 10 });
-            setStep('outOfRange');
-            return;
+            const lat = place.location?.latitude;
+            const lng = place.location?.longitude;
+            if (!lat || !lng) {
+                toast.error('Could not get location coordinates');
+                setSearching(false);
+                return;
+            }
+
+            const dist = haversineKm(lat, lng, RESTAURANT.lat, RESTAURANT.lng);
+            if (dist > MAX_DELIVERY_KM) {
+                setDistanceInfo({ distance: Math.round(dist * 10) / 10 });
+                setStep('outOfRange');
+                setSearching(false);
+                return;
+            }
+
+            setCoords({ lat, lng });
+            setLocationName(result.mainText || result.text.split(',')[0]);
+            setAddressLine(place.formattedAddress || result.secondaryText || '');
+            setStep('form');
+            toast.success('Address selected!');
+        } catch {
+            toast.error('Failed to fetch address details');
+        } finally {
+            setSearching(false);
         }
-
-        setCoords({ lat, lng });
-        // Extract a short display name from the full address
-        const parts = result.display_name.split(',');
-        const shortName = parts.slice(0, 3).join(',').trim();
-        setLocationName(shortName);
-        setAddressLine(''); // Let user fill the detailed address
-        setStep('form');
-        toast.success('Address selected!');
     };
 
     const handleSelectManualLocation = (loc: { name: string }) => {
@@ -601,7 +645,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                     {searchResults.map((result) => (
                                         <button
-                                            key={result.place_id}
+                                            key={result.placeId}
                                             onClick={() => handleSelectSearchResult(result)}
                                             style={{
                                                 display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
@@ -614,13 +658,22 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                             onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; }}
                                         >
                                             <MapPin size={16} style={{ color: '#E8A317', flexShrink: 0, marginTop: 2 }} />
-                                            <p style={{
-                                                fontSize: '0.8rem', color: '#0F0F0F', lineHeight: 1.4,
-                                                margin: 0, overflow: 'hidden',
-                                                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                                            }}>
-                                                {result.display_name}
-                                            </p>
+                                            <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                                                <p style={{
+                                                    fontSize: '0.82rem', fontWeight: 600, color: '#0F0F0F',
+                                                    lineHeight: 1.3, margin: 0, whiteSpace: 'nowrap',
+                                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                                }}>
+                                                    {result.mainText}
+                                                </p>
+                                                <p style={{
+                                                    fontSize: '0.72rem', color: '#8E8E8E', lineHeight: 1.3,
+                                                    margin: '2px 0 0', whiteSpace: 'nowrap',
+                                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                                }}>
+                                                    {result.secondaryText}
+                                                </p>
+                                            </div>
                                         </button>
                                     ))}
                                 </div>

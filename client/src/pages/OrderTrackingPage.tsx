@@ -77,12 +77,13 @@ export default function OrderTrackingPage() {
 
     useSocket(user?._id);
 
+    // Fetch order once on mount — socket handles all real-time updates after this
     useEffect(() => {
         if (!orderId) return;
         orderService.getOrder(orderId).then((order) => {
             dispatch(setCurrentOrder(order));
         }).catch(console.error);
-    }, [orderId, dispatch, currentOrder?.orderStatus]);
+    }, [orderId, dispatch]);
 
     const countdown = useCountdown(currentOrder?.estimatedDeliveryTime);
 
