@@ -117,7 +117,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                     toast.success('Location detected!');
                 }
             },
-            () => {
+            (err) => {
+                if (err.code === err.PERMISSION_DENIED) {
+                    toast.error('Please allow location access in your browser settings');
+                }
                 setStep('gpsDenied');
             },
             { enableHighAccuracy: true, timeout: 10000 },
@@ -159,8 +162,8 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                     },
                     body: JSON.stringify({
                         input: selectedPredefinedLocation
-                            ? `${query}, ${selectedPredefinedLocation}`
-                            : query,
+                            ? `${query}, ${selectedPredefinedLocation}, Bijnor, Uttar Pradesh`
+                            : `${query}, Bijnor, Uttar Pradesh`,
                         includedRegionCodes: ['in'],
                         languageCode: 'en',
                         sessionToken: sessionTokenRef.current,
