@@ -44,7 +44,7 @@ const config: Config = {
     clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 
     // OTP Configuration
-    otpCooldown: parseInt(process.env.OTP_COOLDOWN || '10', 10), // 10 minutes
+    otpCooldown: parseInt(process.env.OTP_COOLDOWN || '1', 10), // 1 minute cooldown between OTPs per phone
     otpExpiry: parseInt(process.env.OTP_EXPIRY || '5', 10), // 5 minutes
 
     // Dummy OTP toggle — set USE_DUMMY_OTP=false when DLT registration is done

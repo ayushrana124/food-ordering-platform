@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, User, MapPin, Clock, CreditCard, Check, XCircle, Package, Truck, ChefHat, ArrowRight, AlertTriangle, Phone, MessageSquare } from 'lucide-react';
 import { acceptOrder, updateOrderStatus, rejectOrder, type IAdminOrder } from '@/services/adminApi';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
@@ -26,6 +26,12 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: Props) {
     const currentStatus = order.orderStatus;
     const currentIdx = STATUS_FLOW.indexOf(currentStatus as typeof STATUS_FLOW[number]);
     const isUnpaidOnline = order.paymentMethod === 'ONLINE' && order.paymentStatus !== 'PAID';
+
+    // Notify AdminLayout to hide the FAB when this sidebar is open
+    useEffect(() => {
+        window.dispatchEvent(new Event('admin-sidebar-open'));
+        return () => { window.dispatchEvent(new Event('admin-sidebar-close')); };
+    }, []);
 
     const handleAccept = async () => {
         setLoading(true);

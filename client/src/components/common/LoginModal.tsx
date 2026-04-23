@@ -54,6 +54,8 @@ export default function LoginModal({ onClose }: LoginModalProps) {
 
     const handleSendOTP = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Prevent duplicate requests (network lag can cause multiple clicks to queue)
+        if (loading) return;
         if (!/^[6-9]\d{9}$/.test(phone)) {
             toast.error('Enter a valid 10-digit phone number');
             return;

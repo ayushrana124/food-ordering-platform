@@ -26,21 +26,18 @@ async function seed() {
         console.log('✅ Connected to MongoDB\n');
 
         // ── 1. Restaurant ───────────────────────────────────────────────────
-        let restaurant = await Restaurant.findOne();
-        if (restaurant) {
-            console.log('🏪 Restaurant already exists — skipping');
-        } else {
-            restaurant = await Restaurant.create({
-                name: 'Bunty Pizza & Restaurant',
+        await Restaurant.deleteMany({});
+        let restaurant = await Restaurant.create({
+            name: 'Diamond Pizza & Restaurant',
                 description: 'Fresh, handcrafted pizzas & more — delivered to your doorstep',
                 address: {
-                    addressLine: '42 Main Street, New Delhi',
-                    coordinates: { lat: 28.6139, lng: 77.209 },
+                    addressLine: 'Near IndianOil Petrol Pump, Mooradabad Road, Noorpur',
+                    coordinates: { lat: 29.148253, lng: 78.410315 },
                 },
                 phone: '+91 98765 43210',
                 isOpen: true,
                 deliveryRadius: 10,
-                minOrderAmount: 149,
+                minOrderAmount: 40,
                 avgPreparationTime: 30,
                 openingHours: {
                     monday: { open: '10:00', close: '23:00', isOpen: true },
@@ -52,29 +49,26 @@ async function seed() {
                     sunday: { open: '10:00', close: '23:00', isOpen: true },
                 },
             } as any);
-            console.log('🏪 Created restaurant:', restaurant.name);
-        }
-
+        console.log('🏪 Created restaurant:', restaurant.name);
+        
         const restaurantId = restaurant._id;
 
         // 2. Admin — delete & recreate to ensure correct password
-        const adminEmail = 'admin@buntypizza.com';
+        const adminEmail = 'admin@diamondpizza.com';
         const adminPassword = 'Admin@123';
-        await Admin.deleteOne({ email: adminEmail });
+        
+        await Admin.deleteMany({});
         await Admin.create({
-            name: 'Admin',
+            name: 'DiamondPizza',
             email: adminEmail,
-            password: adminPassword, // pre-save hook will hash this
+            password: adminPassword,
             role: 'OWNER',
             restaurantId,
         });
         console.log(`👤 Created admin: ${adminEmail} / ${adminPassword}`);
 
         // ── 3. Menu Items ───────────────────────────────────────────────────
-        const existingItems = await MenuItem.countDocuments({ restaurantId });
-        if (existingItems > 0) {
-            console.log(`🍕 ${existingItems} menu items already exist — skipping`);
-        } else {
+        await MenuItem.deleteMany({});
             const items = [
                 // ── Pizzas ──
                 {
@@ -329,13 +323,9 @@ async function seed() {
 
             await MenuItem.insertMany(items);
             console.log(`🍕 Created ${items.length} menu items across ${[...new Set(items.map(i => i.category))].length} categories`);
-        }
 
         // ── 4. Offers ────────────────────────────────────────────────────────
-        const existingOffers = await Offer.countDocuments({ restaurantId });
-        if (existingOffers > 0) {
-            console.log(`🏷️  ${existingOffers} offers already exist — skipping`);
-        } else {
+        await Offer.deleteMany({});
             const now = new Date();
             const in90Days = new Date(Date.now() + 90 * 86400000);
             await Offer.insertMany([
@@ -389,13 +379,9 @@ async function seed() {
                 },
             ]);
             console.log('🏷️  Created 3 offers');
-        }
 
         // ── 5. Categories ────────────────────────────────────────────────────
-        const existingCats = await Category.countDocuments({ restaurantId });
-        if (existingCats > 0) {
-            console.log(`📂 ${existingCats} categories already exist — skipping`);
-        } else {
+        await Category.deleteMany({});
             await Category.insertMany([
                 { restaurantId, name: 'Pizzas', icon: 'Pizza', displayOrder: 0, colorScheme: { bg: '#FFFCF5', border: '#F0CA5A', color: '#9A7209', iconBg: '#FFFBF0' } },
                 { restaurantId, name: 'Sides', icon: 'Utensils', displayOrder: 1, colorScheme: { bg: '#F0FAF4', border: '#86EFAC', color: '#16A34A', iconBg: '#DCFCE7' } },
@@ -407,13 +393,10 @@ async function seed() {
                 { restaurantId, name: 'Bestsellers', icon: 'Star', displayOrder: 7, colorScheme: { bg: '#FFFBEB', border: '#FCD34D', color: '#D97706', iconBg: '#FEF3C7' } },
             ]);
             console.log('📂 Created 8 categories');
-        }
 
         console.log('\n🎉 Seed complete!');
         console.log('──────────────────────────────────────');
-        console.log('Admin login:  admin@buntypizza.com / Admin@123');
-        console.log('Admin panel:  http://localhost:5173/admin/login');
-        console.log('Customer app: http://localhost:5173/menu');
+        console.log('Admin login:  admin@diamondpizza.com / Admin@123');
         console.log('──────────────────────────────────────');
     } catch (err) {
         console.error('❌ Seed failed:', err);

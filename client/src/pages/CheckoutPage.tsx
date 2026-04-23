@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
     CreditCard, Banknote, ArrowRight, ShieldCheck, Tag,
-    Lock, UtensilsCrossed, Loader2,
+    Lock, UtensilsCrossed, Loader2, Clock,
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { useCart } from '@/hooks/useCart';
@@ -31,7 +31,7 @@ export default function CheckoutPage() {
     const { restaurant } = useAppSelector((s: RootState) => s.menu);
     const [addresses, setAddresses] = useState<IAddress[]>(user?.addresses ?? []);
     const [selectedAddr, setSelectedAddr] = useState<string>(addresses.find((a) => a.isDefault)?._id ?? addresses[0]?._id ?? '');
-    const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('ONLINE');
+    const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('COD');
     const [loading, setLoading] = useState(false);
     const orderPlacedRef = useRef(false);
 
@@ -45,12 +45,7 @@ export default function CheckoutPage() {
             setAddresses(u.addresses);
             setSelectedAddr(u.addresses.find((a) => a.isDefault)?._id ?? u.addresses[0]?._id ?? '');
         }).catch(() => {});
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        script.onerror = () => toast.error('Failed to load payment gateway. Please refresh.');
-        document.body.appendChild(script);
-        return () => { if (document.body.contains(script)) document.body.removeChild(script); };
+        // Razorpay script loading disabled — only COD is enabled for now
     }, [dispatch, restaurant, items.length, navigate]);
 
     const handlePlaceOrder = async () => {
@@ -149,7 +144,7 @@ export default function CheckoutPage() {
         >
             <div>
                 <p style={{ fontSize: '0.68rem', opacity: 0.55, fontWeight: 500, lineHeight: 1, marginBottom: 3 }}>
-                    {itemCount} item{itemCount !== 1 ? 's' : ''} • {paymentMethod === 'ONLINE' ? 'Online Payment' : 'Cash on Delivery'}
+                    {itemCount} item{itemCount !== 1 ? 's' : ''} • Cash on Delivery
                 </p>
                 <p style={{ fontSize: '1.15rem', fontWeight: 900, fontFamily: 'Outfit, sans-serif', lineHeight: 1.1 }}>
                     ₹{total}
@@ -174,7 +169,7 @@ export default function CheckoutPage() {
                     <Loader2 size={16} className="animate-spin" />
                 ) : (
                     <>
-                        {paymentMethod === 'ONLINE' ? 'Pay Now' : 'Place Order'}
+                        Place Order
                         <ArrowRight size={16} />
                     </>
                 )}
@@ -290,47 +285,78 @@ export default function CheckoutPage() {
                     </div>
 
                     <div style={{ padding: '0.75rem 1.15rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {([
-                            { key: 'ONLINE' as const, icon: CreditCard, iconColor: '#2563EB', iconBg: '#EFF6FF', title: 'Pay Online', sub: 'UPI, Cards, Net Banking' },
-                            { key: 'COD' as const, icon: Banknote, iconColor: '#16A34A', iconBg: '#F0FDF4', title: 'Cash on Delivery', sub: 'Pay when delivered' },
-                        ]).map(({ key, icon: Icon, iconColor, iconBg, title, sub }) => {
-                            const active = paymentMethod === key;
-                            return (
-                                <button
-                                    key={key}
-                                    onClick={() => setPaymentMethod(key)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                        padding: '0.75rem 1rem', borderRadius: 14, width: '100%',
-                                        border: `2px solid ${active ? '#E8A317' : '#EEEEEE'}`,
-                                        background: active ? '#FFFBF0' : 'white',
-                                        cursor: 'pointer', textAlign: 'left',
-                                        transition: 'all 0.15s',
-                                    }}
-                                >
-                                    {/* Radio dot */}
-                                    <span style={{
-                                        width: 18, height: 18, borderRadius: '50%',
-                                        border: `2px solid ${active ? '#E8A317' : '#D4D4D0'}`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        flexShrink: 0,
-                                    }}>
-                                        {active && <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#E8A317' }} />}
-                                    </span>
-                                    <span style={{
-                                        width: 36, height: 36, borderRadius: 10, background: iconBg,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: iconColor, flexShrink: 0,
-                                    }}>
-                                        <Icon size={17} />
-                                    </span>
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F' }}>{title}</p>
-                                        <p style={{ fontSize: '0.7rem', color: '#8E8E8E', marginTop: 1 }}>{sub}</p>
-                                    </div>
-                                </button>
-                            );
-                        })}
+                        {/* COD — Active */}
+                        <button
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                padding: '0.75rem 1rem', borderRadius: 14, width: '100%',
+                                border: '2px solid #E8A317',
+                                background: '#FFFBF0',
+                                cursor: 'default', textAlign: 'left',
+                                transition: 'all 0.15s',
+                            }}
+                        >
+                            <span style={{
+                                width: 18, height: 18, borderRadius: '50%',
+                                border: '2px solid #E8A317',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                            }}>
+                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#E8A317' }} />
+                            </span>
+                            <span style={{
+                                width: 36, height: 36, borderRadius: 10, background: '#F0FDF4',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#16A34A', flexShrink: 0,
+                            }}>
+                                <Banknote size={17} />
+                            </span>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F' }}>Cash on Delivery</p>
+                                <p style={{ fontSize: '0.7rem', color: '#8E8E8E', marginTop: 1 }}>Pay when delivered</p>
+                            </div>
+                        </button>
+
+                        {/* ONLINE — Disabled / Coming Soon */}
+                        <div
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                padding: '0.75rem 1rem', borderRadius: 14, width: '100%',
+                                border: '2px solid #EEEEEE',
+                                background: '#FAFAF8',
+                                opacity: 0.45,
+                                cursor: 'not-allowed', textAlign: 'left',
+                                position: 'relative',
+                            }}
+                        >
+                            <span style={{
+                                width: 18, height: 18, borderRadius: '50%',
+                                border: '2px solid #D4D4D0',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                            }} />
+                            <span style={{
+                                width: 36, height: 36, borderRadius: 10, background: '#EFF6FF',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#2563EB', flexShrink: 0,
+                            }}>
+                                <CreditCard size={17} />
+                            </span>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F' }}>Pay Online</p>
+                                <p style={{ fontSize: '0.7rem', color: '#8E8E8E', marginTop: 1 }}>UPI, Cards, Net Banking</p>
+                            </div>
+                            <span style={{
+                                display: 'flex', alignItems: 'center', gap: 3,
+                                padding: '3px 8px', borderRadius: 6,
+                                background: '#FEF3C7', color: '#92400E',
+                                fontSize: '0.62rem', fontWeight: 700,
+                                letterSpacing: '0.02em',
+                                flexShrink: 0,
+                            }}>
+                                <Clock size={10} /> COMING SOON
+                            </span>
+                        </div>
                     </div>
                 </div>
 

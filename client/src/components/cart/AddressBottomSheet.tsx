@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X, MapPin, Navigation, Loader2, Home, Briefcase,
-    ChevronRight, Plus, Check, AlertTriangle, Phone, User, Search, LocateFixed,
+    Plus, Check, AlertTriangle, Phone, User, LocateFixed, Building2, Landmark,
 } from 'lucide-react';
 import { userService, type AddAddressPayload } from '@/services/userService';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { updateUser } from '@/redux/slices/authSlice';
-import type { IAddress, IDeliveryLocation } from '@/types';
+import { fetchRestaurant } from '@/redux/slices/menuSlice';
+import type { IAddress } from '@/types';
 import toast from 'react-hot-toast';
 
 /** Haversine distance in km */
@@ -21,16 +22,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-type Step = 'list' | 'gpsLoading' | 'gpsDenied' | 'manual' | 'addressSearch' | 'form' | 'outOfRange';
-
-interface PlacePrediction {
-    placeId: string;
-    text: string;
-    mainText: string;
-    secondaryText: string;
-}
-
-const GPLACES_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY as string;
+type Step = 'list' | 'gpsLoading' | 'gpsDenied' | 'form' | 'outOfRange';
 
 interface Props {
     addresses: IAddress[];
@@ -44,31 +36,17 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     const dispatch = useAppDispatch();
     const [step, setStep] = useState<Step>(addresses.length > 0 ? 'list' : 'gpsLoading');
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-    const [locationName, setLocationName] = useState('');
-    const [selectedPredefinedLocation, setSelectedPredefinedLocation] = useState('');
+    const [permDenied, setPermDenied] = useState(false);
     const [distanceInfo, setDistanceInfo] = useState<{ distance: number } | null>(null);
 
-    // Fetch delivery locations & restaurant info from API
-    const [predefinedLocations, setPredefinedLocations] = useState<IDeliveryLocation[]>([]);
     const restaurant = useAppSelector(s => s.menu.restaurant);
     const RESTAURANT = restaurant?.coordinates ?? { lat: 28.6139, lng: 77.209 };
     const MAX_DELIVERY_KM = restaurant?.deliveryRadius ?? 10;
 
-    // Address autocomplete state
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<PlacePrediction[]>([]);
-    const [searching, setSearching] = useState(false);
-    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
-    const searchCacheRef = useRef<Map<string, PlacePrediction[]>>(new Map());
-    const searchInputRef = useRef<HTMLInputElement>(null);
-    // Session token bundles autocomplete + place details into one billing event
-    const sessionTokenRef = useRef(crypto.randomUUID());
-
     useEffect(() => {
-        userService.getDeliveryLocations()
-            .then(data => setPredefinedLocations(data.locations))
-            .catch(() => {});
+        if (!restaurant) {
+            dispatch(fetchRestaurant());
+        }
     }, []);
 
     // Form state
@@ -76,7 +54,8 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     const [phone, setPhone] = useState('');
     const [label, setLabel] = useState<'Home' | 'Work' | 'Other'>('Home');
     const [addressLine, setAddressLine] = useState('');
-    const [landmark, setLandmark] = useState('');
+    const [cityVillage, setCityVillage] = useState('');
+    const [nearbyPlace, setNearbyPlace] = useState('');
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const nameRef = useRef<HTMLInputElement>(null);
@@ -84,9 +63,6 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     useEffect(() => {
         if (step === 'form') {
             setTimeout(() => nameRef.current?.focus({ preventScroll: true }), 200);
-        }
-        if (step === 'addressSearch') {
-            setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 200);
         }
     }, [step]);
 
@@ -100,160 +76,94 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     useEffect(() => {
         if (step !== 'gpsLoading') return;
         if (!navigator.geolocation) {
+            setPermDenied(true);
             setStep('gpsDenied');
             return;
         }
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude, longitude } = pos.coords;
-                const dist = haversineKm(latitude, longitude, RESTAURANT.lat, RESTAURANT.lng);
-                if (dist > MAX_DELIVERY_KM) {
-                    setDistanceInfo({ distance: Math.round(dist * 10) / 10 });
-                    setStep('outOfRange');
+
+        const tryGps = () => {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    const dist = haversineKm(latitude, longitude, RESTAURANT.lat, RESTAURANT.lng);
+                    if (dist > MAX_DELIVERY_KM) {
+                        setDistanceInfo({ distance: Math.round(dist * 10) / 10 });
+                        setStep('outOfRange');
+                    } else {
+                        setCoords({ lat: latitude, lng: longitude });
+                        setStep('form');
+                        toast.success('Location detected!');
+                    }
+                },
+                (err) => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        setPermDenied(true);
+                    }
+                    setStep('gpsDenied');
+                },
+                { enableHighAccuracy: true, timeout: 10000 },
+            );
+        };
+
+        if (navigator.permissions) {
+            navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'denied') {
+                    setPermDenied(true);
+                    setStep('gpsDenied');
                 } else {
-                    setCoords({ lat: latitude, lng: longitude });
-                    setLocationName('Current Location');
-                    setStep('form');
-                    toast.success('Location detected!');
+                    tryGps();
                 }
-            },
-            (err) => {
-                if (err.code === err.PERMISSION_DENIED) {
-                    toast.error('Please allow location access in your browser settings');
-                }
-                setStep('gpsDenied');
-            },
-            { enableHighAccuracy: true, timeout: 10000 },
-        );
+            }).catch(() => {
+                tryGps();
+            });
+        } else {
+            tryGps();
+        }
     }, [step, RESTAURANT.lat, RESTAURANT.lng, MAX_DELIVERY_KM]);
 
-    // ── Address autocomplete via Google Places API (New) ──
-    const searchAddress = useCallback((query: string) => {
-        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-        if (query.trim().length < 3) {
-            setSearchResults([]);
-            setSearching(false);
-            return;
-        }
-        setSearching(true);
+    // ── Listen for permission state changes (user resets in browser settings) ──
+    useEffect(() => {
+        if (!navigator.permissions) return;
 
-        const cacheKey = `${query}|${selectedPredefinedLocation}`;
+        let permStatus: PermissionStatus | null = null;
 
-        // Return cached results if available
-        const cached = searchCacheRef.current.get(cacheKey);
-        if (cached) {
-            setSearchResults(cached);
-            setSearching(false);
-            return;
-        }
-
-        // 400ms debounce
-        searchTimeoutRef.current = setTimeout(async () => {
-            if (abortControllerRef.current) abortControllerRef.current.abort();
-            abortControllerRef.current = new AbortController();
-
-            try {
-                const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-                    method: 'POST',
-                    signal: abortControllerRef.current.signal,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Goog-Api-Key': GPLACES_KEY,
-                    },
-                    body: JSON.stringify({
-                        input: selectedPredefinedLocation
-                            ? `${query}, ${selectedPredefinedLocation}, Bijnor, Uttar Pradesh`
-                            : `${query}, Bijnor, Uttar Pradesh`,
-                        includedRegionCodes: ['in'],
-                        languageCode: 'en',
-                        sessionToken: sessionTokenRef.current,
-                        locationBias: {
-                            circle: {
-                                center: { latitude: RESTAURANT.lat, longitude: RESTAURANT.lng },
-                                radius: MAX_DELIVERY_KM * 1000, // meters
-                            },
-                        },
-                    }),
-                });
-                const json = await res.json();
-                const predictions: PlacePrediction[] = (json.suggestions || [])
-                    .filter((s: any) => s.placePrediction)
-                    .map((s: any) => ({
-                        placeId: s.placePrediction.placeId,
-                        text: s.placePrediction.text?.text || '',
-                        mainText: s.placePrediction.structuredFormat?.mainText?.text || '',
-                        secondaryText: s.placePrediction.structuredFormat?.secondaryText?.text || '',
-                    }));
-
-                searchCacheRef.current.set(cacheKey, predictions);
-                if (searchCacheRef.current.size > 50) {
-                    const firstKey = searchCacheRef.current.keys().next().value;
-                    if (firstKey) searchCacheRef.current.delete(firstKey);
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+            permStatus = result;
+            const onChange = () => {
+                if (result.state === 'granted' || result.state === 'prompt') {
+                    // Permission was reset — auto-retry GPS if we're on the denied step
+                    setPermDenied(false);
+                    if (step === 'gpsDenied') {
+                        setStep('gpsLoading');
+                        toast('Location permission updated! Retrying...', { icon: '📍' });
+                    }
                 }
-                setSearchResults(predictions);
-            } catch (err) {
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setSearchResults([]);
-            } finally {
-                setSearching(false);
-            }
-        }, 400);
-    }, [selectedPredefinedLocation, RESTAURANT.lat, RESTAURANT.lng, MAX_DELIVERY_KM]);
+            };
+            result.addEventListener('change', onChange);
+            return () => result.removeEventListener('change', onChange);
+        }).catch(() => {});
 
-    const handleSelectSearchResult = async (result: PlacePrediction) => {
-        setSearching(true);
-        try {
-            // Fetch place details for coordinates — session token bundles this with autocomplete (1 billing event)
-            const res = await fetch(
-                `https://places.googleapis.com/v1/places/${result.placeId}?sessionToken=${sessionTokenRef.current}`,
-                {
-                    headers: {
-                        'X-Goog-Api-Key': GPLACES_KEY,
-                        'X-Goog-FieldMask': 'location,displayName,formattedAddress',
-                    },
-                },
-            );
-            const place = await res.json();
-            // Reset session token for next search session
-            sessionTokenRef.current = crypto.randomUUID();
-
-            const lat = place.location?.latitude;
-            const lng = place.location?.longitude;
-            if (!lat || !lng) {
-                toast.error('Could not get location coordinates');
-                setSearching(false);
-                return;
-            }
-
-            const dist = haversineKm(lat, lng, RESTAURANT.lat, RESTAURANT.lng);
-            if (dist > MAX_DELIVERY_KM) {
-                setDistanceInfo({ distance: Math.round(dist * 10) / 10 });
-                setStep('outOfRange');
-                setSearching(false);
-                return;
-            }
-
-            setCoords({ lat, lng });
-            setLocationName(result.mainText || result.text.split(',')[0]);
-            setAddressLine(place.formattedAddress || result.secondaryText || '');
-            setStep('form');
-            toast.success('Address selected!');
-        } catch {
-            toast.error('Failed to fetch address details');
-        } finally {
-            setSearching(false);
-        }
-    };
-
-    const handleSelectManualLocation = (loc: { name: string }) => {
-        setSelectedPredefinedLocation(loc.name);
-        setSearchQuery('');
-        setSearchResults([]);
-        setStep('addressSearch');
-    };
+        return () => {
+            // Cleanup is handled inside the promise
+        };
+    }, [step]);
 
     const handleRetryGps = () => {
-        setStep('gpsLoading');
+        // Check if permission is still denied before retrying
+        if (navigator.permissions) {
+            navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'denied') {
+                    toast('Location is still blocked. Please reset it in browser settings (click 🔒 icon in address bar).', { icon: '⚠️', duration: 5000 });
+                } else {
+                    setPermDenied(false);
+                    setStep('gpsLoading');
+                }
+            }).catch(() => {
+                setStep('gpsLoading');
+            });
+        } else {
+            setStep('gpsLoading');
+        }
     };
 
     const validate = () => {
@@ -262,8 +172,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         else if (name.trim().length < 2) errs.name = 'Name too short';
         if (!phone.trim()) errs.phone = 'Phone number is required';
         else if (!/^[6-9]\d{9}$/.test(phone.trim())) errs.phone = 'Enter valid 10-digit number';
-        if (!addressLine.trim()) errs.addressLine = 'Address is required';
+        if (!addressLine.trim()) errs.addressLine = 'Detailed address is required';
         else if (addressLine.trim().length < 5) errs.addressLine = 'Address too short';
+        if (!cityVillage.trim()) errs.cityVillage = 'City / Village is required';
+        else if (cityVillage.trim().length < 2) errs.cityVillage = 'Too short';
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -273,10 +185,17 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
 
         setSaving(true);
         try {
+            // Combine the 3 address fields into a single addressLine for the backend
+            const fullAddress = [
+                addressLine.trim(),
+                cityVillage.trim(),
+                nearbyPlace.trim() ? `Near ${nearbyPlace.trim()}` : '',
+            ].filter(Boolean).join(', ');
+
             const payload: AddAddressPayload = {
                 label,
-                addressLine: `${addressLine.trim()}${locationName && locationName !== 'Current Location' ? `, ${locationName}` : ''}`,
-                landmark: landmark.trim() || undefined,
+                addressLine: fullAddress,
+                landmark: nearbyPlace.trim() || undefined,
                 ...(coords && { coordinates: coords }),
                 isDefault: addresses.length === 0,
             };
@@ -319,9 +238,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         switch (step) {
             case 'list': return 'Select Delivery Address';
             case 'gpsLoading': return 'Fetching Location';
-            case 'gpsDenied': return 'Location Access Denied';
-            case 'manual': return 'Select Your Area';
-            case 'addressSearch': return 'Search Your Address';
+            case 'gpsDenied': return 'Location Access Required';
             case 'form': return 'Complete Address';
             case 'outOfRange': return 'Out of Delivery Range';
         }
@@ -331,10 +248,8 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         switch (step) {
             case 'list': return 'Choose or add a new address';
             case 'gpsLoading': return 'Please wait, fetching your location...';
-            case 'gpsDenied': return 'We need location access to deliver to you';
-            case 'manual': return 'Select your area to continue';
-            case 'addressSearch': return `Searching in ${selectedPredefinedLocation}`;
-            case 'form': return locationName ? `Delivering to ${locationName}` : 'Fill in your details';
+            case 'gpsDenied': return 'Please allow location access to continue';
+            case 'form': return 'Fill in your delivery details';
             case 'outOfRange': return 'Your location is too far';
         }
     };
@@ -500,29 +415,35 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 <LocateFixed size={28} />
                             </span>
                             <h4 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.05rem', color: '#0F0F0F', marginBottom: 6 }}>
-                                Location Access Denied
+                                Location Access Required
                             </h4>
                             <p style={{ fontSize: '0.82rem', color: '#4A4A4A', lineHeight: 1.5, maxWidth: 300 }}>
-                                We couldn't access your location. You can try again or select your address manually.
+                                Please allow location access to proceed with your order. We need your location to check if delivery is available in your area.
                             </p>
-                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', width: '100%' }}>
-                                <button
-                                    onClick={() => setStep('manual')}
-                                    style={{
-                                        flex: 1, padding: '0.7rem', borderRadius: 12,
-                                        border: 'none', background: '#E8A317', color: 'white',
-                                        fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                    }}
-                                >
-                                    <MapPin size={15} /> Select Manually
-                                </button>
+
+                            {/* Instructions to reset browser permission */}
+                            <div style={{
+                                marginTop: '0.75rem', padding: '0.65rem 0.85rem', borderRadius: 12,
+                                background: '#FFFBEB', border: '1px solid #FDE68A',
+                                textAlign: 'left', width: '100%',
+                            }}>
+                                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#92400E', marginBottom: 4 }}>
+                                    💡 How to enable location:
+                                </p>
+                                <ol style={{ fontSize: '0.7rem', color: '#78350F', lineHeight: 1.6, margin: 0, paddingLeft: '1.1rem' }}>
+                                    <li>Click the 🔒 lock icon in your browser's address bar</li>
+                                    <li>Find <b>Location</b> and change it to <b>Allow</b></li>
+                                    <li>Refresh the page and try again</li>
+                                </ol>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', width: '100%' }}>
                                 <button
                                     onClick={handleRetryGps}
                                     style={{
                                         flex: 1, padding: '0.7rem', borderRadius: 12,
-                                        border: '1.5px solid #E0E0DC', background: 'white',
-                                        color: '#4A4A4A', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                                        border: 'none', background: '#E8A317', color: 'white',
+                                        fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                     }}
                                 >
@@ -544,177 +465,6 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                         </div>
                     )}
 
-                    {/* ─── STEP: MANUAL (predefined locations) ────────── */}
-                    {step === 'manual' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                            <p style={{ fontSize: '0.78rem', color: '#8E8E8E', marginBottom: '0.25rem' }}>
-                                Select your area to continue
-                            </p>
-                            {predefinedLocations.map((loc) => (
-                                <button
-                                    key={loc._id}
-                                    onClick={() => handleSelectManualLocation(loc)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                        padding: '0.85rem 1rem', borderRadius: 14,
-                                        border: '1.5px solid #EEEEEE', background: 'white',
-                                        cursor: 'pointer', width: '100%', textAlign: 'left',
-                                        transition: 'all 0.15s',
-                                    }}
-                                >
-                                    <span style={{
-                                        width: 36, height: 36, borderRadius: 10,
-                                        background: '#F0FDF4',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: '#16A34A', flexShrink: 0,
-                                    }}>
-                                        <MapPin size={16} />
-                                    </span>
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F0F0F' }}>
-                                            {loc.name}
-                                        </p>
-                                        <p style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 500, marginTop: 1 }}>
-                                            Delivery available
-                                        </p>
-                                    </div>
-                                    <ChevronRight size={16} style={{ color: '#D4D4D0', flexShrink: 0 }} />
-                                </button>
-                            ))}
-
-                            <button
-                                onClick={() => setStep('gpsDenied')}
-                                style={{
-                                    fontSize: '0.8rem', color: '#8E8E8E', fontWeight: 600,
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    padding: '0.5rem 0', textAlign: 'center', marginTop: '0.25rem',
-                                }}
-                            >
-                                ← Back
-                            </button>
-                        </div>
-                    )}
-
-                    {/* ─── STEP: ADDRESS SEARCH (autocomplete) ────────── */}
-                    {step === 'addressSearch' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.25rem' }}>
-                            {/* Location badge */}
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                padding: '0.45rem 0.75rem', borderRadius: 10,
-                                background: '#F0FDF4', border: '1px solid #BBF7D0',
-                            }}>
-                                <MapPin size={13} style={{ color: '#16A34A' }} />
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#16A34A' }}>
-                                    {selectedPredefinedLocation}
-                                </span>
-                                <Check size={12} style={{ color: '#16A34A', marginLeft: 'auto' }} />
-                            </div>
-
-                            {/* Search input */}
-                            <div style={{ position: 'relative' }}>
-                                <Search size={16} style={{
-                                    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                                    color: '#8E8E8E', pointerEvents: 'none',
-                                }} />
-                                <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value);
-                                        searchAddress(e.target.value);
-                                    }}
-                                    placeholder="Search your street, colony, area..."
-                                    style={{
-                                        width: '100%', border: '1.5px solid #E0E0DC', borderRadius: 12,
-                                        padding: '0.7rem 0.9rem 0.7rem 2.4rem', fontSize: '0.85rem',
-                                        fontFamily: 'Inter, sans-serif', outline: 'none', color: '#0F0F0F',
-                                        boxSizing: 'border-box', transition: 'border-color 0.15s',
-                                    }}
-                                    onFocus={(e) => { e.target.style.borderColor = '#E8A317'; }}
-                                    onBlur={(e) => { e.target.style.borderColor = '#E0E0DC'; }}
-                                />
-                                {searching && (
-                                    <Loader2 size={16} className="animate-spin" style={{
-                                        position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                                        color: '#E8A317',
-                                    }} />
-                                )}
-                            </div>
-
-                            {/* Results */}
-                            {searchResults.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                    {searchResults.map((result) => (
-                                        <button
-                                            key={result.placeId}
-                                            onClick={() => handleSelectSearchResult(result)}
-                                            style={{
-                                                display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
-                                                padding: '0.7rem 0.85rem', borderRadius: 12,
-                                                border: '1px solid #EEEEEE', background: 'white',
-                                                cursor: 'pointer', width: '100%', textAlign: 'left',
-                                                transition: 'background 0.15s',
-                                            }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.background = '#FAFAF8'; }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; }}
-                                        >
-                                            <MapPin size={16} style={{ color: '#E8A317', flexShrink: 0, marginTop: 2 }} />
-                                            <div style={{ overflow: 'hidden', minWidth: 0 }}>
-                                                <p style={{
-                                                    fontSize: '0.82rem', fontWeight: 600, color: '#0F0F0F',
-                                                    lineHeight: 1.3, margin: 0, whiteSpace: 'nowrap',
-                                                    overflow: 'hidden', textOverflow: 'ellipsis',
-                                                }}>
-                                                    {result.mainText}
-                                                </p>
-                                                <p style={{
-                                                    fontSize: '0.72rem', color: '#8E8E8E', lineHeight: 1.3,
-                                                    margin: '2px 0 0', whiteSpace: 'nowrap',
-                                                    overflow: 'hidden', textOverflow: 'ellipsis',
-                                                }}>
-                                                    {result.secondaryText}
-                                                </p>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Empty state */}
-                            {searchQuery.length >= 3 && !searching && searchResults.length === 0 && (
-                                <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-                                    <Search size={24} style={{ color: '#D4D4D0', margin: '0 auto 8px' }} />
-                                    <p style={{ fontSize: '0.8rem', color: '#8E8E8E', fontWeight: 500 }}>
-                                        No results found. Try a different search.
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Initial empty state */}
-                            {searchQuery.length < 3 && searchResults.length === 0 && (
-                                <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-                                    <Search size={24} style={{ color: '#D4D4D0', margin: '0 auto 8px' }} />
-                                    <p style={{ fontSize: '0.8rem', color: '#8E8E8E', fontWeight: 500 }}>
-                                        Type at least 3 characters to search
-                                    </p>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => setStep('manual')}
-                                style={{
-                                    fontSize: '0.8rem', color: '#8E8E8E', fontWeight: 600,
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    padding: '0.25rem 0', textAlign: 'center', marginTop: '0.25rem',
-                                }}
-                            >
-                                ← Back
-                            </button>
-                        </div>
-                    )}
-
                     {/* ─── STEP: OUT OF RANGE ────────────────────────── */}
                     {step === 'outOfRange' && (
                         <div style={{
@@ -732,20 +482,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 Delivery Only Within {MAX_DELIVERY_KM} km
                             </h4>
                             <p style={{ fontSize: '0.82rem', color: '#4A4A4A', lineHeight: 1.5, maxWidth: 300 }}>
-                                Sorry, your selected location is {distanceInfo ? `${distanceInfo.distance} km` : 'too far'} away.
-                                We only deliver within {MAX_DELIVERY_KM} km of our restaurant.
+                                Sorry, your location is <strong>{distanceInfo ? `${distanceInfo.distance} km` : 'too far'}</strong> away from our restaurant.
+                                We only deliver within {MAX_DELIVERY_KM} km.
                             </p>
                             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', width: '100%' }}>
-                                <button
-                                    onClick={() => setStep('manual')}
-                                    style={{
-                                        flex: 1, padding: '0.65rem', borderRadius: 12,
-                                        border: 'none', background: '#E8A317', color: 'white',
-                                        fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                                    }}
-                                >
-                                    Select Manually
-                                </button>
                                 <button
                                     onClick={handleRetryGps}
                                     style={{
@@ -764,20 +504,18 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                     {step === 'form' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', marginTop: '0.25rem' }}>
 
-                            {/* Location badge */}
-                            {locationName && (
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                    padding: '0.5rem 0.75rem', borderRadius: 10,
-                                    background: '#F0FDF4', border: '1px solid #BBF7D0',
-                                }}>
-                                    <MapPin size={13} style={{ color: '#16A34A' }} />
-                                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#16A34A' }}>
-                                        {locationName}
-                                    </span>
-                                    <Check size={12} style={{ color: '#16A34A', marginLeft: 'auto' }} />
-                                </div>
-                            )}
+                            {/* Location detected badge */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                padding: '0.5rem 0.75rem', borderRadius: 10,
+                                background: '#F0FDF4', border: '1px solid #BBF7D0',
+                            }}>
+                                <MapPin size={13} style={{ color: '#16A34A' }} />
+                                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#16A34A' }}>
+                                    Location verified — delivery available
+                                </span>
+                                <Check size={12} style={{ color: '#16A34A', marginLeft: 'auto' }} />
+                            </div>
 
                             {/* Name */}
                             <div>
@@ -845,10 +583,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 </div>
                             </div>
 
-                            {/* Full Address */}
+                            {/* Detailed Address */}
                             <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6, display: 'block' }}>
-                                    Full Address *
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
+                                    <Home size={12} /> Detailed Address *
                                 </label>
                                 <input
                                     type="text"
@@ -861,16 +599,32 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 {errorText(errors.addressLine)}
                             </div>
 
-                            {/* Landmark */}
+                            {/* City / Village */}
                             <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6, display: 'block' }}>
-                                    Landmark (optional)
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
+                                    <Building2 size={12} /> City / Village Name *
                                 </label>
                                 <input
                                     type="text"
-                                    value={landmark}
-                                    onChange={(e) => setLandmark(e.target.value)}
-                                    placeholder="Near temple, school, park..."
+                                    value={cityVillage}
+                                    onChange={(e) => { setCityVillage(e.target.value); setErrors((p) => ({ ...p, cityVillage: '' })); }}
+                                    placeholder="e.g. Bijnor, Nagina, Najibabad..."
+                                    maxLength={100}
+                                    style={inputStyle(!!errors.cityVillage)}
+                                />
+                                {errorText(errors.cityVillage)}
+                            </div>
+
+                            {/* Famous Nearby Place */}
+                            <div>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
+                                    <Landmark size={12} /> Famous Nearby Place (optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={nearbyPlace}
+                                    onChange={(e) => setNearbyPlace(e.target.value)}
+                                    placeholder="Near temple, school, park, hospital..."
                                     maxLength={100}
                                     style={inputStyle(false)}
                                 />
@@ -894,9 +648,8 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
 
                             <button
                                 onClick={() => {
-                                    if (selectedPredefinedLocation) setStep('addressSearch');
-                                    else if (addresses.length > 0) setStep('list');
-                                    else setStep('gpsDenied');
+                                    if (addresses.length > 0) setStep('list');
+                                    else setStep('gpsLoading');
                                 }}
                                 style={{
                                     fontSize: '0.78rem', color: '#8E8E8E', fontWeight: 600,

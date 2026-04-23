@@ -20,8 +20,8 @@ import Restaurant from '../models/Restaurant';
 
 const DEFAULTS = {
     admin: {
-        name: 'Admin',
-        email: 'admin@buntypizza.com',
+        name: 'DiamondPizza',
+        email: 'admin@diamondpizza.com',
         password: 'Admin@123',
         role: 'OWNER' as const,
     },
@@ -29,13 +29,13 @@ const DEFAULTS = {
         name: 'Diamond Pizza and Restaurant',
         description: 'Fresh, handcrafted food delivered to your doorstep',
         address: {
-            addressLine: '42 Main Street, New Delhi',
+            addressLine: 'Near IndianOil Petrol Pump, Mooradabad Road, Noorpur',
             coordinates: { lat: 28.6139, lng: 77.209 },
         },
         phone: '+91 98765 43210',
         isOpen: true,
         deliveryRadius: 10,
-        minOrderAmount: 199,
+        minOrderAmount: 40,
         avgPreparationTime: 30,
         openingHours: {
             monday: { open: '10:00', close: '23:00', isOpen: true },
@@ -55,27 +55,19 @@ async function seed() {
         console.log('Connected to MongoDB');
 
         // 1. Restaurant
-        let restaurant = await Restaurant.findOne();
-        if (restaurant) {
-            console.log('Restaurant already exists — skipping');
-        } else {
-            restaurant = await Restaurant.create(DEFAULTS.restaurant as any);
-            console.log('Created default restaurant:', restaurant.name);
-        }
+        await Restaurant.deleteMany({});
+        const restaurant = await Restaurant.create(DEFAULTS.restaurant as any);
+        console.log('Created default restaurant:', restaurant.name);
 
         // 2. Admin
-        const existing = await Admin.findOne({ email: DEFAULTS.admin.email });
-        if (existing) {
-            console.log('Admin already exists — skipping');
-        } else {
-            const hashedPassword = await bcrypt.hash(DEFAULTS.admin.password, 12);
-            await Admin.create({
-                ...DEFAULTS.admin,
-                password: hashedPassword,
-                restaurantId: restaurant._id,
-            });
-            console.log(`Created admin: ${DEFAULTS.admin.email} / ${DEFAULTS.admin.password}`);
-        }
+        await Admin.deleteMany({});
+        const hashedPassword = await bcrypt.hash(DEFAULTS.admin.password, 12);
+        await Admin.create({
+            ...DEFAULTS.admin,
+            password: hashedPassword,
+            restaurantId: restaurant._id,
+        });
+        console.log(`Created admin: ${DEFAULTS.admin.email} / ${DEFAULTS.admin.password}`);
 
         console.log('\nSeed complete!');
     } catch (err) {

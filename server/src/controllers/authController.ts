@@ -23,8 +23,11 @@ export const sendOTPController = async (req: Request, res: Response): Promise<vo
         });
 
         if (recentOTP) {
+            const elapsedMs = Date.now() - new Date(recentOTP.createdAt).getTime();
+            const cooldownMs = config.otpCooldown * 60 * 1000;
+            const remainingSec = Math.max(1, Math.ceil((cooldownMs - elapsedMs) / 1000));
             res.status(429).json({
-                message: `Please wait ${config.otpCooldown} minutes before requesting another OTP`
+                message: `OTP already sent. Please wait ${remainingSec} seconds before requesting again.`
             });
             return;
         }

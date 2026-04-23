@@ -43,6 +43,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const notifRef = useRef<HTMLDivElement>(null);
     const bellRef = useRef<HTMLButtonElement>(null);
     const { pendingOrderCount, unacceptedOrders, activeOrderCount } = useAdminContext();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    // Listen for order detail sidebar open/close events to hide the FAB
+    useEffect(() => {
+        const handleOpen = () => setSidebarOpen(true);
+        const handleClose = () => setSidebarOpen(false);
+        window.addEventListener('admin-sidebar-open', handleOpen);
+        window.addEventListener('admin-sidebar-close', handleClose);
+        return () => {
+            window.removeEventListener('admin-sidebar-open', handleOpen);
+            window.removeEventListener('admin-sidebar-close', handleClose);
+        };
+    }, []);
 
     const admin: IAdmin | null = (() => {
         try { return JSON.parse(localStorage.getItem('bp_admin') || 'null'); }
@@ -270,8 +283,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <main className="p-4 sm:p-6 lg:p-8">{children}</main>
             </div>
 
-            {/* ── Sticky Active Orders FAB (bottom-right) ── */}
-            {activeOrderCount > 0 && createPortal(
+            {/* ── Sticky Active Orders FAB (bottom-right) — hidden when order detail sidebar is open ── */}
+            {activeOrderCount > 0 && !sidebarOpen && createPortal(
                 <button
                     onClick={() => navigate('/admin/orders')}
                     style={{

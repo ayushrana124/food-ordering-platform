@@ -1,11 +1,13 @@
 import rateLimit from 'express-rate-limit';
 
-// OTP request rate limiter - 3 requests per 10 minutes
+// OTP request rate limiter - 5 requests per 2 minutes
+// Short window prevents network-retry scenarios from locking users out for 10 min.
+// The DB-level cooldown (per phone) provides the real abuse protection.
 export const otpLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 3, // 3 requests per window
+    windowMs: 2 * 60 * 1000, // 2 minutes
+    max: 5, // 5 requests per window
     message: {
-        message: 'Too many OTP requests from this IP. Please try again after 10 minutes.'
+        message: 'Too many OTP requests. Please wait 2 minutes and try again.'
     },
     standardHeaders: true,
     legacyHeaders: false,

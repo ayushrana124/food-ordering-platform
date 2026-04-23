@@ -229,7 +229,7 @@ export const getOrderStats = async (_req: Request, res: Response): Promise<void>
         today.setHours(0, 0, 0, 0);
 
         const todayRevenue = await Order.aggregate([
-            { $match: { createdAt: { $gte: today }, paymentStatus: 'PAID' } },
+            { $match: { createdAt: { $gte: today }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]);
 
@@ -823,7 +823,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Basic stats
         const todayRevenueAgg = await Order.aggregate([
-            { $match: { createdAt: { $gte: today }, paymentStatus: 'PAID' } },
+            { $match: { createdAt: { $gte: today }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]);
         const todayOrders = await Order.countDocuments({ createdAt: { $gte: today } });
@@ -839,7 +839,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
             dayEnd.setDate(dayEnd.getDate() + 1);
 
             const dayAgg = await Order.aggregate([
-                { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, paymentStatus: 'PAID' } },
+                { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
                 { $group: { _id: null, total: { $sum: '$total' } } }
             ]);
 
@@ -858,7 +858,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Revenue by payment method
         const paymentAgg = await Order.aggregate([
-            { $match: { paymentStatus: 'PAID' } },
+            { $match: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
             { $group: { _id: '$paymentMethod', total: { $sum: '$total' } } }
         ]);
         const revenueByPayment = { cod: 0, online: 0 };
@@ -878,7 +878,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Average order value
         const avgAgg = await Order.aggregate([
-            { $match: { paymentStatus: 'PAID' } },
+            { $match: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
             { $group: { _id: null, avg: { $avg: '$total' } } }
         ]);
 
