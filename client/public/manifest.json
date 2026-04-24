@@ -1,6 +1,6 @@
 {
-    "name": "Bunty Pizza",
-    "short_name": "BuntyPizza",
+    "name": "Diamond Pizza",
+    "short_name": "DiamondPizza",
     "description": "Fresh, handcrafted pizzas delivered to your doorstep",
     "start_url": "/",
     "display": "standalone",

@@ -6,7 +6,7 @@ import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
 import Category from '../models/Category';
 import DeliveryLocation from '../models/DeliveryLocation';
-import { v2 as cloudinary } from 'cloudinary';
+import cloudinary from '../config/cloudinary';
 import fs from 'fs';
 import { autoCancelUnpaidOrders } from './paymentController';
 
@@ -368,7 +368,7 @@ export const restoreMenuItem = async (req: Request, res: Response): Promise<void
 };
 
 // Get soft-deleted menu items (trash view)
-export const getDeletedMenuItems = async (req: Request, res: Response): Promise<void> => {
+export const getDeletedMenuItems = async (_req: Request, res: Response): Promise<void> => {
     try {
         const menuItems = await MenuItem.find({ isDeleted: true }).sort({ deletedAt: -1 });
         res.status(200).json({ menuItems });
@@ -554,10 +554,46 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
 
         const { title, description, code, discountType, discountValue, minOrderAmount, maxDiscount, validFrom, validTill, isActive, label, headline, ctaText, colorTheme } = req.body;
 
+        // Validate required fields
+        if (!title?.trim()) { res.status(400).json({ message: 'Title is required' }); return; }
+        if (!code?.trim()) { res.status(400).json({ message: 'Coupon code is required' }); return; }
+        if (!discountType) { res.status(400).json({ message: 'Discount type is required' }); return; }
+
+        // Normalize discountType to uppercase (frontend may send 'flat'/'percentage')
+        const normalizedType = discountType.toString().toUpperCase();
+        if (!['FLAT', 'PERCENTAGE'].includes(normalizedType)) {
+            res.status(400).json({ message: 'Discount type must be FLAT or PERCENTAGE' }); return;
+        }
+
+        // Validate discount value
+        if (!discountValue || discountValue <= 0) { res.status(400).json({ message: 'Discount value must be positive' }); return; }
+        if (normalizedType === 'PERCENTAGE' && discountValue > 100) { res.status(400).json({ message: 'Percentage discount cannot exceed 100' }); return; }
+
+        // Validate dates
+        if (!validFrom || !validTill) { res.status(400).json({ message: 'Valid from and valid till dates are required' }); return; }
+        if (new Date(validTill) <= new Date(validFrom)) { res.status(400).json({ message: 'Valid till must be after valid from' }); return; }
+
+        // Check code uniqueness
+        const normalizedCode = code.trim().toUpperCase();
+        const existingCode = await Offer.findOne({ code: normalizedCode });
+        if (existingCode) { res.status(400).json({ message: `Coupon code "${normalizedCode}" is already in use` }); return; }
+
         const offer = await Offer.create({
-            title, description, code, discountType, discountValue, minOrderAmount,
-            maxDiscount, validFrom, validTill, isActive, label, headline, ctaText, colorTheme,
-            restaurantId: req.admin?.restaurantId
+            title: title.trim(),
+            description: description?.trim(),
+            code: normalizedCode,
+            discountType: normalizedType,
+            discountValue,
+            minOrderAmount: minOrderAmount || 0,
+            maxDiscount: normalizedType === 'FLAT' ? undefined : (maxDiscount || undefined),
+            validFrom,
+            validTill,
+            isActive: isActive !== false,
+            label: label?.trim(),
+            headline: headline?.trim(),
+            ctaText: ctaText?.trim() || 'Order Now',
+            colorTheme: colorTheme || '#E8A317',
+            restaurantId: req.admin?.restaurantId,
         });
 
         res.status(201).json({ message: 'Offer created successfully', offer });
@@ -603,6 +639,33 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
         const update: Record<string, any> = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
+        // Normalize discountType to uppercase
+        if (update.discountType) {
+            update.discountType = update.discountType.toString().toUpperCase();
+            if (!['FLAT', 'PERCENTAGE'].includes(update.discountType)) {
+                res.status(400).json({ message: 'Discount type must be FLAT or PERCENTAGE' }); return;
+            }
+            // Flat discounts don't need maxDiscount
+            if (update.discountType === 'FLAT') {
+                update.maxDiscount = undefined;
+            }
+        }
+
+        // Normalize code to uppercase
+        if (update.code) {
+            update.code = update.code.trim().toUpperCase();
+            // Check uniqueness (excluding current offer)
+            const existingCode = await Offer.findOne({ code: update.code, _id: { $ne: id as any } });
+            if (existingCode) {
+                res.status(400).json({ message: `Coupon code "${update.code}" is already in use` }); return;
+            }
+        }
+
+        // Validate percentage max
+        if (update.discountType === 'PERCENTAGE' && update.discountValue > 100) {
+            res.status(400).json({ message: 'Percentage discount cannot exceed 100' }); return;
         }
 
         const offer = await Offer.findByIdAndUpdate(id, update, { new: true, runValidators: true });

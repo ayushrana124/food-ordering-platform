@@ -102,7 +102,7 @@ export default function AdminLogin() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="admin@buntypizza.com"
+                                    placeholder="admin@diamondpizza.com"
                                     autoFocus
                                     required
                                     id="admin-email"
@@ -151,7 +151,7 @@ export default function AdminLogin() {
                     </form>
 
                     <p className="text-center text-[0.75rem] text-[#C4C4C0] mt-8">
-                        Bunty Pizza & Restaurant Admin Panel
+                        Diamond Pizza & Restaurant Admin Panel
                     </p>
                 </div>
             </div>

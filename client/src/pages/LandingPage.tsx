@@ -21,12 +21,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 const getIcon = (key: string): LucideIcon => ICON_MAP[key] || Utensils;
 
-/* ── Offer color helpers ─────────────────────────────────────────────────── */
-const OFFER_STYLES = [
-    { bg: 'linear-gradient(135deg, #FFFCF5 0%, #FFF5E0 100%)', Icon: Tag, accentBg: 'rgba(232,163,23,0.08)' },
-    { bg: 'linear-gradient(135deg, #F0FAF4 0%, #E8F5E9 100%)', Icon: Percent, accentBg: 'rgba(22,163,74,0.08)' },
-    { bg: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)', Icon: Gift, accentBg: 'rgba(124,58,237,0.08)' },
-];
+const OFFER_ICONS = [Tag, Gift, Percent, Zap, Star];
 
 /* ── Main component ───────────────────────────────────────────────────── */
 export default function LandingPage() {
@@ -293,7 +288,7 @@ export default function LandingPage() {
                 <div className="container">
                     <div className="text-center mb-[clamp(2rem,5vw,3.5rem)]">
                         <span className="section-label justify-center">
-                            The Bunty Difference
+                            The DiamondPizza Difference
                         </span>
                         <h2 className="font-outfit font-extrabold text-[clamp(1.5rem,4vw,2.2rem)] text-[#0F0F0F] tracking-[-0.02em]">
                             Why thousands choose us
@@ -334,78 +329,115 @@ export default function LandingPage() {
 }
 
 /* ── Offer Card sub-component ────────────────────────────────────────── */
+const OFFER_THEMES = [
+    { bg: 'linear-gradient(135deg, #FFFCF5 0%, #FFF5E0 100%)', highlight: '#E8A317', border: 'rgba(232,163,23,0.15)', accentBg: 'rgba(232,163,23,0.1)' },
+    { bg: 'linear-gradient(135deg, #F0FAF4 0%, #E8F5E9 100%)', highlight: '#16A34A', border: 'rgba(22,163,74,0.15)', accentBg: 'rgba(22,163,74,0.1)' },
+    { bg: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)', highlight: '#7C3AED', border: 'rgba(124,58,237,0.15)', accentBg: 'rgba(124,58,237,0.1)' }
+];
+
 function OfferCard({ offer, styleIdx = 0, fullWidth = false }: { offer: IOffer; styleIdx?: number; fullWidth?: boolean }) {
-    const style = OFFER_STYLES[styleIdx % OFFER_STYLES.length];
-    const highlight = offer.colorTheme || '#E8A317';
-    const OfferIcon = style.Icon;
+    const theme = OFFER_THEMES[styleIdx % OFFER_THEMES.length];
+    const highlight = theme.highlight;
+    const OfferIcon = OFFER_ICONS[styleIdx % OFFER_ICONS.length];
 
     return (
         <div
             className="relative overflow-hidden flex flex-col justify-between gap-6 rounded-[24px] transition-all duration-300 hover:-translate-y-1 group"
             style={{
-                background: style.bg,
-                padding: 'clamp(1.5rem,3vw,2rem)',
+                background: theme.bg,
+                padding: 'clamp(1.5rem, 4vw, 2rem)',
+                width: fullWidth ? '100%' : '100%',
                 minWidth: fullWidth ? '100%' : undefined,
+                maxWidth: fullWidth ? '100%' : undefined,
                 flexShrink: fullWidth ? 0 : undefined,
-                minHeight: 'clamp(220px,28vw,290px)',
-                border: '1px solid rgba(0,0,0,0.04)',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                boxSizing: 'border-box',
+                minHeight: 'clamp(220px, 30vw, 290px)',
+                border: `1px solid ${theme.border}`,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.06)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.03)'; }}
         >
+            {/* Background glowing orb */}
             <div
-                className="absolute right-[-12px] bottom-[-12px] opacity-[0.06] rotate-[-12deg] pointer-events-none transition-transform duration-500 group-hover:rotate-[-8deg] group-hover:scale-110"
-                style={{ color: highlight, width: 130, height: 130 }}
+                className="absolute right-0 top-0 w-[200px] h-[200px] rounded-full blur-[50px] opacity-[0.15] pointer-events-none transition-all duration-700 group-hover:opacity-[0.25] group-hover:scale-110"
+                style={{ background: highlight, transform: 'translate(30%, -30%)' }}
+            />
+            
+            {/* Outline Icon Background */}
+            <div
+                className="absolute right-[-20px] bottom-[-20px] pointer-events-none transition-transform duration-700 group-hover:-rotate-12 group-hover:scale-110"
+                style={{ color: highlight, opacity: 0.05, width: 140, height: 140 }}
             >
-                <OfferIcon size={130} />
+                <OfferIcon size={140} strokeWidth={1.5} />
             </div>
 
-            <div>
-                <div
-                    className="inline-flex items-center gap-[0.35rem] px-3 py-[0.25rem] rounded-lg text-[0.65rem] font-bold tracking-[0.1em] uppercase mb-4"
-                    style={{ background: style.accentBg, color: highlight }}
-                >
-                    <OfferIcon size={12} /> {offer.label || 'Special'}
-                </div>
-
-                {(offer.headline || offer.title).split('\n').map((line, i) => (
+            <div className="relative z-10 flex flex-col h-full w-full">
+                {/* Badge */}
+                <div className="mb-4">
                     <div
-                        key={i}
-                        className="font-outfit font-black leading-[1.05] tracking-[-0.02em]"
-                        style={{
-                            fontSize: 'clamp(1.6rem,3.8vw,2.4rem)',
-                            color: i === 0 ? '#0F0F0F' : highlight,
+                        className="inline-flex items-center gap-[0.4rem] px-3 py-[0.35rem] rounded-full text-[0.68rem] font-extrabold tracking-[0.12em] uppercase"
+                        style={{ 
+                            background: theme.accentBg, 
+                            color: highlight,
+                            border: `1px solid ${theme.border}`
                         }}
                     >
-                        {line}
+                        <OfferIcon size={12} strokeWidth={2.5} /> 
+                        <span>{offer.label || 'Special Deal'}</span>
                     </div>
-                ))}
+                </div>
 
+                {/* Heading (wrapped properly and styled) */}
+                <h3
+                    className="font-outfit font-black leading-[1.1] tracking-[-0.03em]"
+                    style={{
+                        fontSize: 'clamp(1.7rem, 4.5vw, 2.4rem)',
+                        color: '#0F0F0F',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                        maxWidth: '100%'
+                    }}
+                >
+                    {offer.headline || offer.title}
+                </h3>
+
+                {/* Description */}
                 <p
-                    className="text-[#4A4A4A] leading-[1.65] mt-3 max-w-[300px]"
-                    style={{ fontSize: 'clamp(0.78rem,1.4vw,0.88rem)' }}
+                    className="text-[#4A4A4A] leading-[1.6] mt-3 mb-auto font-ui"
+                    style={{ 
+                        fontSize: 'clamp(0.82rem, 2vw, 0.92rem)',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                        maxWidth: '100%'
+                    }}
                 >
                     {offer.description}
                 </p>
-            </div>
-
-            <div className="flex gap-[0.7rem] items-center flex-wrap">
-                <Link
-                    to="/menu"
-                    className="px-5 py-[0.55rem] rounded-[10px] font-ui font-bold text-[0.82rem] no-underline text-white whitespace-nowrap tracking-[0.01em] transition-all duration-250 hover:brightness-95"
-                    style={{ background: highlight, boxShadow: `0 2px 10px ${highlight}30` }}
-                >
-                    {offer.ctaText || 'Order Now'}
-                </Link>
-                {offer.code && (
-                    <div
-                        className="border border-dashed rounded-lg px-3 py-[0.35rem] text-[0.72rem] font-bold tracking-[0.06em] whitespace-nowrap"
-                        style={{ borderColor: highlight + '60', color: highlight, background: 'rgba(255,255,255,0.6)' }}
+                
+                {/* Actions */}
+                <div className="flex gap-[0.8rem] items-center flex-wrap mt-6 pt-5" style={{ borderTop: `1px dashed ${theme.border}` }}>
+                    <Link
+                        to="/menu"
+                        className="px-6 py-[0.6rem] rounded-[12px] font-outfit font-extrabold text-[0.85rem] no-underline text-white whitespace-nowrap tracking-wide transition-all duration-300 active:scale-95"
+                        style={{ 
+                            background: highlight,
+                            boxShadow: `0 4px 15px ${highlight}30`,
+                        }}
                     >
-                        USE: <span>{offer.code}</span>
-                    </div>
-                )}
+                        {offer.ctaText || 'Order Now'}
+                    </Link>
+                    {offer.code && (
+                        <div
+                            className="border border-dashed rounded-[10px] px-3 py-[0.6rem] text-[0.75rem] font-bold tracking-[0.08em] whitespace-nowrap"
+                            style={{ 
+                                borderColor: highlight + '60', 
+                                color: highlight, 
+                                background: 'white' 
+                            }}
+                        >
+                            CODE: <span>{offer.code}</span>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

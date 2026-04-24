@@ -30,7 +30,7 @@ interface CategoryForm {
     name: string;
     icon: string;
     colorPresetIdx: number;
-    displayOrder: number;
+    displayOrder: number | '';
 }
 
 const emptyForm: CategoryForm = { name: '', icon: 'Utensils', colorPresetIdx: 0, displayOrder: 0 };
@@ -71,7 +71,7 @@ export default function CategoryManagement() {
         setSaving(true);
         try {
             const preset = COLOR_PRESETS[form.colorPresetIdx];
-            const payload = { name: form.name.trim(), icon: form.icon, colorScheme: preset, displayOrder: form.displayOrder };
+            const payload = { name: form.name.trim(), icon: form.icon, colorScheme: preset, displayOrder: Number(form.displayOrder) || 0 };
             if (editingId) {
                 await updateCategory(editingId, payload);
                 toast.success('Category updated');
@@ -273,7 +273,7 @@ export default function CategoryManagement() {
                                     type="number"
                                     min={0}
                                     value={form.displayOrder}
-                                    onChange={e => update('displayOrder', Number(e.target.value))}
+                                    onChange={e => update('displayOrder', e.target.value === '' ? '' : Number(e.target.value))}
                                 />
                             </div>
 

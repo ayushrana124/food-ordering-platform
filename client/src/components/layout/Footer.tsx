@@ -16,7 +16,7 @@ export default function Footer() {
                                 <ChefHat size={16} />
                             </span>
                             <span className="font-outfit font-extrabold text-[1.1rem] text-[#0F0F0F] tracking-[-0.02em]">
-                                Bunty<span className="text-[#E8A317]">Pizza</span>
+                                Diamond<span className="text-[#E8A317]">Pizza</span>
                             </span>
                         </Link>
                         <p className="text-[0.85rem] leading-[1.8] text-[#8E8E8E] max-w-[240px]">
@@ -51,9 +51,9 @@ export default function Footer() {
                             {[
                                 { Icon: Phone, text: '+91 98765 43210' },
                                 { Icon: Mail, text: 'hello@buntypizza.com' },
-                                { Icon: MapPin, text: '123 Pizza Lane, Mumbai' },
+                                { Icon: MapPin, text: 'Near IndianOil Petrol Pump, Mooradabad Road, Noorpur' },
                             ].map((c) => (
-                                <div key={c.text} className="flex items-center gap-[0.6rem]">
+                                 <div key={c.text} className="flex items-center gap-[0.6rem]">
                                     <span className="w-7 h-7 rounded-lg bg-[#FFFBF0] flex items-center justify-center text-[#E8A317] flex-shrink-0">
                                         <c.Icon size={13} />
                                     </span>
@@ -70,8 +70,7 @@ export default function Footer() {
                         </h4>
                         <div className="flex flex-col gap-[0.6rem] text-[0.85rem] text-[#4A4A4A]">
                             {[
-                                { day: 'Mon - Fri', time: '11am - 11pm' },
-                                { day: 'Sat - Sun', time: '10am - 12am' },
+                                { day: 'Mon - Sun', time: '10am - 10pm' },
                             ].map((h) => (
                                 <div key={h.day} className="flex items-center gap-[0.5rem]">
                                     <span className="w-7 h-7 rounded-lg bg-[#FFFBF0] flex items-center justify-center text-[#E8A317] flex-shrink-0">
@@ -88,7 +87,7 @@ export default function Footer() {
                 {/* Bottom */}
                 <div className="py-5 flex justify-between items-center flex-wrap gap-3">
                     <p className="text-[0.75rem] text-[#8E8E8E]">
-                        &copy; {year} BuntyPizza. All rights reserved.
+                        &copy; {year} DiamondPizza. All rights reserved.
                     </p>
                     <div className="flex gap-5">
                         {[

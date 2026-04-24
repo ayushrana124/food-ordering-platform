@@ -106,7 +106,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     </div>
                     {!collapsed && (
                         <span className="font-outfit font-bold text-[1.1rem] tracking-[-0.02em] whitespace-nowrap">
-                            BuntyPizza
+                            DiamondPizza
                         </span>
                     )}
                 </div>

@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+
 import config from '../config/config';
 import Admin from '../models/Admin';
 import Restaurant from '../models/Restaurant';
@@ -61,10 +61,8 @@ async function seed() {
 
         // 2. Admin
         await Admin.deleteMany({});
-        const hashedPassword = await bcrypt.hash(DEFAULTS.admin.password, 12);
         await Admin.create({
             ...DEFAULTS.admin,
-            password: hashedPassword,
             restaurantId: restaurant._id,
         });
         console.log(`Created admin: ${DEFAULTS.admin.email} / ${DEFAULTS.admin.password}`);

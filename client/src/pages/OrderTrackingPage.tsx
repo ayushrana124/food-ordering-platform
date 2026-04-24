@@ -127,7 +127,7 @@ export default function OrderTrackingPage() {
                 key: paymentOrder.key,
                 amount: paymentOrder.amount,
                 currency: paymentOrder.currency,
-                name: 'Bunty Pizza',
+                name: 'Diamond Pizza',
                 description: `Order #${currentOrder.orderId}`,
                 order_id: paymentOrder.razorpayOrderId,
                 handler: async (response: any) => {

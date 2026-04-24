@@ -19,7 +19,7 @@ import toast from 'react-hot-toast';
 interface LocationForm {
     name: string;
     isActive: boolean;
-    displayOrder: number;
+    displayOrder: number | '';
 }
 
 const emptyForm: LocationForm = { name: '', isActive: true, displayOrder: 0 };
@@ -59,12 +59,13 @@ export default function DeliveryLocations() {
         if (!form.name.trim()) { toast.error('Name is required'); return; }
         setSaving(true);
         try {
+            const payload = { ...form, displayOrder: Number(form.displayOrder) || 0 };
             if (editingId) {
-                await updateDeliveryLocation(editingId, form);
-                setLocations(prev => prev.map(l => l._id === editingId ? { ...l, ...form } : l));
+                await updateDeliveryLocation(editingId, payload);
+                setLocations(prev => prev.map(l => l._id === editingId ? { ...l, ...payload } : l));
                 toast.success('Location updated');
             } else {
-                await createDeliveryLocation(form);
+                await createDeliveryLocation(payload);
                 toast.success('Location created');
                 load();
             }
@@ -202,7 +203,7 @@ export default function DeliveryLocations() {
                                     type="number"
                                     min={0}
                                     value={form.displayOrder}
-                                    onChange={e => update('displayOrder', Number(e.target.value))}
+                                    onChange={e => update('displayOrder', e.target.value === '' ? '' : Number(e.target.value))}
                                 />
                             </div>
 

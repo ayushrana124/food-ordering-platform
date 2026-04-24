@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ICartItem {
+    _id?: mongoose.Types.ObjectId;
     menuItemId: mongoose.Types.ObjectId;
     quantity: number;
     selectedCustomizations: { groupName: string; optionName: string }[];

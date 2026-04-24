@@ -90,7 +90,7 @@ export default function CheckoutPage() {
                 key: paymentOrder.key,
                 amount: paymentOrder.amount,
                 currency: paymentOrder.currency,
-                name: 'Bunty Pizza',
+                name: 'Diamond Pizza',
                 description: `Order #${order.orderId}`,
                 order_id: paymentOrder.razorpayOrderId,
                 handler: async (response: RazorpayResponse) => {
