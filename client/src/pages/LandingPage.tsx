@@ -129,7 +129,7 @@ export default function LandingPage() {
                     <div className="container flex justify-center gap-[clamp(1.5rem,5vw,3.5rem)] flex-wrap">
                         {[
                             { Icon: Check, text: restaurant.isOpen ? 'Open Now' : 'Closed', amber: restaurant.isOpen },
-                            { Icon: Clock, text: `${restaurant.deliveryTime} min delivery` },
+                            { Icon: Clock, text: `${restaurant.avgPreparationTime} min delivery` },
                             { Icon: MapPin, text: (typeof restaurant.address === 'string' ? restaurant.address : (restaurant.address as any)?.addressLine ?? 'Noorpur').split(',')[0] },
                             { Icon: Star, text: `${restaurant.rating ?? '4.8'} rating`, fill: true },
                         ].map((s, i) => (

@@ -81,6 +81,7 @@ export interface IRestaurant {
         close: string;
     };
     rating?: number;
+    avgPreparationTime?: string;
 }
 
 export interface IOffer {
