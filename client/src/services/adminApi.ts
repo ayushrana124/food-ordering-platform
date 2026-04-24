@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { IMenuItem, IOrder, IUser, IRestaurant, IOffer, ICustomizationGroup, ICategory, IDeliveryLocation } from '@/types';
+import type { IMenuItem, IOrder, IUser, IRestaurant, IOffer, ICustomizationGroup, ICategory } from '@/types';
 
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 
@@ -255,37 +255,5 @@ export async function updateCategory(id: string, payload: Partial<ICategory>) {
 
 export async function deleteCategory(id: string) {
     const { data } = await adminApi.delete<{ message: string }>(`/admin/categories/${id}`);
-    return data;
-}
-
-// ── Delivery Locations ────────────────────────────────────────────────────────
-
-export async function getDeliveryLocations() {
-    const { data } = await adminApi.get<{ locations: IDeliveryLocation[] }>('/admin/delivery-locations');
-    return data;
-}
-
-export async function createDeliveryLocation(payload: Partial<IDeliveryLocation>) {
-    const { data } = await adminApi.post<{ message: string; location: IDeliveryLocation }>('/admin/delivery-locations', payload);
-    return data;
-}
-
-export async function updateDeliveryLocation(id: string, payload: Partial<IDeliveryLocation>) {
-    const { data } = await adminApi.put<{ message: string; location: IDeliveryLocation }>(`/admin/delivery-locations/${id}`, payload);
-    return data;
-}
-
-export async function deleteDeliveryLocation(id: string) {
-    const { data } = await adminApi.delete<{ message: string }>(`/admin/delivery-locations/${id}`);
-    return data;
-}
-
-// ── Public delivery locations (for customer checkout) ─────────────────────────
-
-export async function getPublicDeliveryLocations() {
-    const { data } = await adminApi.get<{
-        locations: IDeliveryLocation[];
-        restaurant: { lat: number; lng: number; deliveryRadius: number } | null;
-    }>('/menu/delivery-locations');
     return data;
 }

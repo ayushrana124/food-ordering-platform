@@ -60,15 +60,7 @@ export interface IMenuItem {
     customizations: ICustomizationGroup[];
 }
 
-export interface IDeliveryLocation {
-    _id: string;
-    name: string;
-    lat?: number;
-    lng?: number;
-    isActive: boolean;
-    displayOrder: number;
-    createdAt?: string;
-}
+
 
 export interface IRestaurant {
     _id: string;

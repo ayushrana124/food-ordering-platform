@@ -5,7 +5,7 @@ import User from '../models/User';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
 import Category from '../models/Category';
-import DeliveryLocation from '../models/DeliveryLocation';
+
 import cloudinary from '../config/cloudinary';
 import fs from 'fs';
 import { autoCancelUnpaidOrders } from './paymentController';
@@ -796,85 +796,7 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
     }
 };
 
-// ============= DELIVERY LOCATION MANAGEMENT =============
 
-// Get all delivery locations (admin view — includes inactive)
-export const getDeliveryLocations = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const locations = await DeliveryLocation.find({ restaurantId: req.admin?.restaurantId })
-            .sort({ displayOrder: 1, createdAt: 1 });
-        res.status(200).json({ locations });
-    } catch (error) {
-        console.error('Get Delivery Locations Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
-
-// Create delivery location
-export const createDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { name, isActive, displayOrder } = req.body;
-
-        if (!name) {
-            res.status(400).json({ message: 'Name is required' });
-            return;
-        }
-
-        const location = await DeliveryLocation.create({
-            name,
-            isActive: isActive !== undefined ? isActive : true,
-            displayOrder: displayOrder || 0,
-            restaurantId: req.admin?.restaurantId
-        });
-
-        res.status(201).json({ message: 'Delivery location created', location });
-    } catch (error) {
-        console.error('Create Delivery Location Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
-
-// Update delivery location
-export const updateDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const allowed = ['name', 'isActive', 'displayOrder'];
-        const update: Record<string, any> = {};
-        for (const key of allowed) {
-            if (req.body[key] !== undefined) update[key] = req.body[key];
-        }
-
-        const location = await DeliveryLocation.findByIdAndUpdate(
-            req.params.id, update, { new: true, runValidators: true }
-        );
-
-        if (!location) {
-            res.status(404).json({ message: 'Delivery location not found' });
-            return;
-        }
-
-        res.status(200).json({ message: 'Delivery location updated', location });
-    } catch (error) {
-        console.error('Update Delivery Location Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
-
-// Delete delivery location
-export const deleteDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const location = await DeliveryLocation.findByIdAndDelete(req.params.id);
-
-        if (!location) {
-            res.status(404).json({ message: 'Delivery location not found' });
-            return;
-        }
-
-        res.status(200).json({ message: 'Delivery location deleted' });
-    } catch (error) {
-        console.error('Delete Delivery Location Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
 
 // ============= DETAILED STATS =============
 

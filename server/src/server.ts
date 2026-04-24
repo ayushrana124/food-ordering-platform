@@ -1,8 +1,5 @@
 import express, { Request, Response, NextFunction, Application } from 'express';
 import dotenv from 'dotenv';
-// Load environment variables FIRST before any local imports read process.env
-dotenv.config();
-
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -12,6 +9,9 @@ import connectDB from './config/db';
 import config from './config/config';
 import { initializeSocket } from './config/socket';
 import { apiLimiter } from './middleware/rateLimiter';
+
+// Load environment variables
+dotenv.config();
 
 const app: Application = express();
 const server = http.createServer(app);

@@ -27,10 +27,6 @@ import {
     createCategory,
     updateCategory,
     deleteCategory,
-    getDeliveryLocations,
-    createDeliveryLocation,
-    updateDeliveryLocation,
-    deleteDeliveryLocation
 } from '../controllers/adminController';
 import { loginController, logoutController } from '../controllers/adminAuthController';
 import { adminProtect } from '../middleware/adminAuth';
@@ -78,11 +74,7 @@ router.put('/menu/:id', validateObjectId(), updateMenuItem);
 router.delete('/menu/:id', validateObjectId(), deleteMenuItem);
 router.put('/menu/:id/availability', validateObjectId(), toggleAvailability);
 
-// Delivery location management
-router.get('/delivery-locations', getDeliveryLocations);
-router.post('/delivery-locations', createDeliveryLocation);
-router.put('/delivery-locations/:id', validateObjectId(), updateDeliveryLocation);
-router.delete('/delivery-locations/:id', validateObjectId(), deleteDeliveryLocation);
+
 
 // User management
 router.get('/users', getUsers);

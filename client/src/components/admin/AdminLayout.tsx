@@ -19,7 +19,6 @@ const NAV_ITEMS = [
     { to: '/admin/menu', label: 'Menu', icon: UtensilsCrossed },
     { to: '/admin/categories', label: 'Categories', icon: Layers },
     { to: '/admin/offers', label: 'Offers', icon: Tag },
-    { to: '/admin/delivery-locations', label: 'Delivery', icon: MapPin },
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];

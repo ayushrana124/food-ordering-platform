@@ -23,7 +23,6 @@ const AdminUsers = lazy(() => import('@/pages/admin/Users'));
 const AdminSettings = lazy(() => import('@/pages/admin/Settings'));
 const AdminOffers = lazy(() => import('@/pages/admin/OfferManagement'));
 const AdminCategories = lazy(() => import('@/pages/admin/CategoryManagement'));
-const AdminDeliveryLocations = lazy(() => import('@/pages/admin/DeliveryLocations'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 import { Outlet } from 'react-router-dom';
@@ -113,11 +112,9 @@ export default function App() {
                 <Route path="/admin/settings" element={withSuspense(<AdminSettings />)} />
                 <Route path="/admin/offers" element={withSuspense(<AdminOffers />)} />
                 <Route path="/admin/categories" element={withSuspense(<AdminCategories />)} />
-                <Route path="/admin/delivery-locations" element={withSuspense(<AdminDeliveryLocations />)} />
             </Route>
 
             <Route path="*" element={withSuspense(<NotFoundPage />)} />
         </Routes>
     );
 }
-

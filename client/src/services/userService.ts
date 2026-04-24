@@ -1,5 +1,5 @@
 import api from './api';
-import type { IUser, IAddress, IDeliveryLocation } from '@/types';
+import type { IUser, IAddress } from '@/types';
 
 export interface UpdateProfilePayload {
     name?: string;
@@ -43,8 +43,5 @@ export const userService = {
         return res.data;
     },
 
-    getDeliveryLocations: async () => {
-        const res = await api.get<{ locations: IDeliveryLocation[] }>('/menu/delivery-locations');
-        return res.data;
-    },
+
 };
