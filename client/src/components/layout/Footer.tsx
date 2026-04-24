@@ -50,7 +50,7 @@ export default function Footer() {
                         <div className="flex flex-col gap-[0.7rem] text-[0.85rem] text-[#4A4A4A]">
                             {[
                                 { Icon: Phone, text: '+91 98765 43210' },
-                                { Icon: Mail, text: 'hello@buntypizza.com' },
+                                { Icon: Mail, text: 'bpal3233@gmail.com' },
                                 { Icon: MapPin, text: 'Near IndianOil Petrol Pump, Mooradabad Road, Noorpur' },
                             ].map((c) => (
                                  <div key={c.text} className="flex items-center gap-[0.6rem]">
