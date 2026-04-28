@@ -1,17 +1,6 @@
 import rateLimit from 'express-rate-limit';
 
-// OTP request rate limiter - 5 requests per 2 minutes
-// Short window prevents network-retry scenarios from locking users out for 10 min.
-// The DB-level cooldown (per phone) provides the real abuse protection.
-export const otpLimiter = rateLimit({
-    windowMs: 2 * 60 * 1000, // 2 minutes
-    max: 5, // 5 requests per window
-    message: {
-        message: 'Too many OTP requests. Please wait 2 minutes and try again.'
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+
 
 // General API rate limiter - 500 requests per 15 minutes (scaled for 500-600 active users)
 export const apiLimiter = rateLimit({
@@ -35,12 +24,12 @@ export const loginLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// OTP verification rate limiter - 10 attempts per 15 minutes (prevents brute-force)
-export const otpVerifyLimiter = rateLimit({
+// Firebase token verification rate limiter - 10 attempts per 15 minutes (prevents abuse)
+export const firebaseVerifyLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10, // 10 attempts per window
     message: {
-        message: 'Too many OTP verification attempts. Please try again after 15 minutes.'
+        message: 'Too many authentication attempts. Please try again after 15 minutes.'
     },
     standardHeaders: true,
     legacyHeaders: false,
