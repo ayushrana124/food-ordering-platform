@@ -801,41 +801,76 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
 // ============= DETAILED STATS =============
 
 // Get detailed order statistics for dashboard
-export const getDetailedOrderStats = async (_req: Request, res: Response): Promise<void> => {
+export const getDetailedOrderStats = async (req: Request, res: Response): Promise<void> => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const timeRange = req.query.timeRange as string || 'today';
+        const now = new Date();
+        let startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+
+        if (timeRange === 'week') {
+            startDate.setDate(now.getDate() - 6);
+        } else if (timeRange === 'month') {
+            startDate.setDate(now.getDate() - 29);
+        } else if (timeRange === '3months') {
+            startDate.setDate(now.getDate() - 89);
+        }
+
+        const dateMatch = { createdAt: { $gte: startDate } };
+        const deliveredMatch = { ...dateMatch, orderStatus: 'DELIVERED', paymentStatus: 'PAID' };
 
         // Basic stats
-        const todayRevenueAgg = await Order.aggregate([
-            { $match: { createdAt: { $gte: today }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+        const periodRevenueAgg = await Order.aggregate([
+            { $match: deliveredMatch },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]);
-        const todayOrders = await Order.countDocuments({ createdAt: { $gte: today } });
+        const periodOrders = await Order.countDocuments(dateMatch);
         const pendingOrders = await Order.countDocuments({ orderStatus: 'PENDING' });
         const activeUsers = await User.countDocuments({ isBlocked: false });
 
-        // Weekly revenue (last 7 days)
-        const weeklyRevenue: { date: string; revenue: number }[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const dayStart = new Date(today);
-            dayStart.setDate(dayStart.getDate() - i);
-            const dayEnd = new Date(dayStart);
-            dayEnd.setDate(dayEnd.getDate() + 1);
-
-            const dayAgg = await Order.aggregate([
-                { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
-                { $group: { _id: null, total: { $sum: '$total' } } }
-            ]);
-
-            weeklyRevenue.push({
-                date: dayStart.toISOString().split('T')[0],
-                revenue: dayAgg[0]?.total || 0
-            });
+        // Trend data mapping
+        const trendData: { date: string; revenue: number }[] = [];
+        if (timeRange === 'today') {
+            // Show every 3 hours for today
+            for (let i = 0; i < 24; i += 3) {
+                const hourStart = new Date(startDate);
+                hourStart.setHours(i);
+                const hourEnd = new Date(startDate);
+                hourEnd.setHours(i + 3);
+                const agg = await Order.aggregate([
+                    { $match: { createdAt: { $gte: hourStart, $lt: hourEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+                    { $group: { _id: null, total: { $sum: '$total' } } }
+                ]);
+                trendData.push({
+                    date: `${i.toString().padStart(2, '0')}:00`,
+                    revenue: agg[0]?.total || 0
+                });
+            }
+        } else {
+            // Group by days
+            const numDays = timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 90;
+            const step = numDays > 30 ? 7 : 1; // if 90 days, step by 7 days
+            for (let i = numDays - 1; i >= 0; i -= step) {
+                const dayStart = new Date(now);
+                dayStart.setHours(0, 0, 0, 0);
+                dayStart.setDate(dayStart.getDate() - i);
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + step);
+                
+                const agg = await Order.aggregate([
+                    { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+                    { $group: { _id: null, total: { $sum: '$total' } } }
+                ]);
+                trendData.push({
+                    date: dayStart.toISOString().split('T')[0],
+                    revenue: agg[0]?.total || 0
+                });
+            }
         }
 
         // Orders by status
         const statusAgg = await Order.aggregate([
+            { $match: dateMatch },
             { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
         ]);
         const ordersByStatus: Record<string, number> = {};
@@ -843,7 +878,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Revenue by payment method
         const paymentAgg = await Order.aggregate([
-            { $match: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+            { $match: deliveredMatch },
             { $group: { _id: '$paymentMethod', total: { $sum: '$total' } } }
         ]);
         const revenueByPayment = { cod: 0, online: 0 };
@@ -854,6 +889,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Top 5 selling items
         const topItemsAgg = await Order.aggregate([
+            { $match: dateMatch },
             { $unwind: '$items' },
             { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
             { $sort: { count: -1 } },
@@ -863,16 +899,16 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Average order value
         const avgAgg = await Order.aggregate([
-            { $match: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+            { $match: deliveredMatch },
             { $group: { _id: null, avg: { $avg: '$total' } } }
         ]);
 
         res.status(200).json({
-            todayRevenue: todayRevenueAgg[0]?.total || 0,
-            todayOrders,
+            revenue: periodRevenueAgg[0]?.total || 0,
+            orders: periodOrders,
             pendingOrders,
             activeUsers,
-            weeklyRevenue,
+            trendData,
             ordersByStatus,
             revenueByPayment,
             topItems,

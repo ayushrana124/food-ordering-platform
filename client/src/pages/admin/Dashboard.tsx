@@ -1,22 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
-import { IndianRupee, ShoppingBag, Clock, Users, RefreshCw, Store, Power, TrendingUp, CreditCard, Award } from 'lucide-react';
+import { IndianRupee, ShoppingBag, Clock, Users, RefreshCw, Store, Power, TrendingUp, CreditCard, Award, ChevronDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
-import { getDetailedOrderStats, getOrders, getRestaurantInfo, toggleRestaurantOpen, type IDetailedStats, type IAdminOrder } from '@/services/adminApi';
+import { getDetailedOrderStats, getOrders, toggleRestaurantOpen, type IDetailedStats, type IAdminOrder } from '@/services/adminApi';
 import { useAdminContext } from '@/contexts/AdminContext';
 import toast from 'react-hot-toast';
 
+type TimeRange = 'today' | 'week' | 'month' | '3months';
+
 const STAT_CARDS = [
-    { key: 'todayRevenue' as const, label: "Today's Revenue", icon: IndianRupee, color: '#16A34A', bg: '#F0FDF4', prefix: '\u20B9' },
-    { key: 'todayOrders' as const, label: "Today's Orders", icon: ShoppingBag, color: '#2563EB', bg: '#EFF6FF', prefix: '' },
+    { key: 'revenue' as const, label: "Revenue", icon: IndianRupee, color: '#0F0F0F', bg: '#FAFAF8', prefix: '\u20B9' },
+    { key: 'orders' as const, label: "Total Orders", icon: ShoppingBag, color: '#0F0F0F', bg: '#FAFAF8', prefix: '' },
     { key: 'pendingOrders' as const, label: 'Pending Orders', icon: Clock, color: '#E8A317', bg: '#FFFBF0', prefix: '' },
-    { key: 'activeUsers' as const, label: 'Active Users', icon: Users, color: '#7C3AED', bg: '#F5F3FF', prefix: '' },
+    { key: 'activeUsers' as const, label: 'Total Active Users', icon: Users, color: '#0F0F0F', bg: '#FAFAF8', prefix: '' },
 ];
 
-const PIE_COLORS = ['#D97706', '#2563EB', '#7C3AED', '#0891B2', '#EA580C', '#16A34A', '#DC2626'];
+const PIE_COLORS = ['#E8A317', '#F0CA5A', '#0F0F0F', '#4A4A4A', '#8E8E8E', '#EEEEEE'];
 
 export default function Dashboard() {
     const [stats, setStats] = useState<IDetailedStats | null>(null);
@@ -24,13 +26,15 @@ export default function Dashboard() {
     const [loadingStats, setLoadingStats] = useState(true);
     const [isOpen, setIsOpen] = useState(true);
     const [toggling, setToggling] = useState(false);
-    const { setPendingOrderCount, fetchRestaurant, refreshActiveOrders } = useAdminContext();
+    const [timeRange, setTimeRange] = useState<TimeRange>('today');
+    
+    const { setPendingOrderCount, fetchRestaurant } = useAdminContext();
 
     const fetchData = useCallback(async () => {
         setLoadingStats(true);
         try {
             const [detailedStats, ordersData, restData] = await Promise.all([
-                getDetailedOrderStats(),
+                getDetailedOrderStats(timeRange),
                 getOrders({ limit: 6 }),
                 fetchRestaurant(true),
             ]);
@@ -43,18 +47,16 @@ export default function Dashboard() {
         } finally {
             setLoadingStats(false);
         }
-    }, [fetchRestaurant, setPendingOrderCount]);
+    }, [fetchRestaurant, setPendingOrderCount, timeRange]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // Re-fetch dashboard data when window regains focus (socket events refresh context automatically)
     useEffect(() => {
         const handler = () => { fetchData(); };
         window.addEventListener('focus', handler);
         return () => window.removeEventListener('focus', handler);
     }, [fetchData]);
 
-    // Periodic refresh to pick up socket-triggered changes
     useEffect(() => {
         const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
@@ -73,7 +75,6 @@ export default function Dashboard() {
         }
     };
 
-    // Prepare pie chart data
     const pieData = stats?.ordersByStatus
         ? Object.entries(stats.ordersByStatus).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value }))
         : [];
@@ -81,151 +82,193 @@ export default function Dashboard() {
     return (
         <AdminLayout>
             <AdminPageHeader
-                title="Dashboard"
-                subtitle="Overview of your restaurant performance"
+                title="Dashboard Overview"
+                subtitle="Monitor your restaurant's performance and orders in real-time."
                 actions={
-                    <button
-                        onClick={fetchData}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#EEEEEE] rounded-xl cursor-pointer text-[0.85rem] font-medium text-[#4A4A4A] hover:bg-[#F5F5F3] transition-colors"
-                    >
-                        <RefreshCw size={16} className={loadingStats ? 'animate-spin' : ''} />
-                        Refresh
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white border border-[#E5E7EB] rounded-xl flex items-center p-1 shadow-sm">
+                            {(['today', 'week', 'month', '3months'] as TimeRange[]).map((tr) => (
+                                <button
+                                    key={tr}
+                                    onClick={() => setTimeRange(tr)}
+                                    className={`px-4 py-1.5 text-[0.8rem] rounded-lg font-medium transition-all ${
+                                        timeRange === tr 
+                                            ? 'bg-[#0F0F0F] text-white shadow-md' 
+                                            : 'text-[#4A4A4A] hover:text-[#0F0F0F] hover:bg-[#F9FAFB]'
+                                    }`}
+                                >
+                                    {tr === 'today' ? 'Today' : tr === 'week' ? 'Last 7 Days' : tr === 'month' ? 'Last 30 Days' : 'Last 3 Months'}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={fetchData}
+                            className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 bg-white border border-[#E5E7EB] rounded-xl cursor-pointer text-[#4A4A4A] hover:bg-[#F9FAFB] hover:text-[#0F0F0F] shadow-sm transition-colors"
+                        >
+                            <RefreshCw size={16} className={loadingStats ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
                 }
             />
 
-            {/* Restaurant Status */}
+            {/* Restaurant Status - Slim & Modern */}
             <div
-                className="rounded-2xl p-4 sm:p-5 mb-6 transition-all duration-300"
+                className="rounded-[1.25rem] p-4 sm:px-6 sm:py-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300"
                 style={{
-                    background: isOpen
-                        ? 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)'
-                        : 'linear-gradient(135deg, #FEF2F2 0%, #FECACA 100%)',
-                    border: `1.5px solid ${isOpen ? '#86EFAC' : '#FCA5A5'}`,
+                    background: isOpen ? '#FFFFFF' : '#FEF2F2',
+                    border: `1px solid ${isOpen ? '#E5E7EB' : '#FCA5A5'}`,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
                 }}
             >
-                <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-4">
                     <div
-                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0"
+                        className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 border"
                         style={{
-                            background: isOpen ? '#16A34A' : '#DC2626',
-                            boxShadow: isOpen ? '0 4px 16px rgba(22,163,74,0.3)' : '0 4px 16px rgba(220,38,38,0.3)',
+                            background: isOpen ? '#F0FDF4' : '#FEF2F2',
+                            borderColor: isOpen ? '#BBF7D0' : '#FECACA',
+                            color: isOpen ? '#16A34A' : '#DC2626'
                         }}
                     >
-                        <Store size={20} className="text-white" />
+                        <Store size={22} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-outfit font-bold text-[0.95rem] sm:text-[1.05rem] text-[#0F0F0F]">
-                            Restaurant is {isOpen ? 'Open' : 'Closed'}
-                        </p>
-                        <p className="text-[0.75rem] sm:text-[0.82rem]" style={{ color: isOpen ? '#16A34A' : '#DC2626' }}>
-                            {isOpen ? 'Accepting orders from customers' : 'No orders will be accepted'}
+                    <div>
+                        <h3 className="font-outfit font-bold text-[1.1rem] text-[#0F0F0F]">
+                            {isOpen ? 'Accepting Orders' : 'Restaurant Closed'}
+                        </h3>
+                        <p className="text-[0.85rem] text-[#8E8E8E] mt-0.5">
+                            {isOpen ? 'Your online store is currently live and customers can place orders.' : 'Customers cannot place new orders right now.'}
                         </p>
                     </div>
-                    <button
-                        onClick={handleToggleOpen}
-                        disabled={toggling}
-                        className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-[0.8rem] sm:text-[0.85rem] cursor-pointer transition-all duration-200 border-none text-white disabled:opacity-50 shrink-0 whitespace-nowrap"
-                        style={{
-                            background: isOpen ? '#DC2626' : '#16A34A',
-                            boxShadow: isOpen ? '0 2px 12px rgba(220,38,38,0.25)' : '0 2px 12px rgba(22,163,74,0.25)',
-                        }}
-                    >
-                        <Power size={16} />
-                        <span className="hidden xs:inline">{toggling ? 'Updating...' : isOpen ? 'Close' : 'Open'}</span>
-                        <span className="xs:hidden">{toggling ? '...' : isOpen ? 'Close' : 'Open'}</span>
-                    </button>
                 </div>
+                <button
+                    onClick={handleToggleOpen}
+                    disabled={toggling}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-[0.85rem] cursor-pointer transition-all duration-200 border text-[#0F0F0F] bg-white disabled:opacity-50 hover:bg-[#FAFAF8] shadow-sm"
+                    style={{
+                        borderColor: isOpen ? '#E5E7EB' : '#FCA5A5',
+                    }}
+                >
+                    <Power size={16} className={isOpen ? 'text-[#DC2626]' : 'text-[#16A34A]'} />
+                    {toggling ? 'Updating...' : isOpen ? 'Close Restaurant' : 'Open Restaurant'}
+                </button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            {/* Stats Grid - 4 Columns */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
                 {STAT_CARDS.map((card) => {
                     const value = stats ? stats[card.key] : 0;
                     const isPending = card.key === 'pendingOrders' && value > 0;
                     return (
-                        <AdminCard key={card.key} className={`!p-3 sm:!p-5 ${isPending ? 'ring-2 ring-[#E8A317]/30' : ''}`}>
-                            <div className="flex items-center justify-between mb-2 sm:mb-4">
-                                <p className="text-[0.68rem] sm:text-[0.78rem] text-[#8E8E8E] font-medium">{card.label}</p>
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: card.bg, color: card.color }}>
-                                    <card.icon size={16} className="sm:hidden" />
-                                    <card.icon size={20} className="hidden sm:block" />
+                        <div key={card.key} className={`bg-white rounded-[1.25rem] p-5 sm:p-6 border ${isPending ? 'border-[#E8A317]' : 'border-[#E5E7EB]'} shadow-sm relative overflow-hidden transition-all hover:shadow-md`}>
+                            {isPending && <div className="absolute top-0 right-0 w-16 h-16 bg-[#FFFBF0] rounded-bl-full -z-0" />}
+                            <div className="flex items-center justify-between mb-4 relative z-10">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-[#EEEEEE]" style={{ background: card.bg, color: card.color }}>
+                                    <card.icon size={18} />
                                 </div>
                             </div>
-                            <p className={`font-outfit font-extrabold text-[1.15rem] sm:text-[1.6rem] text-[#0F0F0F] tracking-[-0.02em] ${isPending ? 'animate-pulse' : ''}`}>
-                                {loadingStats ? '--' : `${card.prefix}${value.toLocaleString('en-IN')}`}
-                            </p>
-                        </AdminCard>
+                            <div className="relative z-10">
+                                <p className="text-[0.8rem] text-[#8E8E8E] font-medium mb-1">{card.label}</p>
+                                <p className={`font-outfit font-extrabold text-[1.4rem] sm:text-[1.8rem] text-[#0F0F0F] tracking-tight ${isPending ? 'text-[#E8A317]' : ''}`}>
+                                    {loadingStats ? '--' : `${card.prefix}${value.toLocaleString('en-IN')}`}
+                                </p>
+                            </div>
+                        </div>
                     );
                 })}
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
-                {/* Revenue Chart */}
-                <AdminCard className="lg:col-span-2" padding={false}>
-                    <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
-                        <h3 className="font-outfit font-bold text-[0.9rem] sm:text-[1rem] text-[#0F0F0F] mb-1">Revenue Trend</h3>
-                        <p className="text-[0.72rem] sm:text-[0.78rem] text-[#8E8E8E]">Last 7 days</p>
+            {/* Middle Section: Quick Highlights & Order Status */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+                {/* Highlights Left Column (2-span) */}
+                <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* Revenue Trend Outline */}
+                    <div className="bg-white rounded-[1.25rem] border border-[#E5E7EB] shadow-sm flex flex-col col-span-1 sm:col-span-2 p-6 h-[300px]">
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <h3 className="font-outfit font-bold text-[1.05rem] text-[#0F0F0F] mb-1">Revenue Trend</h3>
+                                <p className="text-[0.8rem] text-[#8E8E8E]">{timeRange === 'today' ? 'Hourly Performance' : 'Daily Performance'}</p>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-h-0">
+                            {!loadingStats && stats?.trendData ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={stats.trendData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="revenueGrad2" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#0F0F0F" stopOpacity={0.15} />
+                                                <stop offset="100%" stopColor="#0F0F0F" stopOpacity={0.0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <XAxis
+                                            dataKey="date"
+                                            tickFormatter={(d) => timeRange === 'today' ? d : new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                            tick={{ fontSize: 11, fill: '#8E8E8E' }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tickMargin={10}
+                                        />
+                                        <YAxis
+                                            tick={{ fontSize: 11, fill: '#8E8E8E' }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tickFormatter={(v) => `\u20B9${v >= 1000 ? (v/1000).toFixed(1)+'k' : v}`}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                                                fontSize: '0.8rem', color: '#0F0F0F', padding: '8px 12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                            }}
+                                            formatter={(value: any) => [`\u20B9${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
+                                            labelFormatter={(d) => timeRange === 'today' ? d : new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                        />
+                                        <Area
+                                            type="monotone" dataKey="revenue" stroke="#0F0F0F" strokeWidth={3}
+                                            fill="url(#revenueGrad2)" dot={false} activeDot={{ r: 6, fill: '#0F0F0F', stroke: '#FFFFFF', strokeWidth: 3 }}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-[#8E8E8E] text-[0.85rem]">Loading trend...</div>
+                            )}
+                        </div>
                     </div>
-                    <div className="px-1 sm:px-2 pb-3 sm:pb-4 h-[180px] sm:h-[240px]">
-                        {!loadingStats && stats ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={stats.weeklyRevenue || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#E8A317" stopOpacity={0.3} />
-                                            <stop offset="100%" stopColor="#E8A317" stopOpacity={0.02} />
-                                        </linearGradient>
-                                    </defs>
-                                    <XAxis
-                                        dataKey="date"
-                                        tickFormatter={(d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                                        tick={{ fontSize: 10, fill: '#8E8E8E' }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                    />
-                                    <YAxis
-                                        tick={{ fontSize: 10, fill: '#8E8E8E' }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tickFormatter={(v) => `\u20B9${v}`}
-                                        width={40}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{
-                                            background: '#0F0F0F', border: 'none', borderRadius: 12,
-                                            fontSize: '0.78rem', color: 'white', padding: '6px 12px',
-                                        }}
-                                        formatter={(value: any) => [`\u20B9${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
-                                        labelFormatter={(d) => new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-                                    />
-                                    <Area
-                                        type="monotone" dataKey="revenue" stroke="#E8A317" strokeWidth={2.5}
-                                        fill="url(#revenueGrad)" dot={false} activeDot={{ r: 5, fill: '#E8A317', stroke: 'white', strokeWidth: 2 }}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-[#8E8E8E] text-[0.82rem]">Loading...</div>
-                        )}
-                    </div>
-                </AdminCard>
 
-                {/* Order Status Pie */}
-                <AdminCard padding={false}>
-                    <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
-                        <h3 className="font-outfit font-bold text-[0.9rem] sm:text-[1rem] text-[#0F0F0F] mb-1">Order Status</h3>
-                        <p className="text-[0.72rem] sm:text-[0.78rem] text-[#8E8E8E]">Distribution</p>
+                    {/* Best Seller */}
+                    <div className="bg-white rounded-[1.25rem] border border-[#E5E7EB] shadow-sm p-6 flex flex-col justify-center">
+                        <div className="w-10 h-10 rounded-full bg-[#FFFBF0] flex items-center justify-center text-[#E8A317] mb-4">
+                            <Award size={18} />
+                        </div>
+                        <p className="text-[0.8rem] text-[#8E8E8E] font-medium mb-1">Top Selling Item</p>
+                        <p className="font-outfit font-bold text-[1.1rem] sm:text-[1.2rem] text-[#0F0F0F] leading-tight truncate">
+                            {loadingStats ? '--' : (stats?.topItems?.[0]?.name || 'N/A')}
+                        </p>
                     </div>
-                    <div className="px-4 pb-3 sm:pb-4 h-[170px] sm:h-[200px]">
+
+                    {/* Avg Order Value */}
+                    <div className="bg-white rounded-[1.25rem] border border-[#E5E7EB] shadow-sm p-6 flex flex-col justify-center">
+                        <div className="w-10 h-10 rounded-full bg-[#F9FAFB] flex items-center justify-center text-[#4A4A4A] mb-4">
+                            <TrendingUp size={18} />
+                        </div>
+                        <p className="text-[0.8rem] text-[#8E8E8E] font-medium mb-1">Avg Order Value</p>
+                        <p className="font-outfit font-bold text-[1.4rem] sm:text-[1.6rem] text-[#0F0F0F] tracking-tight">
+                            {loadingStats ? '--' : `\u20B9${(stats?.avgOrderValue || 0).toLocaleString('en-IN')}`}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Right Column: Order Status Pie */}
+                <div className="bg-white rounded-[1.25rem] border border-[#E5E7EB] shadow-sm p-6 flex flex-col h-full">
+                    <h3 className="font-outfit font-bold text-[1.05rem] text-[#0F0F0F] mb-1">Order Status</h3>
+                    <p className="text-[0.8rem] text-[#8E8E8E] mb-6">Distribution overview</p>
+                    
+                    <div className="flex-1 min-h-[220px] relative">
                         {!loadingStats && pieData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={pieData} dataKey="value" nameKey="name"
-                                        cx="50%" cy="50%" innerRadius={40} outerRadius={65}
-                                        paddingAngle={3} strokeWidth={0}
+                                        cx="50%" cy="50%" innerRadius={60} outerRadius={85}
+                                        paddingAngle={5} strokeWidth={0} cornerRadius={4}
                                     >
                                         {pieData.map((_, idx) => (
                                             <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
@@ -233,118 +276,84 @@ export default function Dashboard() {
                                     </Pie>
                                     <Tooltip
                                         contentStyle={{
-                                            background: '#0F0F0F', border: 'none', borderRadius: 10,
-                                            fontSize: '0.78rem', color: 'white', padding: '6px 12px',
+                                            background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                                            fontSize: '0.8rem', color: '#0F0F0F', padding: '6px 10px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                                         }}
+                                        itemStyle={{ color: '#0F0F0F' }}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-[#8E8E8E] text-[0.82rem]">
-                                No data
+                            <div className="flex items-center justify-center h-full text-[#8E8E8E] text-[0.85rem]">
+                                No data available
+                            </div>
+                        )}
+                        {/* Inner text overlay */}
+                        {pieData.length > 0 && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-[0.7rem] text-[#8E8E8E] font-medium">Orders</span>
+                                <span className="font-outfit font-bold text-[1.2rem] text-[#0F0F0F]">{stats?.orders || 0}</span>
                             </div>
                         )}
                     </div>
-                    {/* Legend */}
-                    <div className="px-4 sm:px-6 pb-4 sm:pb-5 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5">
-                        {pieData.map((entry, idx) => (
-                            <div key={entry.name} className="flex items-center gap-1.5 text-[0.68rem] sm:text-[0.72rem] text-[#4A4A4A]">
-                                <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[idx % PIE_COLORS.length] }} />
-                                {entry.name} ({entry.value})
+
+                    <div className="mt-4 flex flex-col gap-2.5">
+                        {pieData.slice(0, 4).map((entry, idx) => (
+                            <div key={entry.name} className="flex items-center justify-between text-[0.8rem]">
+                                <div className="flex items-center gap-2 text-[#4A4A4A]">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[idx % PIE_COLORS.length] }} />
+                                    {entry.name}
+                                </div>
+                                <span className="font-semibold text-[#0F0F0F]">{entry.value}</span>
                             </div>
                         ))}
                     </div>
-                </AdminCard>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-                <AdminCard className="!p-3 sm:!p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#FFFBF0] flex items-center justify-center text-[#E8A317] shrink-0">
-                            <TrendingUp size={18} />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[0.7rem] sm:text-[0.75rem] text-[#8E8E8E]">Avg Order Value</p>
-                            <p className="font-outfit font-bold text-[1rem] sm:text-[1.15rem] text-[#0F0F0F]">
-                                {loadingStats ? '--' : `\u20B9${(stats?.avgOrderValue || 0).toLocaleString('en-IN')}`}
-                            </p>
-                        </div>
-                    </div>
-                </AdminCard>
-                <AdminCard className="!p-3 sm:!p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB] shrink-0">
-                            <CreditCard size={18} />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[0.7rem] sm:text-[0.75rem] text-[#8E8E8E]">COD vs Online</p>
-                            <p className="font-outfit font-bold text-[0.85rem] sm:text-[1.15rem] text-[#0F0F0F] truncate">
-                                {loadingStats ? '--' : (
-                                    <>
-                                        <span className="text-[#16A34A]">{'\u20B9'}{(stats?.revenueByPayment?.cod || 0).toLocaleString('en-IN')}</span>
-                                        <span className="text-[#8E8E8E] font-medium mx-1">/</span>
-                                        <span className="text-[#2563EB]">{'\u20B9'}{(stats?.revenueByPayment?.online || 0).toLocaleString('en-IN')}</span>
-                                    </>
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                </AdminCard>
-                <AdminCard className="!p-3 sm:!p-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#F5F3FF] flex items-center justify-center text-[#7C3AED] shrink-0">
-                            <Award size={18} />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[0.7rem] sm:text-[0.75rem] text-[#8E8E8E]">Top Seller</p>
-                            <p className="font-outfit font-bold text-[0.9rem] sm:text-[1rem] text-[#0F0F0F] truncate">
-                                {loadingStats ? '--' : (stats?.topItems?.[0]?.name || 'N/A')}
-                            </p>
-                        </div>
-                    </div>
-                </AdminCard>
-            </div>
-
-            {/* Recent Orders — Desktop table */}
-            <AdminCard padding={false} className="hidden sm:block">
-                <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-[#EEEEEE]">
-                    <h2 className="font-outfit font-bold text-[0.95rem] sm:text-[1.05rem] text-[#0F0F0F]">Recent Orders</h2>
                 </div>
+            </div>
+
+            {/* Bottom Row: Recent Orders */}
+            <div className="bg-white rounded-[1.25rem] border border-[#E5E7EB] shadow-sm overflow-hidden">
+                <div className="px-6 py-5 border-b border-[#F9FAFB] flex items-center justify-between">
+                    <div>
+                        <h2 className="font-outfit font-bold text-[1.1rem] text-[#0F0F0F]">Recent Orders</h2>
+                        <p className="text-[0.8rem] text-[#8E8E8E] mt-0.5">Your latest customer orders</p>
+                    </div>
+                </div>
+                
                 <div className="overflow-x-auto">
-                    <table className="w-full text-[0.82rem] sm:text-[0.85rem]">
+                    <table className="w-full text-[0.85rem]">
                         <thead>
-                            <tr className="bg-[#FAFAF8] text-[#8E8E8E] text-[0.7rem] sm:text-[0.73rem] uppercase tracking-wider">
-                                <th className="text-left px-3 sm:px-6 py-3 font-semibold">Order ID</th>
-                                <th className="text-left px-3 sm:px-6 py-3 font-semibold">Customer</th>
-                                <th className="text-left px-3 sm:px-6 py-3 font-semibold hidden md:table-cell">Items</th>
-                                <th className="text-left px-3 sm:px-6 py-3 font-semibold">Total</th>
-                                <th className="text-left px-3 sm:px-6 py-3 font-semibold">Status</th>
-                                <th className="text-left px-3 sm:px-6 py-3 font-semibold hidden md:table-cell">Time</th>
+                            <tr className="bg-[#FAFAF8] text-[#8E8E8E] text-[0.75rem] uppercase tracking-wider font-semibold border-b border-[#F0F0EE]">
+                                <th className="text-left px-6 py-3.5 font-medium w-[15%]">Order ID</th>
+                                <th className="text-left px-6 py-3.5 font-medium w-[25%]">Customer</th>
+                                <th className="text-left px-6 py-3.5 font-medium max-w-[200px] hidden md:table-cell">Items</th>
+                                <th className="text-left px-6 py-3.5 font-medium">Total</th>
+                                <th className="text-left px-6 py-3.5 font-medium">Status</th>
+                                <th className="text-right px-6 py-3.5 font-medium hidden md:table-cell">Time</th>
                             </tr>
                         </thead>
                         <tbody>
                             {recentOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-12 text-center text-[#8E8E8E]">
-                                        {loadingStats ? 'Loading...' : 'No orders yet'}
+                                    <td colSpan={6} className="px-6 py-12 text-center text-[#8E8E8E]">
+                                        {loadingStats ? 'Loading latest orders...' : 'No orders found.'}
                                     </td>
                                 </tr>
                             ) : recentOrders.map((order) => (
-                                <tr key={order._id} className="border-t border-[#F0F0EE] hover:bg-[#FAFAF8] transition-colors">
-                                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-[#0F0F0F]">#{order.orderId}</td>
-                                    <td className="px-3 sm:px-6 py-3 sm:py-4">
-                                        <p className="font-medium text-[#0F0F0F]">{order.userId?.name || 'Guest'}</p>
-                                        <p className="text-[0.7rem] sm:text-[0.73rem] text-[#8E8E8E]">{order.userId?.phone}</p>
+                                <tr key={order._id} className="border-b border-[#F9FAFB] last:border-0 hover:bg-[#FAFAF8] transition-colors">
+                                    <td className="px-6 py-4 font-semibold text-[#0F0F0F] align-middle">#{order.orderId}</td>
+                                    <td className="px-6 py-4 align-middle">
+                                        <p className="font-medium text-[#0F0F0F]">{order.userId?.name || 'Guest User'}</p>
+                                        <p className="text-[0.75rem] text-[#8E8E8E] tracking-wide">{order.userId?.phone}</p>
                                     </td>
-                                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-[#4A4A4A] max-w-[200px] truncate hidden md:table-cell">
-                                        {order.items.map((i) => `${i.name} x${i.quantity}`).join(', ')}
+                                    <td className="px-6 py-4 text-[#4A4A4A] max-w-[200px] truncate hidden md:table-cell align-middle">
+                                        {order.items.map((i) => `${i.name} (${i.quantity})`).join(', ')}
                                     </td>
-                                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-bold text-[#0F0F0F]">{'\u20B9'}{order.total}</td>
-                                    <td className="px-3 sm:px-6 py-3 sm:py-4">
+                                    <td className="px-6 py-4 font-bold text-[#0F0F0F] align-middle">{'\u20B9'}{order.total}</td>
+                                    <td className="px-6 py-4 align-middle">
                                         <AdminBadge label={order.orderStatus} />
                                     </td>
-                                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-[#8E8E8E] text-[0.8rem] whitespace-nowrap hidden md:table-cell">
+                                    <td className="px-6 py-4 text-[#8E8E8E] text-[0.8rem] whitespace-nowrap hidden md:table-cell align-middle text-right">
                                         {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                                     </td>
                                 </tr>
@@ -352,38 +361,6 @@ export default function Dashboard() {
                         </tbody>
                     </table>
                 </div>
-            </AdminCard>
-
-            {/* Recent Orders — Mobile cards */}
-            <div className="sm:hidden">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-outfit font-bold text-[0.95rem] text-[#0F0F0F]">Recent Orders</h2>
-                </div>
-                {recentOrders.length === 0 ? (
-                    <p className="text-center text-[#8E8E8E] text-[0.82rem] py-8">
-                        {loadingStats ? 'Loading...' : 'No orders yet'}
-                    </p>
-                ) : (
-                    <div className="flex flex-col gap-2.5">
-                        {recentOrders.map((order) => (
-                            <AdminCard key={order._id} className="!p-3.5">
-                                <div className="flex items-start justify-between gap-2 mb-1.5">
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-[0.85rem] text-[#0F0F0F]">#{order.orderId}</p>
-                                        <p className="text-[0.72rem] text-[#8E8E8E] truncate">{order.userId?.name || 'Guest'}</p>
-                                    </div>
-                                    <AdminBadge label={order.orderStatus} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <p className="font-bold text-[0.88rem] text-[#0F0F0F]">{'\u20B9'}{order.total}</p>
-                                    <p className="text-[0.7rem] text-[#8E8E8E]">
-                                        {new Date(order.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                            </AdminCard>
-                        ))}
-                    </div>
-                )}
             </div>
         </AdminLayout>
     );

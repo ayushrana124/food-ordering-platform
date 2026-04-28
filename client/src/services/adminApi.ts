@@ -45,8 +45,12 @@ export interface IOrderStats {
     activeUsers: number;
 }
 
-export interface IDetailedStats extends IOrderStats {
-    weeklyRevenue: { date: string; revenue: number }[];
+export interface IDetailedStats {
+    revenue: number;
+    orders: number;
+    pendingOrders: number;
+    activeUsers: number;
+    trendData: { date: string; revenue: number }[];
     ordersByStatus: Record<string, number>;
     revenueByPayment: { cod: number; online: number };
     topItems: { name: string; count: number }[];
@@ -97,8 +101,8 @@ export async function getOrderStats() {
     return data;
 }
 
-export async function getDetailedOrderStats() {
-    const { data } = await adminApi.get<IDetailedStats>('/admin/orders/stats/detailed');
+export async function getDetailedOrderStats(timeRange: string = 'today') {
+    const { data } = await adminApi.get<IDetailedStats>('/admin/orders/stats/detailed', { params: { timeRange } });
     return data;
 }
 

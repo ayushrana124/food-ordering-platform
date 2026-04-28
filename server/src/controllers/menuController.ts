@@ -25,8 +25,7 @@ export const getRestaurantInfo = async (_req: Request, res: Response): Promise<v
 // Get all menu items with filters
 export const getMenuItems = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { category, isVeg, search, minPrice, maxPrice } = req.query;
-
+        const { category, isVeg, search, minPrice, maxPrice, limit } = req.query;
         const query: any = { isAvailable: true };
 
         if (category) query.category = category;
@@ -42,7 +41,13 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
             if (maxPrice) query.price.$lte = Number(maxPrice);
         }
 
-        const menuItems = await MenuItem.find(query).sort({ category: 1, name: 1 });
+        let findQuery = MenuItem.find(query).sort({ category: 1, name: 1 });
+
+        if (limit) {
+            findQuery = findQuery.limit(Number(limit));
+        }
+
+        const menuItems = await findQuery;
 
         res.status(200).json({
             menuItems,

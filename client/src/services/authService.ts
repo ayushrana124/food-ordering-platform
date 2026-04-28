@@ -1,24 +1,19 @@
 import api from './api';
 import type { IUser } from '@/types';
 
-export interface SendOTPResponse {
-    message: string;
-}
-
-export interface VerifyOTPResponse {
+export interface VerifyFirebaseTokenResponse {
     message: string;
     token: string;
     user: IUser;
 }
 
 export const authService = {
-    sendOTP: async (phone: string): Promise<SendOTPResponse> => {
-        const res = await api.post<SendOTPResponse>('/auth/send-otp', { phone });
-        return res.data;
-    },
-
-    verifyOTP: async (phone: string, otp: string): Promise<VerifyOTPResponse> => {
-        const res = await api.post<VerifyOTPResponse>('/auth/verify-otp', { phone, otp });
+    /**
+     * Sends the Firebase ID token to the backend for verification.
+     * The backend verifies the token, finds/creates the user, and returns a JWT.
+     */
+    verifyFirebaseToken: async (idToken: string): Promise<VerifyFirebaseTokenResponse> => {
+        const res = await api.post<VerifyFirebaseTokenResponse>('/auth/verify-firebase-token', { idToken });
         return res.data;
     },
 
