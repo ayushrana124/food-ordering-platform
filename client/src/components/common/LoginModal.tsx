@@ -70,8 +70,8 @@ export default function LoginModal({ onClose }: LoginModalProps) {
     };
 
     /**
-     * Sets up the visible reCAPTCHA v2 verifier.
-     * Creates ONE stable verifier instance and reuses it across retries.
+     * Sets up an invisible reCAPTCHA v2 verifier.
+     * Creates one stable verifier instance and keeps its DOM anchor mounted for resends.
      */
     const setupRecaptcha = useCallback(async () => {
         if (!recaptchaVerifierRef.current) {
@@ -81,7 +81,7 @@ export default function LoginModal({ onClose }: LoginModalProps) {
 
             try {
                 const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                    size: 'normal',
+                    size: 'invisible',
                 });
 
                 await verifier.render();
@@ -304,11 +304,6 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                                 id="phone-input"
                             />
                         </div>
-                        {/* reCAPTCHA widget — visible checkbox to bypass Enterprise path */}
-                        <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#8E8E8E', marginBottom: 8 }}>
-                            ✔ Please verify you're not a robot
-                        </p>
-                        <div id="recaptcha-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }} />
                         <button
                             type="submit"
                             id="send-otp-btn"
@@ -371,6 +366,17 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                         </div>
                     </form>
                 )}
+                <div
+                    id="recaptcha-container"
+                    style={{
+                        position: 'absolute',
+                        width: 1,
+                        height: 1,
+                        overflow: 'hidden',
+                        opacity: 0,
+                        pointerEvents: 'none',
+                    }}
+                />
             </div>
         </div>
     );
