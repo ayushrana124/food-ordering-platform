@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChefHat, X, ArrowRight, CheckCircle2, Timer, Smartphone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
+import { auth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from '@/config/firebase';
 import toast from 'react-hot-toast';
 
 interface LoginModalProps {
@@ -21,6 +22,8 @@ export default function LoginModal({ onClose }: LoginModalProps) {
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const phoneInputRef = useRef<HTMLInputElement>(null);
     const otpInputRef = useRef<HTMLInputElement>(null);
+    const confirmationResultRef = useRef<ConfirmationResult | null>(null);
+    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -42,7 +45,21 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         return () => clearTimeout(id);
     }, [step]);
 
+    // Cleanup reCAPTCHA verifier and countdown timer on unmount
+    useEffect(() => {
+        return () => {
+            if (recaptchaVerifierRef.current) {
+                try { recaptchaVerifierRef.current.clear(); } catch { /* ignore */ }
+                recaptchaVerifierRef.current = null;
+            }
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, []);
+
     const startCountdown = () => {
+        if (timerRef.current) clearInterval(timerRef.current);
         setCountdown(30);
         timerRef.current = setInterval(() => {
             setCountdown((p) => {
@@ -52,23 +69,83 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         }, 1000);
     };
 
-    const handleSendOTP = async (e: React.FormEvent) => {
-        e.preventDefault();
+    /**
+     * Sets up an invisible reCAPTCHA v2 verifier.
+     * Creates one stable verifier instance and keeps its DOM anchor mounted for resends.
+     */
+    const setupRecaptcha = useCallback(async () => {
+        if (!recaptchaVerifierRef.current) {
+            // Guard: ensure container exists in the DOM
+            const container = document.getElementById('recaptcha-container');
+            if (!container) throw new Error('reCAPTCHA container missing from DOM');
+
+            try {
+                const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    size: 'invisible',
+                });
+
+                await verifier.render();
+                recaptchaVerifierRef.current = verifier;
+            } catch (err) {
+                console.error('reCAPTCHA init failed:', err);
+                throw new Error('Failed to initialize security check. Please refresh the page.');
+            }
+        }
+
+        return recaptchaVerifierRef.current;
+    }, []);
+
+    const handleSendOTP = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (loading) return;
         if (!/^[6-9]\d{9}$/.test(phone)) {
             toast.error('Enter a valid 10-digit phone number');
             return;
         }
         setLoading(true);
         try {
-            await authService.sendOTP(phone);
+            const appVerifier = await setupRecaptcha();
+            const fullPhone = `+91${phone}`;
+
+            // Per official Firebase docs:
+            // signInWithPhoneNumber(auth, phoneNumber, appVerifier)
+            const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+            confirmationResultRef.current = confirmationResult;
+
             toast.success('OTP sent! Check your SMS.');
             setStep('otp');
             startCountdown();
         } catch (err: unknown) {
-            const msg = err && typeof err === 'object' && 'response' in err
-                ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-                : 'Failed to send OTP';
-            toast.error(msg ?? 'Failed to send OTP');
+            console.error('Firebase OTP Error:', err);
+
+            // Keep reCAPTCHA verifier alive — Firebase reuses the stable instance on retry.
+            // Clearing it forces a new verifier each attempt which often fails again.
+
+            const firebaseError = err as { code?: string; message?: string };
+            let msg = 'Failed to send OTP. Please try again.';
+            switch (firebaseError.code) {
+                case 'auth/too-many-requests':
+                    msg = 'Too many attempts. Please try again after some time.';
+                    break;
+                case 'auth/invalid-phone-number':
+                    msg = 'Invalid phone number. Please check and try again.';
+                    break;
+                case 'auth/captcha-check-failed':
+                case 'auth/recaptcha-not-enabled':
+                case 'auth/invalid-app-credential':
+                    msg = 'Security verification failed. Please refresh the page and try again.';
+                    break;
+                case 'auth/quota-exceeded':
+                    msg = 'SMS quota exceeded. Please try again later.';
+                    break;
+                case 'auth/operation-not-allowed':
+                    msg = 'Phone authentication is not enabled. Please contact support.';
+                    break;
+                case 'auth/network-request-failed':
+                    msg = 'Network error. Please check your connection and try again.';
+                    break;
+            }
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -80,31 +157,73 @@ export default function LoginModal({ onClose }: LoginModalProps) {
             toast.error('Enter the 6-digit OTP');
             return;
         }
+
+        if (!confirmationResultRef.current) {
+            toast.error('Session expired. Please request a new OTP.');
+            setStep('phone');
+            setOtp('');
+            return;
+        }
+
         setLoading(true);
         try {
-            const res = await authService.verifyOTP(phone, otp);
+            // Verify OTP with Firebase
+            const userCredential = await confirmationResultRef.current.confirm(otp);
+            const firebaseUser = userCredential.user;
+
+            // Get the Firebase ID token (force refresh to get a fresh one)
+            const idToken = await firebaseUser.getIdToken(true);
+
+            // Send ID token to our backend for JWT exchange
+            const res = await authService.verifyFirebaseToken(idToken);
             login(res.user, res.token);
+
+            // Sign out from Firebase — we use our own JWT for session management
+            await auth.signOut();
+
             toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}!`);
             onClose();
         } catch (err: unknown) {
-            const msg = err && typeof err === 'object' && 'response' in err
-                ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-                : 'Invalid OTP';
-            toast.error(msg ?? 'Invalid OTP');
+            console.error('OTP Verification Error:', err);
+            const firebaseError = err as { code?: string; response?: { data?: { message?: string } } };
+            let msg = 'Verification failed. Please try again.';
+            switch (firebaseError.code) {
+                case 'auth/invalid-verification-code':
+                    msg = 'Invalid OTP. Please check and try again.';
+                    break;
+                case 'auth/code-expired':
+                    msg = 'OTP has expired. Please request a new one.';
+                    break;
+                case 'auth/session-expired':
+                    msg = 'Session expired. Please request a new OTP.';
+                    break;
+                default:
+                    // Check for backend error response
+                    if (firebaseError.response?.data?.message) {
+                        msg = firebaseError.response.data.message;
+                    }
+            }
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleResendOTP = async () => {
+        if (loading || countdown > 0) return;
+        confirmationResultRef.current = null;
+        await handleSendOTP();
+    };
+
     const modal = (
         <div
+            className="login-modal-backdrop"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
             style={{
                 position: 'fixed',
                 inset: 0,
                 zIndex: 9999,
                 display: 'flex',
-                alignItems: 'flex-end',
                 justifyContent: 'center',
                 background: 'rgba(15,15,15,0.5)',
                 backdropFilter: 'blur(6px)',
@@ -112,19 +231,18 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                 animation: 'fadeIn 0.2s ease',
             }}
         >
+
+
             <div
+                className="login-modal-panel"
                 onClick={(e) => e.stopPropagation()}
                 style={{
                     position: 'relative',
                     width: '100%',
                     maxWidth: 480,
-                    maxHeight: '90vh',
                     background: 'white',
-                    borderRadius: '24px 24px 0 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    boxShadow: '0 -8px 40px rgba(0,0,0,0.12)',
-                    animation: 'slideUp 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
                     overflowY: 'auto',
                     padding: '24px 32px 32px',
                 }}
@@ -186,7 +304,12 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                                 id="phone-input"
                             />
                         </div>
-                        <button type="submit" className="btn-primary w-full justify-center flex items-center gap-2" disabled={loading}>
+                        <button
+                            type="submit"
+                            id="send-otp-btn"
+                            className="btn-primary w-full justify-center flex items-center gap-2"
+                            disabled={loading}
+                        >
                             {loading ? (
                                 <Timer size={20} className="animate-spin" />
                             ) : (
@@ -226,15 +349,16 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             ) : (
                                 <button
                                     type="button"
-                                    onClick={handleSendOTP}
+                                    onClick={handleResendOTP}
                                     className="bg-none border-none text-[#E8A317] font-semibold cursor-pointer text-[0.9rem] hover:underline"
+                                    disabled={loading}
                                 >
                                     Resend OTP
                                 </button>
                             )}
                             <button
                                 type="button"
-                                onClick={() => { setStep('phone'); setOtp(''); }}
+                                onClick={() => { setStep('phone'); setOtp(''); confirmationResultRef.current = null; }}
                                 className="block mx-auto mt-3 bg-none border-none text-[#4A4A4A] cursor-pointer text-[0.85rem] hover:text-[#0F0F0F] transition-colors"
                             >
                                 Change phone number
@@ -242,6 +366,17 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                         </div>
                     </form>
                 )}
+                <div
+                    id="recaptcha-container"
+                    style={{
+                        position: 'absolute',
+                        width: 1,
+                        height: 1,
+                        overflow: 'hidden',
+                        opacity: 0,
+                        pointerEvents: 'none',
+                    }}
+                />
             </div>
         </div>
     );

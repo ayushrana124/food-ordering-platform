@@ -5,8 +5,9 @@ import User from '../models/User';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
 import Category from '../models/Category';
-import DeliveryLocation from '../models/DeliveryLocation';
-import { v2 as cloudinary } from 'cloudinary';
+
+import cloudinary from '../config/cloudinary';
+import fs from 'fs';
 import { autoCancelUnpaidOrders } from './paymentController';
 
 // ============= ORDER MANAGEMENT =============
@@ -199,9 +200,10 @@ export const rejectOrder = async (req: Request, res: Response): Promise<void> =>
         }
 
         order.orderStatus = 'CANCELLED';
+        order.cancelledBy = 'RESTAURANT';
         order.rejectionReason = reason || undefined;
         if (!order.statusHistory) order.statusHistory = [];
-        order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: reason });
+        order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: reason || 'Rejected by restaurant' });
         order.updatedAt = new Date();
         await order.save();
 
@@ -227,7 +229,7 @@ export const getOrderStats = async (_req: Request, res: Response): Promise<void>
         today.setHours(0, 0, 0, 0);
 
         const todayRevenue = await Order.aggregate([
-            { $match: { createdAt: { $gte: today }, paymentStatus: 'PAID' } },
+            { $match: { createdAt: { $gte: today }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]);
 
@@ -267,6 +269,8 @@ export const addMenuItem = async (req: Request, res: Response): Promise<void> =>
                 folder: 'menu-items'
             });
             imageUrl = result.secure_url;
+            // Clean up temp file after successful upload
+            fs.unlink(req.file.path, () => {});
         }
 
         const menuItem = await MenuItem.create({
@@ -364,7 +368,7 @@ export const restoreMenuItem = async (req: Request, res: Response): Promise<void
 };
 
 // Get soft-deleted menu items (trash view)
-export const getDeletedMenuItems = async (req: Request, res: Response): Promise<void> => {
+export const getDeletedMenuItems = async (_req: Request, res: Response): Promise<void> => {
     try {
         const menuItems = await MenuItem.find({ isDeleted: true }).sort({ deletedAt: -1 });
         res.status(200).json({ menuItems });
@@ -550,10 +554,46 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
 
         const { title, description, code, discountType, discountValue, minOrderAmount, maxDiscount, validFrom, validTill, isActive, label, headline, ctaText, colorTheme } = req.body;
 
+        // Validate required fields
+        if (!title?.trim()) { res.status(400).json({ message: 'Title is required' }); return; }
+        if (!code?.trim()) { res.status(400).json({ message: 'Coupon code is required' }); return; }
+        if (!discountType) { res.status(400).json({ message: 'Discount type is required' }); return; }
+
+        // Normalize discountType to uppercase (frontend may send 'flat'/'percentage')
+        const normalizedType = discountType.toString().toUpperCase();
+        if (!['FLAT', 'PERCENTAGE'].includes(normalizedType)) {
+            res.status(400).json({ message: 'Discount type must be FLAT or PERCENTAGE' }); return;
+        }
+
+        // Validate discount value
+        if (!discountValue || discountValue <= 0) { res.status(400).json({ message: 'Discount value must be positive' }); return; }
+        if (normalizedType === 'PERCENTAGE' && discountValue > 100) { res.status(400).json({ message: 'Percentage discount cannot exceed 100' }); return; }
+
+        // Validate dates
+        if (!validFrom || !validTill) { res.status(400).json({ message: 'Valid from and valid till dates are required' }); return; }
+        if (new Date(validTill) <= new Date(validFrom)) { res.status(400).json({ message: 'Valid till must be after valid from' }); return; }
+
+        // Check code uniqueness
+        const normalizedCode = code.trim().toUpperCase();
+        const existingCode = await Offer.findOne({ code: normalizedCode });
+        if (existingCode) { res.status(400).json({ message: `Coupon code "${normalizedCode}" is already in use` }); return; }
+
         const offer = await Offer.create({
-            title, description, code, discountType, discountValue, minOrderAmount,
-            maxDiscount, validFrom, validTill, isActive, label, headline, ctaText, colorTheme,
-            restaurantId: req.admin?.restaurantId
+            title: title.trim(),
+            description: description?.trim(),
+            code: normalizedCode,
+            discountType: normalizedType,
+            discountValue,
+            minOrderAmount: minOrderAmount || 0,
+            maxDiscount: normalizedType === 'FLAT' ? undefined : (maxDiscount || undefined),
+            validFrom,
+            validTill,
+            isActive: isActive !== false,
+            label: label?.trim(),
+            headline: headline?.trim(),
+            ctaText: ctaText?.trim() || 'Order Now',
+            colorTheme: colorTheme || '#E8A317',
+            restaurantId: req.admin?.restaurantId,
         });
 
         res.status(201).json({ message: 'Offer created successfully', offer });
@@ -599,6 +639,33 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
         const update: Record<string, any> = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
+        // Normalize discountType to uppercase
+        if (update.discountType) {
+            update.discountType = update.discountType.toString().toUpperCase();
+            if (!['FLAT', 'PERCENTAGE'].includes(update.discountType)) {
+                res.status(400).json({ message: 'Discount type must be FLAT or PERCENTAGE' }); return;
+            }
+            // Flat discounts don't need maxDiscount
+            if (update.discountType === 'FLAT') {
+                update.maxDiscount = undefined;
+            }
+        }
+
+        // Normalize code to uppercase
+        if (update.code) {
+            update.code = update.code.trim().toUpperCase();
+            // Check uniqueness (excluding current offer)
+            const existingCode = await Offer.findOne({ code: update.code, _id: { $ne: id as any } });
+            if (existingCode) {
+                res.status(400).json({ message: `Coupon code "${update.code}" is already in use` }); return;
+            }
+        }
+
+        // Validate percentage max
+        if (update.discountType === 'PERCENTAGE' && update.discountValue > 100) {
+            res.status(400).json({ message: 'Percentage discount cannot exceed 100' }); return;
         }
 
         const offer = await Offer.findByIdAndUpdate(id, update, { new: true, runValidators: true });
@@ -729,126 +796,81 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
     }
 };
 
-// ============= DELIVERY LOCATION MANAGEMENT =============
 
-// Get all delivery locations (admin view — includes inactive)
-export const getDeliveryLocations = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const locations = await DeliveryLocation.find({ restaurantId: req.admin?.restaurantId })
-            .sort({ displayOrder: 1, createdAt: 1 });
-        res.status(200).json({ locations });
-    } catch (error) {
-        console.error('Get Delivery Locations Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
-
-// Create delivery location
-export const createDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { name, lat, lng, isActive, displayOrder } = req.body;
-
-        if (!name || lat === undefined || lng === undefined) {
-            res.status(400).json({ message: 'Name, latitude, and longitude are required' });
-            return;
-        }
-
-        const location = await DeliveryLocation.create({
-            name,
-            lat: Number(lat),
-            lng: Number(lng),
-            isActive: isActive !== undefined ? isActive : true,
-            displayOrder: displayOrder || 0,
-            restaurantId: req.admin?.restaurantId
-        });
-
-        res.status(201).json({ message: 'Delivery location created', location });
-    } catch (error) {
-        console.error('Create Delivery Location Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
-
-// Update delivery location
-export const updateDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const allowed = ['name', 'lat', 'lng', 'isActive', 'displayOrder'];
-        const update: Record<string, any> = {};
-        for (const key of allowed) {
-            if (req.body[key] !== undefined) update[key] = req.body[key];
-        }
-
-        const location = await DeliveryLocation.findByIdAndUpdate(
-            req.params.id, update, { new: true, runValidators: true }
-        );
-
-        if (!location) {
-            res.status(404).json({ message: 'Delivery location not found' });
-            return;
-        }
-
-        res.status(200).json({ message: 'Delivery location updated', location });
-    } catch (error) {
-        console.error('Update Delivery Location Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
-
-// Delete delivery location
-export const deleteDeliveryLocation = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const location = await DeliveryLocation.findByIdAndDelete(req.params.id);
-
-        if (!location) {
-            res.status(404).json({ message: 'Delivery location not found' });
-            return;
-        }
-
-        res.status(200).json({ message: 'Delivery location deleted' });
-    } catch (error) {
-        console.error('Delete Delivery Location Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};
 
 // ============= DETAILED STATS =============
 
 // Get detailed order statistics for dashboard
-export const getDetailedOrderStats = async (_req: Request, res: Response): Promise<void> => {
+export const getDetailedOrderStats = async (req: Request, res: Response): Promise<void> => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const timeRange = req.query.timeRange as string || 'today';
+        const now = new Date();
+        let startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+
+        if (timeRange === 'week') {
+            startDate.setDate(now.getDate() - 6);
+        } else if (timeRange === 'month') {
+            startDate.setDate(now.getDate() - 29);
+        } else if (timeRange === '3months') {
+            startDate.setDate(now.getDate() - 89);
+        }
+
+        const dateMatch = { createdAt: { $gte: startDate } };
+        const deliveredMatch = { ...dateMatch, orderStatus: 'DELIVERED', paymentStatus: 'PAID' };
 
         // Basic stats
-        const todayRevenueAgg = await Order.aggregate([
-            { $match: { createdAt: { $gte: today }, paymentStatus: 'PAID' } },
+        const periodRevenueAgg = await Order.aggregate([
+            { $match: deliveredMatch },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]);
-        const todayOrders = await Order.countDocuments({ createdAt: { $gte: today } });
+        const periodOrders = await Order.countDocuments(dateMatch);
         const pendingOrders = await Order.countDocuments({ orderStatus: 'PENDING' });
         const activeUsers = await User.countDocuments({ isBlocked: false });
 
-        // Weekly revenue (last 7 days)
-        const weeklyRevenue: { date: string; revenue: number }[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const dayStart = new Date(today);
-            dayStart.setDate(dayStart.getDate() - i);
-            const dayEnd = new Date(dayStart);
-            dayEnd.setDate(dayEnd.getDate() + 1);
-
-            const dayAgg = await Order.aggregate([
-                { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, paymentStatus: 'PAID' } },
-                { $group: { _id: null, total: { $sum: '$total' } } }
-            ]);
-
-            weeklyRevenue.push({
-                date: dayStart.toISOString().split('T')[0],
-                revenue: dayAgg[0]?.total || 0
-            });
+        // Trend data mapping
+        const trendData: { date: string; revenue: number }[] = [];
+        if (timeRange === 'today') {
+            // Show every 3 hours for today
+            for (let i = 0; i < 24; i += 3) {
+                const hourStart = new Date(startDate);
+                hourStart.setHours(i);
+                const hourEnd = new Date(startDate);
+                hourEnd.setHours(i + 3);
+                const agg = await Order.aggregate([
+                    { $match: { createdAt: { $gte: hourStart, $lt: hourEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+                    { $group: { _id: null, total: { $sum: '$total' } } }
+                ]);
+                trendData.push({
+                    date: `${i.toString().padStart(2, '0')}:00`,
+                    revenue: agg[0]?.total || 0
+                });
+            }
+        } else {
+            // Group by days
+            const numDays = timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 90;
+            const step = numDays > 30 ? 7 : 1; // if 90 days, step by 7 days
+            for (let i = numDays - 1; i >= 0; i -= step) {
+                const dayStart = new Date(now);
+                dayStart.setHours(0, 0, 0, 0);
+                dayStart.setDate(dayStart.getDate() - i);
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + step);
+                
+                const agg = await Order.aggregate([
+                    { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+                    { $group: { _id: null, total: { $sum: '$total' } } }
+                ]);
+                trendData.push({
+                    date: dayStart.toISOString().split('T')[0],
+                    revenue: agg[0]?.total || 0
+                });
+            }
         }
 
         // Orders by status
         const statusAgg = await Order.aggregate([
+            { $match: dateMatch },
             { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
         ]);
         const ordersByStatus: Record<string, number> = {};
@@ -856,7 +878,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Revenue by payment method
         const paymentAgg = await Order.aggregate([
-            { $match: { paymentStatus: 'PAID' } },
+            { $match: deliveredMatch },
             { $group: { _id: '$paymentMethod', total: { $sum: '$total' } } }
         ]);
         const revenueByPayment = { cod: 0, online: 0 };
@@ -867,6 +889,7 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Top 5 selling items
         const topItemsAgg = await Order.aggregate([
+            { $match: dateMatch },
             { $unwind: '$items' },
             { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
             { $sort: { count: -1 } },
@@ -876,16 +899,16 @@ export const getDetailedOrderStats = async (_req: Request, res: Response): Promi
 
         // Average order value
         const avgAgg = await Order.aggregate([
-            { $match: { paymentStatus: 'PAID' } },
+            { $match: deliveredMatch },
             { $group: { _id: null, avg: { $avg: '$total' } } }
         ]);
 
         res.status(200).json({
-            todayRevenue: todayRevenueAgg[0]?.total || 0,
-            todayOrders,
+            revenue: periodRevenueAgg[0]?.total || 0,
+            orders: periodOrders,
             pendingOrders,
             activeUsers,
-            weeklyRevenue,
+            trendData,
             ordersByStatus,
             revenueByPayment,
             topItems,

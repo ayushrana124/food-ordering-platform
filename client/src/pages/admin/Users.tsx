@@ -78,7 +78,7 @@ export default function Users() {
             </AdminCard>
 
             {/* Desktop Table */}
-            <div className="hidden md:block">
+            <div className="hidden md:block min-w-0">
                 <AdminCard padding={false}>
                     <div className="overflow-x-auto">
                         <table className="w-full text-[0.85rem]">

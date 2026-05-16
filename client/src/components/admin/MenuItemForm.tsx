@@ -313,8 +313,8 @@ export default function MenuItemForm({ item, onClose, onSaved }: Props) {
                                                                         <input
                                                                             className="w-full h-9 pl-7 pr-2 rounded-lg border border-[#EEEEEE] bg-white text-[0.82rem] outline-none focus:border-[#E8A317] transition-colors"
                                                                             type="number" min={0} placeholder="0"
-                                                                            value={opt.price || ''}
-                                                                            onChange={(e) => updateOption(gIdx, oIdx, 'price', Number(e.target.value) || 0)}
+                                                                            value={opt.price === '' as any ? '' : opt.price}
+                                                                            onChange={(e) => updateOption(gIdx, oIdx, 'price', e.target.value === '' ? '' as any : Number(e.target.value))}
                                                                         />
                                                                     </div>
                                                                     <button

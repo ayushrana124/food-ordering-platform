@@ -3,8 +3,21 @@ import type { IRestaurant, IMenuItem, IOffer, ICategory } from '@/types';
 
 export const menuService = {
     getRestaurantInfo: async (): Promise<IRestaurant> => {
-        const res = await api.get<{ restaurant: IRestaurant }>('/menu/restaurant');
-        return res.data.restaurant;
+        const res = await api.get<{ restaurant: any }>('/menu/restaurant');
+        const raw = res.data.restaurant;
+
+        // The server stores coordinates nested under `address.coordinates`
+        // but the client IRestaurant type expects them as top-level `coordinates`.
+        // Normalize the shape here so the rest of the app works correctly.
+        const normalized: IRestaurant = {
+            ...raw,
+            address: typeof raw.address === 'string'
+                ? raw.address
+                : raw.address?.addressLine ?? '',
+            coordinates: raw.coordinates ?? raw.address?.coordinates ?? { lat: 0, lng: 0 },
+        };
+
+        return normalized;
     },
 
     getMenuItems: async (

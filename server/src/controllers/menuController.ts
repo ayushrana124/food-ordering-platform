@@ -3,7 +3,7 @@ import MenuItem from '../models/MenuItem';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
 import Category from '../models/Category';
-import DeliveryLocation from '../models/DeliveryLocation';
+
 
 // Get restaurant information
 export const getRestaurantInfo = async (_req: Request, res: Response): Promise<void> => {
@@ -25,8 +25,7 @@ export const getRestaurantInfo = async (_req: Request, res: Response): Promise<v
 // Get all menu items with filters
 export const getMenuItems = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { category, isVeg, search, minPrice, maxPrice } = req.query;
-
+        const { category, isVeg, search, minPrice, maxPrice, limit } = req.query;
         const query: any = { isAvailable: true };
 
         if (category) query.category = category;
@@ -42,7 +41,13 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
             if (maxPrice) query.price.$lte = Number(maxPrice);
         }
 
-        const menuItems = await MenuItem.find(query).sort({ category: 1, name: 1 });
+        let findQuery = MenuItem.find(query).sort({ category: 1, name: 1 });
+
+        if (limit) {
+            findQuery = findQuery.limit(Number(limit));
+        }
+
+        const menuItems = await findQuery;
 
         res.status(200).json({
             menuItems,
@@ -106,24 +111,4 @@ export const getCategories = async (_req: Request, res: Response): Promise<void>
     }
 };
 
-// Get active delivery locations (public)
-export const getPublicDeliveryLocations = async (_req: Request, res: Response): Promise<void> => {
-    try {
-        const locations = await DeliveryLocation.find({ isActive: true })
-            .sort({ displayOrder: 1 });
 
-        const restaurant = await Restaurant.findOne().select('address.coordinates deliveryRadius');
-
-        res.status(200).json({
-            locations,
-            restaurant: restaurant ? {
-                lat: restaurant.address?.coordinates?.lat,
-                lng: restaurant.address?.coordinates?.lng,
-                deliveryRadius: restaurant.deliveryRadius
-            } : null
-        });
-    } catch (error) {
-        console.error('Get Public Delivery Locations Error:', error);
-        res.status(500).json({ message: (error as Error).message });
-    }
-};

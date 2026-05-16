@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bunty-pizza-v1';
+const CACHE_NAME = 'diamond-pizza-v1';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

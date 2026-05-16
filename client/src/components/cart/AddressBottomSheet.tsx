@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X, MapPin, Navigation, Loader2, Home, Briefcase,
-    ChevronRight, Plus, Check, AlertTriangle, Phone, User,
+    Plus, Check, AlertTriangle, Phone, User, LocateFixed, Building2, Landmark,
 } from 'lucide-react';
 import { userService, type AddAddressPayload } from '@/services/userService';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { updateUser } from '@/redux/slices/authSlice';
-import { getPublicDeliveryLocations } from '@/services/adminApi';
-import type { IAddress, IDeliveryLocation } from '@/types';
+import { fetchRestaurant } from '@/redux/slices/menuSlice';
+import type { IAddress } from '@/types';
 import toast from 'react-hot-toast';
 
 /** Haversine distance in km */
@@ -22,7 +22,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-type Step = 'list' | 'method' | 'manual' | 'form' | 'outOfRange';
+type Step = 'list' | 'gpsLoading' | 'gpsDenied' | 'form' | 'outOfRange';
 
 interface Props {
     addresses: IAddress[];
@@ -34,21 +34,19 @@ interface Props {
 
 export default function AddressBottomSheet({ addresses, selectedId, onSelect, onAddressesUpdate, onClose }: Props) {
     const dispatch = useAppDispatch();
-    const [step, setStep] = useState<Step>(addresses.length > 0 ? 'list' : 'method');
-    const [locating, setLocating] = useState(false);
+    const [step, setStep] = useState<Step>(addresses.length > 0 ? 'list' : 'gpsLoading');
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-    const [locationName, setLocationName] = useState('');
+    const [permDenied, setPermDenied] = useState(false);
+    const [distanceInfo, setDistanceInfo] = useState<{ distance: number } | null>(null);
 
-    // Fetch delivery locations & restaurant info from API
-    const [predefinedLocations, setPredefinedLocations] = useState<IDeliveryLocation[]>([]);
     const restaurant = useAppSelector(s => s.menu.restaurant);
     const RESTAURANT = restaurant?.coordinates ?? { lat: 28.6139, lng: 77.209 };
     const MAX_DELIVERY_KM = restaurant?.deliveryRadius ?? 10;
 
     useEffect(() => {
-        getPublicDeliveryLocations()
-            .then(data => setPredefinedLocations(data.locations))
-            .catch(() => {});
+        if (!restaurant) {
+            dispatch(fetchRestaurant());
+        }
     }, []);
 
     // Form state
@@ -56,12 +54,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
     const [phone, setPhone] = useState('');
     const [label, setLabel] = useState<'Home' | 'Work' | 'Other'>('Home');
     const [addressLine, setAddressLine] = useState('');
-    const [landmark, setLandmark] = useState('');
+    const [cityVillage, setCityVillage] = useState('');
+    const [nearbyPlace, setNearbyPlace] = useState('');
     const [saving, setSaving] = useState(false);
-
-    // Validation errors
     const [errors, setErrors] = useState<Record<string, string>>({});
-
     const nameRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -76,42 +72,97 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         return () => { document.body.style.overflow = ''; };
     }, []);
 
-    const handleUseCurrentLocation = () => {
+    // ── Auto-trigger GPS when entering gpsLoading step ──
+    useEffect(() => {
+        if (step !== 'gpsLoading') return;
         if (!navigator.geolocation) {
-            toast.error('Geolocation not supported');
+            setPermDenied(true);
+            setStep('gpsDenied');
             return;
         }
-        setLocating(true);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude, longitude } = pos.coords;
-                const dist = haversineKm(latitude, longitude, RESTAURANT.lat, RESTAURANT.lng);
-                setLocating(false);
-                if (dist > MAX_DELIVERY_KM) {
-                    setStep('outOfRange');
-                } else {
-                    setCoords({ lat: latitude, lng: longitude });
-                    setLocationName('Current Location');
-                    setStep('form');
-                    toast.success('Location detected!');
-                }
-            },
-            () => {
-                setLocating(false);
-                toast.error('Could not detect location. Try selecting manually.');
-            },
-            { enableHighAccuracy: true, timeout: 10000 },
-        );
-    };
 
-    const handleSelectManualLocation = (loc: { name: string; lat: number; lng: number }) => {
-        const dist = haversineKm(loc.lat, loc.lng, RESTAURANT.lat, RESTAURANT.lng);
-        if (dist > MAX_DELIVERY_KM) {
-            setStep('outOfRange');
+        const tryGps = () => {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    const dist = haversineKm(latitude, longitude, RESTAURANT.lat, RESTAURANT.lng);
+                    if (dist > MAX_DELIVERY_KM) {
+                        setDistanceInfo({ distance: Math.round(dist * 10) / 10 });
+                        setStep('outOfRange');
+                    } else {
+                        setCoords({ lat: latitude, lng: longitude });
+                        setStep('form');
+                        toast.success('Location detected!');
+                    }
+                },
+                (err) => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        setPermDenied(true);
+                    }
+                    setStep('gpsDenied');
+                },
+                { enableHighAccuracy: true, timeout: 10000 },
+            );
+        };
+
+        if (navigator.permissions) {
+            navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'denied') {
+                    setPermDenied(true);
+                    setStep('gpsDenied');
+                } else {
+                    tryGps();
+                }
+            }).catch(() => {
+                tryGps();
+            });
         } else {
-            setCoords({ lat: loc.lat, lng: loc.lng });
-            setLocationName(loc.name);
-            setStep('form');
+            tryGps();
+        }
+    }, [step, RESTAURANT.lat, RESTAURANT.lng, MAX_DELIVERY_KM]);
+
+    // ── Listen for permission state changes (user resets in browser settings) ──
+    useEffect(() => {
+        if (!navigator.permissions) return;
+
+        let permStatus: PermissionStatus | null = null;
+
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+            permStatus = result;
+            const onChange = () => {
+                if (result.state === 'granted' || result.state === 'prompt') {
+                    // Permission was reset — auto-retry GPS if we're on the denied step
+                    setPermDenied(false);
+                    if (step === 'gpsDenied') {
+                        setStep('gpsLoading');
+                        toast('Location permission updated! Retrying...', { icon: '📍' });
+                    }
+                }
+            };
+            result.addEventListener('change', onChange);
+            return () => result.removeEventListener('change', onChange);
+        }).catch(() => {});
+
+        return () => {
+            // Cleanup is handled inside the promise
+        };
+    }, [step]);
+
+    const handleRetryGps = () => {
+        // Check if permission is still denied before retrying
+        if (navigator.permissions) {
+            navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'denied') {
+                    toast('Location is still blocked. Please reset it in browser settings (click 🔒 icon in address bar).', { icon: '⚠️', duration: 5000 });
+                } else {
+                    setPermDenied(false);
+                    setStep('gpsLoading');
+                }
+            }).catch(() => {
+                setStep('gpsLoading');
+            });
+        } else {
+            setStep('gpsLoading');
         }
     };
 
@@ -121,22 +172,31 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         else if (name.trim().length < 2) errs.name = 'Name too short';
         if (!phone.trim()) errs.phone = 'Phone number is required';
         else if (!/^[6-9]\d{9}$/.test(phone.trim())) errs.phone = 'Enter valid 10-digit number';
-        if (!addressLine.trim()) errs.addressLine = 'Address is required';
+        if (!addressLine.trim()) errs.addressLine = 'Detailed address is required';
         else if (addressLine.trim().length < 5) errs.addressLine = 'Address too short';
+        if (!cityVillage.trim()) errs.cityVillage = 'City / Village is required';
+        else if (cityVillage.trim().length < 2) errs.cityVillage = 'Too short';
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
 
     const handleSave = async () => {
-        if (!validate() || !coords) return;
+        if (!validate()) return;
 
         setSaving(true);
         try {
+            // Combine the 3 address fields into a single addressLine for the backend
+            const fullAddress = [
+                addressLine.trim(),
+                cityVillage.trim(),
+                nearbyPlace.trim() ? `Near ${nearbyPlace.trim()}` : '',
+            ].filter(Boolean).join(', ');
+
             const payload: AddAddressPayload = {
                 label,
-                addressLine: `${addressLine.trim()}${locationName && locationName !== 'Current Location' ? `, ${locationName}` : ''}`,
-                landmark: landmark.trim() || undefined,
-                coordinates: coords,
+                addressLine: fullAddress,
+                landmark: nearbyPlace.trim() || undefined,
+                ...(coords && { coordinates: coords }),
                 isDefault: addresses.length === 0,
             };
             await userService.addAddress(payload);
@@ -164,7 +224,6 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
 
     const labelIcons: Record<string, typeof Home> = { Home, Work: Briefcase, Other: MapPin };
 
-    // Inline input style helper
     const inputStyle = (hasError: boolean): React.CSSProperties => ({
         width: '100%', border: `1.5px solid ${hasError ? '#DC2626' : '#E0E0DC'}`, borderRadius: 10,
         padding: '0.6rem 0.9rem', fontSize: '0.85rem', fontFamily: 'Inter, sans-serif',
@@ -174,6 +233,26 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
 
     const errorText = (msg?: string) =>
         msg ? <p style={{ fontSize: '0.7rem', color: '#DC2626', marginTop: 3, fontWeight: 500 }}>{msg}</p> : null;
+
+    const getStepTitle = () => {
+        switch (step) {
+            case 'list': return 'Select Delivery Address';
+            case 'gpsLoading': return 'Fetching Location';
+            case 'gpsDenied': return 'Location Access Required';
+            case 'form': return 'Complete Address';
+            case 'outOfRange': return 'Out of Delivery Range';
+        }
+    };
+
+    const getStepSubtitle = () => {
+        switch (step) {
+            case 'list': return 'Choose or add a new address';
+            case 'gpsLoading': return 'Please wait, fetching your location...';
+            case 'gpsDenied': return 'Please allow location access to continue';
+            case 'form': return 'Fill in your delivery details';
+            case 'outOfRange': return 'Your location is too far';
+        }
+    };
 
     const sheet = (
         <div
@@ -208,18 +287,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                 }}>
                     <div>
                         <h3 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#0F0F0F' }}>
-                            {step === 'list' && 'Select Delivery Address'}
-                            {step === 'method' && 'Add Delivery Address'}
-                            {step === 'manual' && 'Select Your Area'}
-                            {step === 'form' && 'Complete Address'}
-                            {step === 'outOfRange' && 'Out of Delivery Range'}
+                            {getStepTitle()}
                         </h3>
                         <p style={{ fontSize: '0.75rem', color: '#8E8E8E', marginTop: 2 }}>
-                            {step === 'list' && 'Choose or add a new address'}
-                            {step === 'method' && 'How would you like to set your location?'}
-                            {step === 'manual' && 'Select your area to continue'}
-                            {step === 'form' && (locationName ? `Delivering to ${locationName}` : 'Fill in your details')}
-                            {step === 'outOfRange' && 'Your location is too far'}
+                            {getStepSubtitle()}
                         </p>
                     </div>
                     <button
@@ -294,7 +365,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
 
                             {/* Add new button */}
                             <button
-                                onClick={() => setStep('method')}
+                                onClick={() => setStep('gpsLoading')}
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: '0.5rem',
                                     padding: '0.8rem 1rem', borderRadius: 14,
@@ -308,136 +379,89 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                         </div>
                     )}
 
-                    {/* ─── STEP: METHOD ───────────────────────────────── */}
-                    {step === 'method' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.25rem' }}>
-                            {/* Use current location */}
-                            <button
-                                onClick={handleUseCurrentLocation}
-                                disabled={locating}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.85rem',
-                                    padding: '1rem 1.1rem', borderRadius: 16,
-                                    border: '2px solid #EEEEEE', background: 'white',
-                                    cursor: locating ? 'wait' : 'pointer', width: '100%',
-                                    textAlign: 'left', transition: 'all 0.15s',
-                                }}
-                            >
-                                <span style={{
-                                    width: 44, height: 44, borderRadius: 14,
-                                    background: '#EFF6FF', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    color: '#2563EB', flexShrink: 0,
-                                }}>
-                                    {locating ? <Loader2 size={20} className="animate-spin" /> : <Navigation size={20} />}
-                                </span>
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0F0F0F' }}>
-                                        {locating ? 'Detecting location...' : 'Use Current Location'}
-                                    </p>
-                                    <p style={{ fontSize: '0.75rem', color: '#8E8E8E', marginTop: 2 }}>
-                                        Allow location access to auto-detect
-                                    </p>
-                                </div>
-                                <ChevronRight size={18} style={{ color: '#D4D4D0', flexShrink: 0 }} />
-                            </button>
+                    {/* ─── STEP: GPS LOADING ────────────────────────────── */}
+                    {step === 'gpsLoading' && (
+                        <div style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                            textAlign: 'center', padding: '2.5rem 1rem',
+                        }}>
+                            <span style={{
+                                width: 64, height: 64, borderRadius: 20, background: '#EFF6FF',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#2563EB', marginBottom: '1.25rem',
+                            }}>
+                                <Loader2 size={28} className="animate-spin" />
+                            </span>
+                            <h4 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.05rem', color: '#0F0F0F', marginBottom: 6 }}>
+                                Fetching your location...
+                            </h4>
+                            <p style={{ fontSize: '0.82rem', color: '#8E8E8E', lineHeight: 1.5, maxWidth: 280 }}>
+                                Please allow location access when prompted by your browser
+                            </p>
+                        </div>
+                    )}
 
-                            {/* Select manually */}
-                            <button
-                                onClick={() => setStep('manual')}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.85rem',
-                                    padding: '1rem 1.1rem', borderRadius: 16,
-                                    border: '2px solid #EEEEEE', background: 'white',
-                                    cursor: 'pointer', width: '100%',
-                                    textAlign: 'left', transition: 'all 0.15s',
-                                }}
-                            >
-                                <span style={{
-                                    width: 44, height: 44, borderRadius: 14,
-                                    background: '#FFFBF0', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    color: '#E8A317', flexShrink: 0,
-                                }}>
-                                    <MapPin size={20} />
-                                </span>
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0F0F0F' }}>Select Manually</p>
-                                    <p style={{ fontSize: '0.75rem', color: '#8E8E8E', marginTop: 2 }}>
-                                        Choose from predefined areas
-                                    </p>
-                                </div>
-                                <ChevronRight size={18} style={{ color: '#D4D4D0', flexShrink: 0 }} />
-                            </button>
+                    {/* ─── STEP: GPS DENIED ────────────────────────────── */}
+                    {step === 'gpsDenied' && (
+                        <div style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                            textAlign: 'center', padding: '1.5rem 0.5rem',
+                        }}>
+                            <span style={{
+                                width: 60, height: 60, borderRadius: 20, background: '#FEF2F2',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#DC2626', marginBottom: '1rem',
+                            }}>
+                                <LocateFixed size={28} />
+                            </span>
+                            <h4 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.05rem', color: '#0F0F0F', marginBottom: 6 }}>
+                                Location Access Required
+                            </h4>
+                            <p style={{ fontSize: '0.82rem', color: '#4A4A4A', lineHeight: 1.5, maxWidth: 300 }}>
+                                Please allow location access to proceed with your order. We need your location to check if delivery is available in your area.
+                            </p>
 
+                            {/* Instructions to reset browser permission */}
+                            <div style={{
+                                marginTop: '0.75rem', padding: '0.65rem 0.85rem', borderRadius: 12,
+                                background: '#FFFBEB', border: '1px solid #FDE68A',
+                                textAlign: 'left', width: '100%',
+                            }}>
+                                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#92400E', marginBottom: 4 }}>
+                                    💡 How to enable location:
+                                </p>
+                                <ol style={{ fontSize: '0.7rem', color: '#78350F', lineHeight: 1.6, margin: 0, paddingLeft: '1.1rem' }}>
+                                    <li>Click the 🔒 lock icon in your browser's address bar</li>
+                                    <li>Find <b>Location</b> and change it to <b>Allow</b></li>
+                                    <li>Refresh the page and try again</li>
+                                </ol>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', width: '100%' }}>
+                                <button
+                                    onClick={handleRetryGps}
+                                    style={{
+                                        flex: 1, padding: '0.7rem', borderRadius: 12,
+                                        border: 'none', background: '#E8A317', color: 'white',
+                                        fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    }}
+                                >
+                                    <Navigation size={15} /> Try Again
+                                </button>
+                            </div>
                             {addresses.length > 0 && (
                                 <button
                                     onClick={() => setStep('list')}
                                     style={{
                                         fontSize: '0.8rem', color: '#2563EB', fontWeight: 600,
                                         background: 'none', border: 'none', cursor: 'pointer',
-                                        padding: '0.5rem 0', textAlign: 'center',
+                                        padding: '0.75rem 0 0', textAlign: 'center',
                                     }}
                                 >
                                     ← Back to saved addresses
                                 </button>
                             )}
-                        </div>
-                    )}
-
-                    {/* ─── STEP: MANUAL ───────────────────────────────── */}
-                    {step === 'manual' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                            <p style={{ fontSize: '0.78rem', color: '#8E8E8E', marginBottom: '0.25rem' }}>
-                                Select your area to check delivery availability
-                            </p>
-                            {predefinedLocations.map((loc) => {
-                                const dist = haversineKm(loc.lat, loc.lng, RESTAURANT.lat, RESTAURANT.lng);
-                                const deliverable = dist <= MAX_DELIVERY_KM;
-                                return (
-                                    <button
-                                        key={loc._id}
-                                        onClick={() => handleSelectManualLocation(loc)}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                            padding: '0.85rem 1rem', borderRadius: 14,
-                                            border: '1.5px solid #EEEEEE', background: 'white',
-                                            cursor: 'pointer', width: '100%', textAlign: 'left',
-                                            opacity: deliverable ? 1 : 0.5,
-                                            transition: 'all 0.15s',
-                                        }}
-                                    >
-                                        <span style={{
-                                            width: 36, height: 36, borderRadius: 10,
-                                            background: deliverable ? '#F0FDF4' : '#FEF2F2',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            color: deliverable ? '#16A34A' : '#DC2626', flexShrink: 0,
-                                        }}>
-                                            <MapPin size={16} />
-                                        </span>
-                                        <div style={{ flex: 1 }}>
-                                            <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F0F0F' }}>
-                                                {loc.name}
-                                            </p>
-                                            <p style={{ fontSize: '0.7rem', color: deliverable ? '#16A34A' : '#DC2626', fontWeight: 500, marginTop: 1 }}>
-                                                {deliverable ? `${Math.round(dist)} km away — Delivery available` : `${Math.round(dist)} km — Out of range`}
-                                            </p>
-                                        </div>
-                                        <ChevronRight size={16} style={{ color: '#D4D4D0', flexShrink: 0 }} />
-                                    </button>
-                                );
-                            })}
-
-                            <button
-                                onClick={() => setStep('method')}
-                                style={{
-                                    fontSize: '0.8rem', color: '#8E8E8E', fontWeight: 600,
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    padding: '0.5rem 0', textAlign: 'center', marginTop: '0.25rem',
-                                }}
-                            >
-                                ← Back
-                            </button>
                         </div>
                     )}
 
@@ -458,28 +482,19 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 Delivery Only Within {MAX_DELIVERY_KM} km
                             </h4>
                             <p style={{ fontSize: '0.82rem', color: '#4A4A4A', lineHeight: 1.5, maxWidth: 300 }}>
-                                Sorry, your selected location is beyond our delivery range. Please choose a location within {MAX_DELIVERY_KM} km of our restaurant.
+                                Sorry, your location is <strong>{distanceInfo ? `${distanceInfo.distance} km` : 'too far'}</strong> away from our restaurant.
+                                We only deliver within {MAX_DELIVERY_KM} km.
                             </p>
                             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', width: '100%' }}>
                                 <button
-                                    onClick={() => setStep('manual')}
+                                    onClick={handleRetryGps}
                                     style={{
                                         flex: 1, padding: '0.65rem', borderRadius: 12,
                                         border: '1.5px solid #E0E0DC', background: 'white',
                                         color: '#4A4A4A', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
                                     }}
                                 >
-                                    Try Another Area
-                                </button>
-                                <button
-                                    onClick={() => setStep('method')}
-                                    style={{
-                                        flex: 1, padding: '0.65rem', borderRadius: 12,
-                                        border: '1.5px solid #E8A317', background: '#FFFBF0',
-                                        color: '#E8A317', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                                    }}
-                                >
-                                    Use GPS Instead
+                                    Try GPS Again
                                 </button>
                             </div>
                         </div>
@@ -489,20 +504,18 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                     {step === 'form' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', marginTop: '0.25rem' }}>
 
-                            {/* Location badge */}
-                            {locationName && (
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                    padding: '0.5rem 0.75rem', borderRadius: 10,
-                                    background: '#F0FDF4', border: '1px solid #BBF7D0',
-                                }}>
-                                    <MapPin size={13} style={{ color: '#16A34A' }} />
-                                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#16A34A' }}>
-                                        {locationName}
-                                    </span>
-                                    <Check size={12} style={{ color: '#16A34A', marginLeft: 'auto' }} />
-                                </div>
-                            )}
+                            {/* Location detected badge */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                padding: '0.5rem 0.75rem', borderRadius: 10,
+                                background: '#F0FDF4', border: '1px solid #BBF7D0',
+                            }}>
+                                <MapPin size={13} style={{ color: '#16A34A' }} />
+                                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#16A34A' }}>
+                                    Location verified — delivery available
+                                </span>
+                                <Check size={12} style={{ color: '#16A34A', marginLeft: 'auto' }} />
+                            </div>
 
                             {/* Name */}
                             <div>
@@ -570,10 +583,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 </div>
                             </div>
 
-                            {/* Full Address */}
+                            {/* Detailed Address */}
                             <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6, display: 'block' }}>
-                                    Full Address *
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
+                                    <Home size={12} /> Detailed Address *
                                 </label>
                                 <input
                                     type="text"
@@ -586,16 +599,32 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 {errorText(errors.addressLine)}
                             </div>
 
-                            {/* Landmark */}
+                            {/* City / Village */}
                             <div>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6, display: 'block' }}>
-                                    Landmark (optional)
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
+                                    <Building2 size={12} /> City / Village Name *
                                 </label>
                                 <input
                                     type="text"
-                                    value={landmark}
-                                    onChange={(e) => setLandmark(e.target.value)}
-                                    placeholder="Near temple, school, park..."
+                                    value={cityVillage}
+                                    onChange={(e) => { setCityVillage(e.target.value); setErrors((p) => ({ ...p, cityVillage: '' })); }}
+                                    placeholder="e.g. Bijnor, Nagina, Najibabad..."
+                                    maxLength={100}
+                                    style={inputStyle(!!errors.cityVillage)}
+                                />
+                                {errorText(errors.cityVillage)}
+                            </div>
+
+                            {/* Famous Nearby Place */}
+                            <div>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
+                                    <Landmark size={12} /> Famous Nearby Place (optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={nearbyPlace}
+                                    onChange={(e) => setNearbyPlace(e.target.value)}
+                                    placeholder="Near temple, school, park, hospital..."
                                     maxLength={100}
                                     style={inputStyle(false)}
                                 />
@@ -618,7 +647,10 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                             </button>
 
                             <button
-                                onClick={() => setStep('method')}
+                                onClick={() => {
+                                    if (addresses.length > 0) setStep('list');
+                                    else setStep('gpsLoading');
+                                }}
                                 style={{
                                     fontSize: '0.78rem', color: '#8E8E8E', fontWeight: 600,
                                     background: 'none', border: 'none', cursor: 'pointer',

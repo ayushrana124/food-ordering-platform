@@ -5,7 +5,7 @@ export interface IAddress {
     label: 'Home' | 'Work' | 'Other';
     addressLine: string;
     landmark?: string;
-    coordinates: { lat: number; lng: number };
+    coordinates?: { lat: number; lng: number };
     isDefault: boolean;
 }
 
@@ -60,15 +60,7 @@ export interface IMenuItem {
     customizations: ICustomizationGroup[];
 }
 
-export interface IDeliveryLocation {
-    _id: string;
-    name: string;
-    lat: number;
-    lng: number;
-    isActive: boolean;
-    displayOrder: number;
-    createdAt?: string;
-}
+
 
 export interface IRestaurant {
     _id: string;
@@ -89,6 +81,7 @@ export interface IRestaurant {
         close: string;
     };
     rating?: number;
+    avgPreparationTime?: string;
 }
 
 export interface IOffer {
@@ -159,6 +152,7 @@ export interface IOrder {
     preparationTime?: number;
     estimatedDeliveryTime?: string;
     rejectionReason?: string;
+    cancelledBy?: 'CUSTOMER' | 'RESTAURANT';
     statusHistory?: Array<{ status: string; timestamp: string; note?: string }>;
     createdAt: string;
     updatedAt: string;

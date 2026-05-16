@@ -27,7 +27,27 @@ app.set('trust proxy', 1);
 
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: config.clientUrl, credentials: true }));
+
+const allowedOrigins = [
+  config.clientUrl,
+  "http://localhost:5173",
+];
+
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.replace(/\/$/, "");
+
+    if (allowedOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+}));
 
 // Raw body for Razorpay webhook signature verification (must come BEFORE json parser)
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));

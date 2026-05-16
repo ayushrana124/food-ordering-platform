@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, Search, Filter } from 'lucide-react';
+import { ClipboardList, Filter } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
@@ -8,11 +8,30 @@ import AdminPagination from '@/components/admin/ui/AdminPagination';
 import AdminEmptyState from '@/components/admin/ui/AdminEmptyState';
 import OrderDetailModal from '@/components/admin/OrderDetailModal';
 import { getOrders, type IAdminOrder, type OrderFilters } from '@/services/adminApi';
-import { useAdminSocket } from '@/hooks/useAdminSocket';
+import { useAdminContext } from '@/contexts/AdminContext';
 import toast from 'react-hot-toast';
 
 const STATUS_OPTIONS = ['', 'PENDING', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 const PAYMENT_OPTIONS = ['', 'COD', 'ONLINE'];
+
+/** Background color based on order status — each status gets its own tint */
+const getRowBg = (status: string): string => {
+    switch (status) {
+        case 'PENDING': return '#FFFDE7';        // yellow — unaccepted
+        case 'ACCEPTED': return '#EFF6FF';        // blue
+        case 'PREPARING': return '#F5F3FF';       // purple
+        case 'OUT_FOR_DELIVERY': return '#FFF7ED'; // orange
+        case 'DELIVERED': return '#F0FDF4';        // green
+        case 'CANCELLED': return '#FEF2F2';       // red
+        default: return 'white';
+    }
+};
+
+/** Border accent for pending (unaccepted) orders */
+const getPendingHighlight = (status: string) =>
+    status === 'PENDING'
+        ? { borderLeft: '4px solid #D97706', boxShadow: '0 0 0 1px #FDE68A inset' }
+        : {};
 
 export default function Orders() {
     const [orders, setOrders] = useState<IAdminOrder[]>([]);
@@ -21,6 +40,7 @@ export default function Orders() {
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<OrderFilters>({ status: '', paymentMethod: '', search: '', page: 1, limit: 15 });
     const [selectedOrder, setSelectedOrder] = useState<IAdminOrder | null>(null);
+    const { refreshActiveOrders } = useAdminContext();
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -38,18 +58,30 @@ export default function Orders() {
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-    const { onRefresh } = useAdminSocket({
-        onNewOrder: (data) => {
-            toast.success(`New order #${data.orderNumber || ''}`, { duration: 5000 });
-        },
-        onOrderCancelled: (data) => {
-            toast.error(`Order #${data.orderNumber || ''} cancelled`, { duration: 5000 });
-        },
-    });
-    useEffect(() => { onRefresh(fetchOrders); }, [onRefresh, fetchOrders]);
+    // Listen for context-level refreshes (socket events trigger refreshActiveOrders in context,
+    // but we also need to refresh our local order list)
+    useEffect(() => {
+        // Poll for updates alongside context socket — re-fetch when window regains focus
+        const handler = () => { fetchOrders(); };
+        window.addEventListener('focus', handler);
+        return () => window.removeEventListener('focus', handler);
+    }, [fetchOrders]);
+
+    // Also re-fetch orders whenever context refreshes active orders (socket events)
+    // We use a custom event to bridge context socket → Orders page
+    useEffect(() => {
+        const handler = () => { fetchOrders(); refreshActiveOrders(); };
+        window.addEventListener('admin:orders-changed', handler);
+        return () => window.removeEventListener('admin:orders-changed', handler);
+    }, [fetchOrders, refreshActiveOrders]);
 
     const setFilter = (key: keyof OrderFilters, value: string | number) => {
         setFilters((prev) => ({ ...prev, [key]: value, page: key === 'page' ? Number(value) : 1 }));
+    };
+
+    const handleOrderRefresh = () => {
+        fetchOrders();
+        refreshActiveOrders();
     };
 
     return (
@@ -91,7 +123,7 @@ export default function Orders() {
             </AdminCard>
 
             {/* Desktop Table */}
-            <div className="hidden md:block">
+            <div className="hidden md:block min-w-0">
                 <AdminCard padding={false}>
                     <div className="overflow-x-auto">
                         <table className="w-full text-[0.85rem]">
@@ -116,12 +148,18 @@ export default function Orders() {
                                         PENDING: '#D97706', ACCEPTED: '#2563EB', PREPARING: '#7C3AED',
                                         OUT_FOR_DELIVERY: '#EA580C', DELIVERED: '#16A34A', CANCELLED: '#DC2626',
                                     };
+                                    const isPending = order.orderStatus === 'PENDING';
                                     return (
                                         <tr
                                             key={order._id}
-                                            className="border-t border-[#F0F0EE] hover:bg-[#FAFAF8] transition-colors cursor-pointer"
+                                            className="border-t border-[#F0F0EE] transition-colors cursor-pointer"
                                             onClick={() => setSelectedOrder(order)}
-                                            style={{ borderLeft: `3px solid ${statusColorMap[order.orderStatus] || '#D4D4D0'}` }}
+                                            style={{
+                                                background: getRowBg(order.orderStatus),
+                                                borderLeft: `3px solid ${statusColorMap[order.orderStatus] || '#D4D4D0'}`,
+                                                ...getPendingHighlight(order.orderStatus),
+                                                animation: isPending ? 'pendingPulse 3s ease-in-out infinite' : 'none',
+                                            }}
                                         >
                                             <td className="px-6 py-4 font-semibold text-[#0F0F0F]">#{order.orderId}</td>
                                             <td className="px-6 py-4">
@@ -137,6 +175,11 @@ export default function Orders() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <AdminBadge label={order.orderStatus} />
+                                                {order.orderStatus === 'CANCELLED' && (
+                                                    <p className="text-[0.65rem] font-semibold mt-1" style={{ color: order.cancelledBy === 'CUSTOMER' ? '#D97706' : '#DC2626' }}>
+                                                        {order.cancelledBy === 'CUSTOMER' ? 'By Customer' : order.cancelledBy === 'RESTAURANT' ? 'By Restaurant' : 'Unknown'}
+                                                    </p>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-[#8E8E8E] text-[0.8rem] whitespace-nowrap">
                                                 {new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
@@ -158,13 +201,30 @@ export default function Orders() {
                 ) : orders.length === 0 ? (
                     <AdminEmptyState icon={ClipboardList} title="No orders found" description="Try adjusting your filters" />
                 ) : orders.map((order) => (
-                    <AdminCard key={order._id} hover onClick={() => setSelectedOrder(order)} className="!p-4">
+                    <AdminCard
+                        key={order._id}
+                        hover
+                        onClick={() => setSelectedOrder(order)}
+                        className="!p-4"
+                        style={{
+                            background: getRowBg(order.orderStatus),
+                            ...getPendingHighlight(order.orderStatus),
+                            animation: order.orderStatus === 'PENDING' ? 'pendingPulse 3s ease-in-out infinite' : 'none',
+                        }}
+                    >
                         <div className="flex items-start justify-between gap-2 mb-2">
                             <div>
                                 <p className="font-bold text-[0.9rem] text-[#0F0F0F]">#{order.orderId}</p>
                                 <p className="text-[0.78rem] text-[#8E8E8E]">{order.userId?.name || 'Guest'}</p>
                             </div>
-                            <AdminBadge label={order.orderStatus} />
+                            <div className="text-right">
+                                <AdminBadge label={order.orderStatus} />
+                                {order.orderStatus === 'CANCELLED' && (
+                                    <p className="text-[0.62rem] font-semibold mt-0.5" style={{ color: order.cancelledBy === 'CUSTOMER' ? '#D97706' : '#DC2626' }}>
+                                        {order.cancelledBy === 'CUSTOMER' ? 'By Customer' : order.cancelledBy === 'RESTAURANT' ? 'By Restaurant' : 'Unknown'}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center justify-between mt-2">
                             <p className="text-[0.82rem] text-[#4A4A4A] truncate flex-1 mr-3">
@@ -187,9 +247,16 @@ export default function Orders() {
                 <OrderDetailModal
                     order={selectedOrder}
                     onClose={() => setSelectedOrder(null)}
-                    onRefresh={fetchOrders}
+                    onRefresh={handleOrderRefresh}
                 />
             )}
+
+            <style>{`
+                @keyframes pendingPulse {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
+                    50% { box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12); }
+                }
+            `}</style>
         </AdminLayout>
     );
 }

@@ -4,8 +4,6 @@ interface Config {
     mongodbUri: string;
     jwtSecret: string;
     jwtExpire: string;
-    smsApiUrl: string;
-    smsApiKey: string;
     razorpayKeyId: string;
     razorpayKeySecret: string;
     razorpayWebhookSecret: string;
@@ -13,9 +11,7 @@ interface Config {
     cloudinaryApiKey: string;
     cloudinaryApiSecret: string;
     clientUrl: string;
-    otpCooldown: number; // minutes
-    otpExpiry: number; // minutes
-    useDummyOtp: boolean; // Set to true to bypass real SMS API (for dev without DLT)
+    useDummyPayment: boolean; // Set to true to bypass Razorpay (for dev/testing)
 }
 
 const config: Config = {
@@ -24,10 +20,6 @@ const config: Config = {
     mongodbUri: process.env.MONGODB_URI || '',
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     jwtExpire: process.env.JWT_EXPIRE || '7d',
-
-    // SMS Configuration (2Factor.in)
-    smsApiUrl: process.env.SMS_API_URL || 'https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}',
-    smsApiKey: process.env.SMS_API_KEY || '',
 
     // Razorpay Configuration
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
@@ -42,13 +34,9 @@ const config: Config = {
     // Client URL
     clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 
-    // OTP Configuration
-    otpCooldown: parseInt(process.env.OTP_COOLDOWN || '10', 10), // 10 minutes
-    otpExpiry: parseInt(process.env.OTP_EXPIRY || '5', 10), // 5 minutes
-
-    // Dummy OTP toggle — set USE_DUMMY_OTP=false when DLT registration is done
-    useDummyOtp: process.env.USE_DUMMY_OTP
-        ? process.env.USE_DUMMY_OTP === 'true'
+    // Dummy payment toggle — set USE_DUMMY_PAYMENT=false when Razorpay keys are ready
+    useDummyPayment: process.env.USE_DUMMY_PAYMENT
+        ? process.env.USE_DUMMY_PAYMENT === 'true'
         : (process.env.NODE_ENV || 'development') === 'development',
 };
 

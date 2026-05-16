@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ShoppingBag, Pizza, MapPin, Plus, UtensilsCrossed,
-    ChevronRight, Tag, X, Percent, ChevronDown, Lock,
+    ChevronRight, Tag, X, Percent, ChevronDown, Lock, IndianRupee
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -341,66 +341,84 @@ export default function CartPage() {
                             {showCoupons && (
                                 <div style={{ borderTop: '1px solid #F0F0EE' }}>
                                     {availableCoupons.length === 0 ? (
-                                        <p style={{ padding: '1rem 1.25rem', fontSize: '0.82rem', color: '#8E8E8E', textAlign: 'center' }}>
-                                            No coupons available right now
+                                        <p style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#8E8E8E', textAlign: 'center' }}>
+                                            No coupons available right now.
                                         </p>
                                     ) : (
-                                        availableCoupons.map((coupon) => (
-                                            <div
-                                                key={coupon.code}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center',
-                                                    padding: '0.75rem 1.25rem', gap: '0.75rem',
-                                                    borderBottom: '1px solid #F7F7F5',
-                                                    opacity: coupon.eligible ? 1 : 0.55,
-                                                }}
-                                            >
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: 2 }}>
-                                                        <span style={{
-                                                            fontWeight: 800, fontSize: '0.78rem', color: '#E8A317',
-                                                            letterSpacing: '0.05em', background: '#FFFBF0',
-                                                            padding: '1px 6px', borderRadius: 4,
-                                                            border: '1px dashed #E8A317',
-                                                        }}>
-                                                            {coupon.code}
-                                                        </span>
-                                                    </div>
-                                                    <p style={{ fontWeight: 600, fontSize: '0.8rem', color: '#0F0F0F', lineHeight: 1.3 }}>
-                                                        {coupon.title}
-                                                    </p>
-                                                    {coupon.description && (
-                                                        <p style={{ fontSize: '0.7rem', color: '#8E8E8E', marginTop: 1 }}>
-                                                            {coupon.description}
-                                                        </p>
-                                                    )}
-                                                    {coupon.eligible ? (
-                                                        <p style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 600, marginTop: 2 }}>
-                                                            You save ₹{coupon.savings}
-                                                        </p>
-                                                    ) : (
-                                                        <p style={{ fontSize: '0.7rem', color: '#DC2626', fontWeight: 500, marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                                            <Lock size={9} /> {coupon.reason}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    onClick={() => handleApplyCoupon(coupon.code)}
-                                                    disabled={!coupon.eligible || couponLoading}
+                                        availableCoupons.map((coupon) => {
+                                            const isFlat = coupon.discountType === 'FLAT';
+                                            return (
+                                                <div
+                                                    key={coupon.code}
                                                     style={{
-                                                        padding: '0.35rem 0.75rem', borderRadius: 8,
-                                                        border: coupon.eligible ? '1.5px solid #16A34A' : '1px solid #D4D4D0',
-                                                        background: coupon.eligible ? '#F0FDF4' : '#F7F7F5',
-                                                        color: coupon.eligible ? '#16A34A' : '#8E8E8E',
-                                                        fontWeight: 700, fontSize: '0.72rem',
-                                                        cursor: coupon.eligible ? 'pointer' : 'not-allowed',
-                                                        flexShrink: 0,
+                                                        display: 'flex', alignItems: 'center',
+                                                        padding: '1rem 1.25rem', gap: '1rem',
+                                                        borderBottom: '1px solid #F7F7F5',
+                                                        backgroundColor: coupon.eligible ? '#FFFFFF' : '#FAFAF8',
+                                                        opacity: coupon.eligible ? 1 : 0.65,
                                                     }}
                                                 >
-                                                    {coupon.eligible ? 'Apply' : 'Locked'}
-                                                </button>
-                                            </div>
-                                        ))
+                                                    {/* Coupon Icon/Badge */}
+                                                    <div style={{
+                                                        width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
+                                                        background: coupon.eligible ? (isFlat ? '#FFFBF0' : '#EFF6FF') : '#F5F5F3',
+                                                        border: `1px solid ${coupon.eligible ? (isFlat ? '#FDE68A' : '#BFDBFE') : '#E5E5E5'}`,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        color: coupon.eligible ? (isFlat ? '#D97706' : '#2563EB') : '#8E8E8E'
+                                                    }}>
+                                                        {isFlat ? <IndianRupee size={18} /> : <Percent size={18} />}
+                                                    </div>
+
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                                            <span style={{
+                                                                fontWeight: 800, fontSize: '0.78rem', 
+                                                                color: coupon.eligible ? (isFlat ? '#D97706' : '#2563EB') : '#8E8E8E',
+                                                                letterSpacing: '0.05em', background: coupon.eligible ? 'transparent' : '#F5F5F3',
+                                                                padding: '1px 6px', borderRadius: '6px',
+                                                                border: `1px dashed ${coupon.eligible ? (isFlat ? '#D97706' : '#2563EB') : '#D4D4D0'}`,
+                                                                display: 'inline-block'
+                                                            }}>
+                                                                {coupon.code}
+                                                            </span>
+                                                        </div>
+                                                        <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F0F0F', lineHeight: 1.3, marginBottom: '2px' }}>
+                                                            {coupon.title}
+                                                        </p>
+                                                        {coupon.description && (
+                                                            <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '2px' }}>
+                                                                {coupon.description}
+                                                            </p>
+                                                        )}
+                                                        {coupon.eligible ? (
+                                                            <p style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 700, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <Tag size={12} /> You save ₹{coupon.savings}
+                                                            </p>
+                                                        ) : (
+                                                            <p style={{ fontSize: '0.72rem', color: '#DC2626', fontWeight: 600, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <Lock size={10} /> {coupon.reason}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleApplyCoupon(coupon.code)}
+                                                        disabled={!coupon.eligible || couponLoading}
+                                                        style={{
+                                                            padding: '0.5rem 1rem', borderRadius: '10px',
+                                                            border: coupon.eligible ? '1.5px solid #16A34A' : '1px solid #D4D4D0',
+                                                            background: coupon.eligible ? '#F0FDF4' : '#F7F7F5',
+                                                            color: coupon.eligible ? '#16A34A' : '#8E8E8E',
+                                                            fontWeight: 800, fontSize: '0.75rem',
+                                                            cursor: coupon.eligible ? 'pointer' : 'not-allowed',
+                                                            flexShrink: 0, transition: 'all 0.2s',
+                                                            boxShadow: coupon.eligible ? '0 2px 8px rgba(22, 163, 74, 0.1)' : 'none'
+                                                        }}
+                                                    >
+                                                        {coupon.eligible ? 'APPLY' : 'LOCKED'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
                                     )}
                                 </div>
                             )}

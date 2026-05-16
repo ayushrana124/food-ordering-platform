@@ -273,7 +273,7 @@ export const removeItem = async (req: Request, res: Response): Promise<void> => 
     try {
         if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
 
-        const { itemId } = req.params;
+        const { itemId } = req.params as { itemId: string };
         if (!mongoose.Types.ObjectId.isValid(itemId)) {
             res.status(400).json({ message: 'Invalid item ID' }); return;
         }

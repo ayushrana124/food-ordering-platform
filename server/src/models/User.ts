@@ -5,7 +5,7 @@ export interface IAddress {
     label: 'Home' | 'Work' | 'Other';
     addressLine: string;
     landmark?: string;
-    coordinates: {
+    coordinates?: {
         lat: number;
         lng: number;
     };
@@ -52,8 +52,8 @@ const userSchema = new Schema<IUser>({
         },
         landmark: String,
         coordinates: {
-            lat: { type: Number, required: true },
-            lng: { type: Number, required: true }
+            lat: { type: Number },
+            lng: { type: Number }
         },
         isDefault: {
             type: Boolean,

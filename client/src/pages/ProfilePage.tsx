@@ -35,6 +35,15 @@ export default function ProfilePage() {
     const [email, setEmail] = useState(user?.email ?? '');
     const [addresses, setAddresses] = useState<IAddress[]>(user?.addresses ?? []);
 
+    // Sync state when user loads after initial render
+    useEffect(() => {
+        if (user) {
+            setName((prev) => prev || user.name || '');
+            setEmail((prev) => prev || user.email || '');
+            setAddresses((prev) => prev.length ? prev : user.addresses ?? []);
+        }
+    }, [user]);
+
     useEffect(() => {
         if (tab === 'orders') {
             setOrdersLoading(true);
@@ -75,7 +84,16 @@ export default function ProfilePage() {
         { key: 'orders', label: 'Orders', icon: Package },
     ];
 
-    const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-[#FAFAF8]">
+                <Navbar />
+                <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
+            </div>
+        );
+    }
+
+    const initial = (user.name || user.phone || '?')[0].toUpperCase();
     const memberSince = user?.createdAt
         ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
         : '';

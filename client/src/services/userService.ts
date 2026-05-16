@@ -10,7 +10,7 @@ export interface AddAddressPayload {
     label: 'Home' | 'Work' | 'Other';
     addressLine: string;
     landmark?: string;
-    coordinates: { lat: number; lng: number };
+    coordinates?: { lat: number; lng: number };
     isDefault?: boolean;
 }
 
@@ -42,4 +42,6 @@ export const userService = {
         const res = await api.delete<{ message: string }>(`/users/address/${addressId}`);
         return res.data;
     },
+
+
 };

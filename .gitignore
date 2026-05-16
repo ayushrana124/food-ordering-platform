@@ -31,6 +31,10 @@ temp/
 # Testing
 coverage/
 
+# Firebase service account keys
+**/serviceAccountKey.json
+**/*firebase-adminsdk*.json
+
 # Misc
 *.bak
 *.tmp

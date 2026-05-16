@@ -1,74 +1,108 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
-import OTP from '../models/OTP';
 import config from '../config/config';
-import { sendOTP } from '../services/smsService';
+import { firebaseAuth } from '../config/firebaseAdmin';
 
-// Send OTP
-export const sendOTPController = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { phone } = req.body;
+// ─── Security: In-memory set of consumed Firebase token JTIs to prevent replay attacks ───
+// In production with multiple server instances, replace with Redis or a DB-backed store.
+const consumedTokenIds = new Set<string>();
+const TOKEN_ID_TTL_MS = 10 * 60 * 1000; // Keep IDs for 10 minutes then auto-purge
 
-        // Validate phone number (Indian format)
-        if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
-            res.status(400).json({ message: 'Invalid phone number. Please enter a valid 10-digit Indian mobile number.' });
-            return;
+// Periodically purge old token IDs to prevent memory leaks
+const tokenTimestamps = new Map<string, number>();
+setInterval(() => {
+    const now = Date.now();
+    for (const [tokenId, timestamp] of tokenTimestamps) {
+        if (now - timestamp > TOKEN_ID_TTL_MS) {
+            consumedTokenIds.delete(tokenId);
+            tokenTimestamps.delete(tokenId);
         }
-
-        // Check rate limiting - prevent OTP spam
-        const recentOTP = await OTP.findOne({
-            phone,
-            createdAt: { $gte: new Date(Date.now() - config.otpCooldown * 60 * 1000) }
-        });
-
-        if (recentOTP) {
-            res.status(429).json({
-                message: `Please wait ${config.otpCooldown} minutes before requesting another OTP`
-            });
-            return;
-        }
-
-        // Generate 6-digit OTP (fixed in dev mode for easy testing)
-        const otp = config.useDummyOtp
-            ? '123456'
-            : Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Save OTP to database (TTL index will auto-delete after 5 minutes)
-        await OTP.create({ phone, otp });
-
-        // Send OTP via SMS
-        await sendOTP(phone, otp);
-
-        res.status(200).json({
-            message: 'OTP sent successfully',
-            expiresIn: config.otpExpiry * 60 // seconds
-        });
-    } catch (error) {
-        console.error('Send OTP Error:', error);
-        res.status(500).json({ message: (error as Error).message || 'Failed to send OTP' });
     }
-};
+}, 60 * 1000); // Cleanup every minute
 
-// Verify OTP and login
-export const verifyOTPController = async (req: Request, res: Response): Promise<void> => {
+// Maximum age (in seconds) for a Firebase token to be accepted
+// Prevents stolen tokens from being used long after issuance
+const MAX_TOKEN_AGE_SECONDS = 5 * 60; // 5 minutes
+
+// Verify Firebase ID Token and login
+export const verifyFirebaseTokenController = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { phone, otp } = req.body;
+        const { idToken } = req.body;
 
-        if (!phone || !otp) {
-            res.status(400).json({ message: 'Phone number and OTP are required' });
+        if (!idToken || typeof idToken !== 'string') {
+            res.status(400).json({ message: 'Valid Firebase ID token is required' });
             return;
         }
 
-        // Find OTP record
-        const otpRecord = await OTP.findOne({ phone, otp });
-
-        if (!otpRecord) {
-            res.status(400).json({ message: 'Invalid or expired OTP' });
+        // ─── Basic input sanitization: reject absurdly long tokens ───
+        if (idToken.length > 5000) {
+            res.status(400).json({ message: 'Invalid token format' });
             return;
         }
 
-        // Find or create user
+        // ─── Verify the Firebase ID token using Admin SDK ───
+        let decodedToken;
+        try {
+            // checkRevoked: true ensures revoked tokens are rejected
+            decodedToken = await firebaseAuth.verifyIdToken(idToken, true);
+        } catch (firebaseError: unknown) {
+            const errCode = (firebaseError as { code?: string }).code;
+            console.error('Firebase token verification failed:', errCode);
+
+            if (errCode === 'auth/id-token-revoked') {
+                res.status(401).json({ message: 'Your session has been revoked. Please login again.' });
+            } else if (errCode === 'auth/id-token-expired') {
+                res.status(401).json({ message: 'Authentication expired. Please login again.' });
+            } else {
+                // Generic message — don't leak Firebase internals to the client
+                res.status(401).json({ message: 'Authentication failed. Please try again.' });
+            }
+            return;
+        }
+
+        // ─── Security: Token freshness check ───
+        // Reject tokens that were issued too long ago
+        const tokenAge = Math.floor(Date.now() / 1000) - decodedToken.auth_time;
+        if (tokenAge > MAX_TOKEN_AGE_SECONDS) {
+            res.status(401).json({ message: 'Authentication expired. Please login again.' });
+            return;
+        }
+
+        // ─── Security: Replay attack prevention ───
+        // Each Firebase ID token has a unique 'jti' — reject if already consumed
+        const tokenId = decodedToken.sub + '_' + decodedToken.iat;
+        if (consumedTokenIds.has(tokenId)) {
+            console.warn(`Replay attack detected for token: ${tokenId.slice(0, 20)}...`);
+            res.status(401).json({ message: 'Authentication token already used. Please login again.' });
+            return;
+        }
+        consumedTokenIds.add(tokenId);
+        tokenTimestamps.set(tokenId, Date.now());
+
+        // ─── Security: Verify the token is a phone-auth token ───
+        if (decodedToken.firebase?.sign_in_provider !== 'phone') {
+            res.status(400).json({ message: 'Only phone number authentication is supported' });
+            return;
+        }
+
+        // ─── Extract and validate phone number ───
+        const phoneNumber = decodedToken.phone_number;
+
+        if (!phoneNumber) {
+            res.status(400).json({ message: 'Phone number not found in authentication token' });
+            return;
+        }
+
+        // Normalize phone: strip country code (+91) to store 10 digits
+        const phone = phoneNumber.replace(/^\+91/, '');
+
+        if (!/^[6-9]\d{9}$/.test(phone)) {
+            res.status(400).json({ message: 'Invalid phone number' });
+            return;
+        }
+
+        // ─── Find or create user ───
         let user = await User.findOne({ phone });
 
         if (!user) {
@@ -87,10 +121,7 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
             await user.save();
         }
 
-        // Delete OTP after successful verification
-        await OTP.deleteOne({ _id: otpRecord._id });
-
-        // Generate JWT token
+        // ─── Generate JWT token ───
         const token = jwt.sign(
             { userId: user._id.toString(), phone: user.phone },
             config.jwtSecret,
@@ -109,8 +140,9 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
             }
         });
     } catch (error) {
-        console.error('Verify OTP Error:', error);
-        res.status(500).json({ message: (error as Error).message || 'Verification failed' });
+        console.error('Firebase Auth Error:', error);
+        // Generic message — never leak internal error details
+        res.status(500).json({ message: 'Authentication failed. Please try again.' });
     }
 };
 
@@ -144,6 +176,6 @@ export const refreshTokenController = async (req: Request, res: Response): Promi
         res.status(200).json({ token });
     } catch (error) {
         console.error('Refresh Token Error:', error);
-        res.status(500).json({ message: (error as Error).message || 'Failed to refresh token' });
+        res.status(500).json({ message: 'Failed to refresh token' });
     }
 };

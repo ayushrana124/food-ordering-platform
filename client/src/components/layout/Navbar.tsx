@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { User, Menu, X, ChefHat, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +11,6 @@ import StickyCartBar from '@/components/layout/StickyCartBar';
 export default function Navbar() {
     const { itemCount } = useCart();
     const { user, isAuthenticated } = useAuth();
-    const navigate = useNavigate();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
@@ -87,28 +86,10 @@ export default function Navbar() {
                     {/* Right side icons */}
                     <div className="ml-auto flex items-center gap-[0.5rem]">
 
-                        {/* Cart — desktop only */}
-                        {/* <Link
-                            to="/cart"
-                            className="hide-mobile relative w-[40px] h-[40px] rounded-xl flex items-center justify-center bg-transparent border-[1.5px] border-[#E0E0DC] text-[#4A4A4A] no-underline shrink-0 transition-all duration-250"
-                            onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = '#E8A317'; el.style.background = '#FFFBF0'; el.style.color = '#E8A317'; el.style.boxShadow = '0 2px 10px rgba(232,163,23,0.12)'; }}
-                            onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = '#E0E0DC'; el.style.background = 'transparent'; el.style.color = '#4A4A4A'; el.style.boxShadow = 'none'; }}
-                        >
-                            <ShoppingBag size={18} />
-                            {itemCount > 0 && (
-                                <span
-                                    className="absolute -top-[5px] -right-[5px] min-w-[18px] h-[18px] rounded-full bg-[#E8A317] text-white text-[0.6rem] font-extrabold flex items-center justify-center border-2 border-white font-ui px-1"
-                                    style={{ animation: 'scaleIn 0.3s var(--ease-spring)' }}
-                                >
-                                    {itemCount > 9 ? '9+' : itemCount}
-                                </span>
-                            )}
-                        </Link> */}
-
                         {/* Auth */}
                         {isAuthenticated ? (
                             <button
-                                onClick={() => setProfileOpen(true)}
+                                onClick={() => { setProfileOpen(true); setMenuOpen(false); }}
                                 className="w-[40px] h-[40px] rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-all duration-250 font-ui font-extrabold text-[0.9rem]"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFFBF0, #FFE4A3)',
@@ -133,7 +114,7 @@ export default function Navbar() {
                         {/* Hamburger — mobile only */}
                         <button
                             className="hide-desktop w-[40px] h-[40px] rounded-xl flex items-center justify-center bg-transparent border-[1.5px] border-[#E0E0DC] text-[#4A4A4A] shrink-0 transition-all duration-250"
-                            onClick={() => setMenuOpen((o) => !o)}
+                            onClick={() => { setMenuOpen((o) => !o); setProfileOpen(false); }}
                             aria-label="Menu"
                         >
                             {menuOpen ? <X size={18} /> : <Menu size={20} />}
@@ -233,7 +214,6 @@ export default function Navbar() {
                 <Link
                     to="/menu"
                     aria-label={`Cart (${itemCount} items)`}
-                    className="sm:hidden"
                     style={{
                         position: 'fixed',
                         bottom: 24,

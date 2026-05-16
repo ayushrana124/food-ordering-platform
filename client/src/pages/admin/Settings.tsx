@@ -7,41 +7,104 @@ import AdminToggle from '@/components/admin/ui/AdminToggle';
 import AdminSkeleton from '@/components/admin/ui/AdminSkeleton';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { updateRestaurant } from '@/services/adminApi';
-import type { IRestaurant } from '@/types';
 import toast from 'react-hot-toast';
 
 type TabKey = 'general' | 'delivery' | 'hours';
 
+// ── Local form shape (flat, easy to bind to inputs) ──────────────────────────
+interface FormData {
+    name: string;
+    description: string;
+    phone: string;
+    addressLine: string;        // flat string from address.addressLine
+    lat: number | '';                // from address.coordinates.lat
+    lng: number | '';                // from address.coordinates.lng
+    deliveryRadius: number | '';
+    minOrderAmount: number | '';
+    avgPreparationTime: number | ''; // backend calls it this, form shows as "Delivery Time"
+    isOpen: boolean;
+    openHour: string;           // simple open/close applied to all days
+    closeHour: string;
+}
+
+/** Extract flat form data from the raw backend restaurant object */
+function backendToForm(r: any): FormData {
+    return {
+        name: r.name ?? '',
+        description: r.description ?? '',
+        phone: r.phone ?? '',
+        addressLine: typeof r.address === 'string' ? r.address : r.address?.addressLine ?? '',
+        lat: r.address?.coordinates?.lat ?? r.coordinates?.lat ?? 0,
+        lng: r.address?.coordinates?.lng ?? r.coordinates?.lng ?? 0,
+        deliveryRadius: r.deliveryRadius ?? 10,
+        minOrderAmount: r.minOrderAmount ?? 0,
+        avgPreparationTime: r.avgPreparationTime ?? r.deliveryTime ?? 30,
+        isOpen: r.isOpen ?? true,
+        // Pull open/close from first available day, or fallback
+        openHour: r.openingHours?.monday?.open ?? r.openingHours?.open ?? '10:00',
+        closeHour: r.openingHours?.monday?.close ?? r.openingHours?.close ?? '23:00',
+    };
+}
+
+/** Convert flat form data back into the shape the backend expects */
+function formToPayload(f: FormData) {
+    const hours = { open: f.openHour, close: f.closeHour, isOpen: true };
+    return {
+        name: f.name,
+        description: f.description,
+        phone: f.phone,
+        address: {
+            addressLine: f.addressLine,
+            coordinates: { lat: Number(f.lat) || 0, lng: Number(f.lng) || 0 },
+        },
+        deliveryRadius: Number(f.deliveryRadius) || 0,
+        minOrderAmount: Number(f.minOrderAmount) || 0,
+        avgPreparationTime: Number(f.avgPreparationTime) || 0,
+        isOpen: f.isOpen,
+        openingHours: {
+            monday: hours,
+            tuesday: hours,
+            wednesday: hours,
+            thursday: hours,
+            friday: hours,
+            saturday: hours,
+            sunday: hours,
+        },
+    };
+}
+
 export default function Settings() {
-    const { restaurant: cachedRestaurant, fetchRestaurant, updateRestaurantCache } = useAdminContext();
-    const [restaurant, setRestaurant] = useState<IRestaurant | null>(null);
+    const { fetchRestaurant, updateRestaurantCache } = useAdminContext();
+    const [form, setForm] = useState<FormData | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>('general');
 
     useEffect(() => {
         (async () => {
-            const r = await fetchRestaurant();
-            if (r) setRestaurant({ ...r });
+            const r = await fetchRestaurant(true); // force fresh fetch
+            if (r) setForm(backendToForm(r));
             setLoading(false);
         })();
     }, [fetchRestaurant]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!restaurant) return;
+        if (!form) return;
         setSaving(true);
         try {
-            const res = await updateRestaurant(restaurant);
-            setRestaurant(res.restaurant);
+            const payload = formToPayload(form);
+            const res = await updateRestaurant(payload as any);
+            // Update local form from the exact response the server returned
+            setForm(backendToForm(res.restaurant));
             updateRestaurantCache(res.restaurant);
             toast.success('Settings saved!');
         } catch { toast.error('Failed to save'); }
         finally { setSaving(false); }
     };
 
-    const update = (key: keyof IRestaurant, value: unknown) => {
-        setRestaurant((prev) => prev ? { ...prev, [key]: value } : prev);
+    const set = <K extends keyof FormData>(key: K, value: FormData[K]) => {
+        setForm((prev) => prev ? { ...prev, [key]: value } : prev);
     };
 
     const tabs: { key: TabKey; label: string; icon: typeof Store }[] = [
@@ -50,7 +113,7 @@ export default function Settings() {
         { key: 'hours', label: 'Hours', icon: Clock },
     ];
 
-    if (loading || !restaurant) {
+    if (loading || !form) {
         return (
             <AdminLayout>
                 <AdminPageHeader title="Settings" subtitle="Restaurant configuration" icon={SettingsIcon} />
@@ -99,8 +162,8 @@ export default function Settings() {
                                 <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Restaurant Name</label>
                                 <input
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
-                                    value={restaurant.name}
-                                    onChange={(e) => update('name', e.target.value)}
+                                    value={form.name}
+                                    onChange={(e) => set('name', e.target.value)}
                                 />
                             </div>
                             <div>
@@ -108,8 +171,8 @@ export default function Settings() {
                                 <input
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                     type="tel"
-                                    value={restaurant.phone}
-                                    onChange={(e) => update('phone', e.target.value)}
+                                    value={form.phone}
+                                    onChange={(e) => set('phone', e.target.value)}
                                 />
                             </div>
                             <div className="md:col-span-2">
@@ -117,16 +180,16 @@ export default function Settings() {
                                 <textarea
                                     className="w-full px-4 py-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors resize-y"
                                     rows={3}
-                                    value={restaurant.description}
-                                    onChange={(e) => update('description', e.target.value)}
+                                    value={form.description}
+                                    onChange={(e) => set('description', e.target.value)}
                                 />
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Address</label>
                                 <input
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
-                                    value={restaurant.address}
-                                    onChange={(e) => update('address', e.target.value)}
+                                    value={form.addressLine}
+                                    onChange={(e) => set('addressLine', e.target.value)}
                                 />
                             </div>
                         </div>
@@ -146,8 +209,8 @@ export default function Settings() {
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                     type="number"
                                     min={1}
-                                    value={restaurant.deliveryRadius}
-                                    onChange={(e) => update('deliveryRadius', Number(e.target.value))}
+                                    value={form.deliveryRadius}
+                                    onChange={(e) => set('deliveryRadius', e.target.value === '' ? '' : Number(e.target.value))}
                                 />
                             </div>
                             <div>
@@ -156,18 +219,18 @@ export default function Settings() {
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                     type="number"
                                     min={0}
-                                    value={restaurant.minOrderAmount}
-                                    onChange={(e) => update('minOrderAmount', Number(e.target.value))}
+                                    value={form.minOrderAmount}
+                                    onChange={(e) => set('minOrderAmount', e.target.value === '' ? '' : Number(e.target.value))}
                                 />
                             </div>
                             <div>
-                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Delivery Time (min)</label>
+                                <label className="block font-semibold text-[0.8rem] text-[#4A4A4A] mb-1.5">Avg Prep Time (min)</label>
                                 <input
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                     type="number"
                                     min={5}
-                                    value={restaurant.deliveryTime}
-                                    onChange={(e) => update('deliveryTime', Number(e.target.value))}
+                                    value={form.avgPreparationTime}
+                                    onChange={(e) => set('avgPreparationTime', e.target.value === '' ? '' : Number(e.target.value))}
                                 />
                             </div>
                         </div>
@@ -182,8 +245,8 @@ export default function Settings() {
                                         className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                         type="number"
                                         step="any"
-                                        value={restaurant.coordinates?.lat || ''}
-                                        onChange={(e) => update('coordinates', { ...restaurant.coordinates, lat: Number(e.target.value) })}
+                                        value={form.lat}
+                                        onChange={(e) => set('lat', e.target.value === '' ? '' : Number(e.target.value))}
                                     />
                                 </div>
                                 <div>
@@ -192,8 +255,8 @@ export default function Settings() {
                                         className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                         type="number"
                                         step="any"
-                                        value={restaurant.coordinates?.lng || ''}
-                                        onChange={(e) => update('coordinates', { ...restaurant.coordinates, lng: Number(e.target.value) })}
+                                        value={form.lng}
+                                        onChange={(e) => set('lng', e.target.value === '' ? '' : Number(e.target.value))}
                                     />
                                 </div>
                             </div>
@@ -213,8 +276,8 @@ export default function Settings() {
                                 <input
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                     type="time"
-                                    value={restaurant.openingHours?.open || ''}
-                                    onChange={(e) => update('openingHours', { ...restaurant.openingHours, open: e.target.value })}
+                                    value={form.openHour}
+                                    onChange={(e) => set('openHour', e.target.value)}
                                 />
                             </div>
                             <div>
@@ -222,17 +285,17 @@ export default function Settings() {
                                 <input
                                     className="w-full h-10 px-4 rounded-xl border border-[#EEEEEE] bg-white text-[0.85rem] outline-none focus:border-[#E8A317] transition-colors"
                                     type="time"
-                                    value={restaurant.openingHours?.close || ''}
-                                    onChange={(e) => update('openingHours', { ...restaurant.openingHours, close: e.target.value })}
+                                    value={form.closeHour}
+                                    onChange={(e) => set('closeHour', e.target.value)}
                                 />
                             </div>
                             <div className="flex items-center gap-3 pb-1">
                                 <AdminToggle
-                                    checked={restaurant.isOpen}
-                                    onChange={() => update('isOpen', !restaurant.isOpen)}
+                                    checked={form.isOpen}
+                                    onChange={() => set('isOpen', !form.isOpen)}
                                 />
-                                <span className={`font-semibold text-[0.85rem] ${restaurant.isOpen ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                                    {restaurant.isOpen ? 'Open Now' : 'Closed'}
+                                <span className={`font-semibold text-[0.85rem] ${form.isOpen ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+                                    {form.isOpen ? 'Open Now' : 'Closed'}
                                 </span>
                             </div>
                         </div>
@@ -250,7 +313,7 @@ export default function Settings() {
                                     <button
                                         key={preset.label}
                                         type="button"
-                                        onClick={() => update('openingHours', { open: preset.open, close: preset.close })}
+                                        onClick={() => setForm(prev => prev ? { ...prev, openHour: preset.open, closeHour: preset.close } : prev)}
                                         className="px-3 py-1.5 rounded-lg text-[0.75rem] font-medium border border-[#EEEEEE] bg-white text-[#4A4A4A] cursor-pointer hover:bg-[#F5F5F3] transition-colors"
                                     >
                                         {preset.label}

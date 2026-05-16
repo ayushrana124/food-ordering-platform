@@ -27,10 +27,6 @@ import {
     createCategory,
     updateCategory,
     deleteCategory,
-    getDeliveryLocations,
-    createDeliveryLocation,
-    updateDeliveryLocation,
-    deleteDeliveryLocation
 } from '../controllers/adminController';
 import { loginController, logoutController } from '../controllers/adminAuthController';
 import { adminProtect } from '../middleware/adminAuth';
@@ -44,11 +40,11 @@ const upload = multer({
     dest: 'uploads/',
     limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
     fileFilter: (_req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
         if (allowed.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
+            cb(new Error('Only JPEG, PNG, WebP, and AVIF images are allowed'));
         }
     },
 });
@@ -78,11 +74,7 @@ router.put('/menu/:id', validateObjectId(), updateMenuItem);
 router.delete('/menu/:id', validateObjectId(), deleteMenuItem);
 router.put('/menu/:id/availability', validateObjectId(), toggleAvailability);
 
-// Delivery location management
-router.get('/delivery-locations', getDeliveryLocations);
-router.post('/delivery-locations', createDeliveryLocation);
-router.put('/delivery-locations/:id', validateObjectId(), updateDeliveryLocation);
-router.delete('/delivery-locations/:id', validateObjectId(), deleteDeliveryLocation);
+
 
 // User management
 router.get('/users', getUsers);
