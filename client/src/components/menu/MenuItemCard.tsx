@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Sparkles } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +18,23 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
     const [showCustomize, setShowCustomize] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [imgError, setImgError] = useState(false);
+
     const countInCart = getItemCount(item._id);
+
+    // Optimistic count — updates instantly on click for snappy UX.
+    // Syncs back to the real Redux count after the API settles.
+    const [optimisticCount, setOptimisticCount] = useState(countInCart);
+    const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Keep optimistic count in sync with Redux truth (debounced so we don't
+    // override an in-flight optimistic update before the API responds).
+    useEffect(() => {
+        if (syncTimer.current) clearTimeout(syncTimer.current);
+        syncTimer.current = setTimeout(() => {
+            setOptimisticCount(countInCart);
+        }, 600); // wait slightly longer than a typical API round-trip
+        return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
+    }, [countInCart]);
 
     const hasCustomizations = item.customizations && item.customizations.length > 0;
 
@@ -27,6 +43,8 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
         if (hasCustomizations) {
             setShowCustomize(true);
         } else {
+            // Optimistic: bump local count immediately so UI switches to +/- instantly
+            setOptimisticCount((c) => c + 1);
             addItem({ menuItemId: item._id });
             toast.success(`${item.name} added to cart!`);
         }
@@ -34,7 +52,11 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
 
     const handleDecrement = () => {
         const last = [...cartItems].reverse().find((i) => i.menuItemId === item._id);
-        if (last) removeItem(last.cartItemId);
+        if (last) {
+            // Optimistic: decrement immediately
+            setOptimisticCount((c) => Math.max(0, c - 1));
+            removeItem(last.cartItemId);
+        }
     };
 
     const VegBadge = () => (
@@ -62,10 +84,10 @@ export default function MenuItemCard({ item, compact = false }: MenuItemCardProp
             ? { padding: '0.35rem 0.75rem', fontSize: '0.78rem' }
             : { padding: '0.4rem 1rem', fontSize: '0.82rem' };
 
-        return countInCart > 0 ? (
+        return optimisticCount > 0 ? (
             <div className="flex items-center gap-2">
                 <button className="qty-btn" onClick={handleDecrement}>−</button>
-                <span className="font-extrabold text-[#0F0F0F] min-w-[20px] text-center text-sm">{countInCart}</span>
+                <span className="font-extrabold text-[#0F0F0F] min-w-[20px] text-center text-sm">{optimisticCount}</span>
                 <button className="qty-btn" onClick={handleAddClick}>+</button>
             </div>
         ) : (
