@@ -3,7 +3,7 @@ import type { AuthState, IUser } from '@/types';
 
 const getStoredToken = (): string | null => {
     try {
-        return sessionStorage.getItem('bp_token');
+        return localStorage.getItem('bp_token');
     } catch {
         return null;
     }
@@ -11,7 +11,7 @@ const getStoredToken = (): string | null => {
 
 const getStoredUser = (): IUser | null => {
     try {
-        const raw = sessionStorage.getItem('bp_user');
+        const raw = localStorage.getItem('bp_user');
         return raw ? (JSON.parse(raw) as IUser) : null;
     } catch {
         return null;
@@ -35,14 +35,14 @@ const authSlice = createSlice({
             state.isAuthenticated = true;
             state.loading = false;
             try {
-                sessionStorage.setItem('bp_token', action.payload.token);
-                sessionStorage.setItem('bp_user', JSON.stringify(action.payload.user));
+                localStorage.setItem('bp_token', action.payload.token);
+                localStorage.setItem('bp_user', JSON.stringify(action.payload.user));
             } catch { /* ignore storage errors */ }
         },
         updateUser(state, action: PayloadAction<IUser>) {
             state.user = action.payload;
             try {
-                sessionStorage.setItem('bp_user', JSON.stringify(action.payload));
+                localStorage.setItem('bp_user', JSON.stringify(action.payload));
             } catch { /* ignore */ }
         },
         setLoading(state, action: PayloadAction<boolean>) {
@@ -54,9 +54,9 @@ const authSlice = createSlice({
             state.isAuthenticated = false;
             state.loading = false;
             try {
-                sessionStorage.removeItem('bp_token');
-                sessionStorage.removeItem('bp_user');
-                sessionStorage.removeItem('bp_cart');
+                localStorage.removeItem('bp_token');
+                localStorage.removeItem('bp_user');
+                localStorage.removeItem('bp_cart');
             } catch { /* ignore */ }
         },
     },
