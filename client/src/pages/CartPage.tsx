@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ShoppingBag, Pizza, MapPin, Plus, UtensilsCrossed,
@@ -34,6 +34,8 @@ export default function CartPage() {
         const def = user?.addresses?.find((a) => a.isDefault) ?? user?.addresses?.[0];
         return def?._id ?? '';
     });
+    const [addrHighlight, setAddrHighlight] = useState(false);
+    const addrCardRef = useRef<HTMLDivElement>(null);
 
     const selectedAddress = addresses.find((a) => a._id === selectedAddrId);
 
@@ -51,6 +53,18 @@ export default function CartPage() {
     }, [user]);
 
     useEffect(() => { fetch(); }, []);
+
+    // Listen for the sticky bar's "no address" click — scroll + shake address card
+    useEffect(() => {
+        const handler = () => {
+            addrCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setAddrHighlight(true);
+            toast.error('Please add a delivery address first');
+            setTimeout(() => setAddrHighlight(false), 1400);
+        };
+        window.addEventListener('highlight-address', handler);
+        return () => window.removeEventListener('highlight-address', handler);
+    }, []);
 
     const loadCoupons = async () => {
         if (showCoupons) { setShowCoupons(false); return; }
@@ -427,10 +441,31 @@ export default function CartPage() {
                 </div>
 
                 {/* ── DELIVERY ADDRESS CARD ──────────────────────────── */}
-                <div style={{
-                    background: 'white', borderRadius: 18, overflow: 'hidden',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem',
-                }}>
+                <style>{`
+                    @keyframes addrShake {
+                        0%,100% { transform: translateX(0); }
+                        15%     { transform: translateX(-6px); }
+                        30%     { transform: translateX(6px); }
+                        45%     { transform: translateX(-5px); }
+                        60%     { transform: translateX(5px); }
+                        75%     { transform: translateX(-3px); }
+                        90%     { transform: translateX(3px); }
+                    }
+                    .addr-shake {
+                        animation: addrShake 0.5s ease;
+                        outline: 2.5px solid #DC2626 !important;
+                        outline-offset: 2px;
+                        box-shadow: 0 0 0 4px rgba(220,38,38,0.15) !important;
+                    }
+                `}</style>
+                <div
+                    ref={addrCardRef}
+                    className={addrHighlight ? 'addr-shake' : ''}
+                    style={{
+                        background: 'white', borderRadius: 18, overflow: 'hidden',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem',
+                        transition: 'box-shadow 0.2s, outline 0.2s',
+                    }}>
                     <div style={{
                         padding: '0.9rem 1.25rem 0.75rem', borderBottom: '1px solid #F0F0EE',
                         display: 'flex', alignItems: 'center', gap: '0.5rem',

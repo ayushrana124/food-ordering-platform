@@ -132,22 +132,23 @@ export default function StickyCartBar() {
                             ₹{total} <ArrowRight size={15} />
                         </Link>
                     ) : (
-                        <span
+                        <button
+                            onClick={() => window.dispatchEvent(new Event('highlight-address'))}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: '0.5rem',
                                 background: 'rgba(255,255,255,0.1)',
-                                border: '1.5px solid rgba(255,255,255,0.15)',
+                                border: '1.5px solid rgba(255,255,255,0.25)',
                                 borderRadius: 10,
-                                color: 'rgba(255,255,255,0.5)',
+                                color: 'rgba(255,255,255,0.55)',
                                 fontWeight: 800,
                                 fontSize: '0.9rem',
                                 padding: '0.5rem 1.1rem',
                                 whiteSpace: 'nowrap',
-                                cursor: 'not-allowed',
+                                cursor: 'pointer',
                             }}
                         >
                             ₹{total} <ArrowRight size={15} />
-                        </span>
+                        </button>
                     )}
                 </>
             )}
