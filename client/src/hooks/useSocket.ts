@@ -72,7 +72,7 @@ export const useSocket = (userId: string | undefined) => {
 
     useEffect(() => {
         if (!userId) return;
-        const token = sessionStorage.getItem('bp_token');
+        const token = localStorage.getItem('bp_token');
         if (!token) return;
 
         const socket = getOrCreateSocket(userId, token);

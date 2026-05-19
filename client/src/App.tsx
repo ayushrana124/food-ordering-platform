@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { logout } from '@/redux/slices/authSlice';
+import { logout, setCredentials } from '@/redux/slices/authSlice';
 import { fetchCart } from '@/redux/slices/cartSlice';
 import { useAppDispatch } from '@/redux/hooks';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { silentRefresh } from '@/services/api';
 
 // Lazy load pages for performance
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
@@ -56,12 +57,21 @@ const withSuspense = (element: React.ReactElement) => (
 
 export default function App() {
     const dispatch = useAppDispatch();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
 
     // Fetch server cart when user is authenticated
     useEffect(() => {
         if (isAuthenticated) dispatch(fetchCart());
     }, [isAuthenticated, dispatch]);
+
+    // Proactively refresh JWT on app startup if close to expiry (within 24h window)
+    useEffect(() => {
+        if (!isAuthenticated || !user) return;
+        silentRefresh().then((newToken) => {
+            if (newToken) dispatch(setCredentials({ user, token: newToken }));
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated]);
 
     // Handle 401 from API interceptor globally
     useEffect(() => {
