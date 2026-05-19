@@ -1,4 +1,5 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 
