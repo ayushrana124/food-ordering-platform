@@ -418,7 +418,7 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 Location Access Required
                             </h4>
                             <p style={{ fontSize: '0.82rem', color: '#4A4A4A', lineHeight: 1.5, maxWidth: 300 }}>
-                                Please allow location access to proceed with your order. We need your location to check if delivery is available in your area.
+                                Location is needed to check delivery availability.
                             </p>
 
                             {/* Instructions to reset browser permission */}
@@ -431,17 +431,17 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                     💡 How to enable location:
                                 </p>
                                 <ol style={{ fontSize: '0.7rem', color: '#78350F', lineHeight: 1.6, margin: 0, paddingLeft: '1.1rem' }}>
-                                    <li>Click the 🔒 lock icon in your browser's address bar</li>
-                                    <li>Find <b>Location</b> and change it to <b>Allow</b></li>
-                                    <li>Refresh the page and try again</li>
+                                    <li>Click 3 dots on top right</li>
+                                    <li>Click info (i) icon</li>
+                                    <li>Turn Location on and try again</li>
                                 </ol>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem', width: '100%' }}>
                                 <button
                                     onClick={handleRetryGps}
                                     style={{
-                                        flex: 1, padding: '0.7rem', borderRadius: 12,
+                                        width: '100%', padding: '0.7rem', borderRadius: 12,
                                         border: 'none', background: '#E8A317', color: 'white',
                                         fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -449,6 +449,20 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                                 >
                                     <Navigation size={15} /> Try Again
                                 </button>
+                                {restaurant?.phone && (
+                                    <a
+                                        href={`tel:${restaurant.phone}`}
+                                        style={{
+                                            width: '100%', padding: '0.7rem', borderRadius: 12,
+                                            border: '1.5px solid #E0E0DC', background: 'white', color: '#4A4A4A',
+                                            fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                            textDecoration: 'none'
+                                        }}
+                                    >
+                                        <Phone size={15} /> Get Help ({restaurant.phone})
+                                    </a>
+                                )}
                             </div>
                             {addresses.length > 0 && (
                                 <button
