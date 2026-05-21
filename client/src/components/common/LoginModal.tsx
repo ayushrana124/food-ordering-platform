@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChefHat, X, ArrowRight, CheckCircle2, Timer, Smartphone } from 'lucide-react';
+import { ChefHat, X, ArrowRight, CheckCircle2, Timer, Smartphone, User as UserIcon, Mail } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
+import { userService } from '@/services/userService';
+import { useAppDispatch } from '@/redux/hooks';
+import { updateUser } from '@/redux/slices/authSlice';
 import { auth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from '@/config/firebase';
 import toast from 'react-hot-toast';
 
@@ -10,13 +13,16 @@ interface LoginModalProps {
     onClose: () => void;
 }
 
-type Step = 'phone' | 'otp';
+type Step = 'phone' | 'otp' | 'profile';
 
 export default function LoginModal({ onClose }: LoginModalProps) {
     const { login } = useAuth();
+    const dispatch = useAppDispatch();
     const [step, setStep] = useState<Step>('phone');
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -181,8 +187,12 @@ export default function LoginModal({ onClose }: LoginModalProps) {
             // Sign out from Firebase — we use our own JWT for session management
             await auth.signOut();
 
-            toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}!`);
-            onClose();
+            if (!res.user.name || !res.user.email) {
+                setStep('profile');
+            } else {
+                toast.success(`Welcome${res.user.name ? `, ${res.user.name}` : ''}!`);
+                onClose();
+            }
         } catch (err: unknown) {
             console.error('OTP Verification Error:', err);
             const firebaseError = err as { code?: string; response?: { data?: { message?: string } } };
@@ -213,6 +223,30 @@ export default function LoginModal({ onClose }: LoginModalProps) {
         if (loading || countdown > 0) return;
         confirmationResultRef.current = null;
         await handleSendOTP();
+    };
+
+    const handleSaveProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim()) {
+            toast.error('Name is required');
+            return;
+        }
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            toast.error('Valid email is required');
+            return;
+        }
+        setLoading(true);
+        try {
+            const updatedUser = await userService.updateProfile({ name, email });
+            dispatch(updateUser(updatedUser));
+            toast.success(`Welcome, ${updatedUser.name}!`);
+            onClose();
+        } catch (err: unknown) {
+            console.error('Update Profile Error:', err);
+            toast.error('Failed to save profile. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const modal = (
@@ -271,12 +305,14 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                         <ChefHat size={30} />
                     </div>
                     <h2 className="font-outfit text-[1.5rem] font-extrabold mb-1 text-[#0F0F0F] tracking-[-0.02em]">
-                        {step === 'phone' ? 'Welcome back!' : 'Verify OTP'}
+                        {step === 'phone' ? 'Welcome back!' : step === 'otp' ? 'Verify OTP' : 'Complete Profile'}
                     </h2>
                     <p className="text-[#8E8E8E] text-[0.9rem]">
                         {step === 'phone'
                             ? 'Login with your phone number to order pizza'
-                            : `OTP sent to +91 ${phone}`}
+                            : step === 'otp'
+                            ? `OTP sent to +91 ${phone}`
+                            : 'Please enter your details to continue'}
                     </p>
                 </div>
 
@@ -364,6 +400,52 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                                 Change phone number
                             </button>
                         </div>
+                    </form>
+                ) : (
+                    <form onSubmit={handleSaveProfile}>
+                        <label className="block text-[0.875rem] font-semibold mb-[0.4rem] text-[#0F0F0F]">
+                            Full Name
+                        </label>
+                        <div className="relative mb-4">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E8E8E]">
+                                <UserIcon size={16} />
+                            </span>
+                            <input
+                                className="input"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="John Doe"
+                                style={{ paddingLeft: '2.5rem' }}
+                                required
+                            />
+                        </div>
+
+                        <label className="block text-[0.875rem] font-semibold mb-[0.4rem] text-[#0F0F0F]">
+                            Email Address
+                        </label>
+                        <div className="relative mb-5">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E8E8E]">
+                                <Mail size={16} />
+                            </span>
+                            <input
+                                className="input"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="john@example.com"
+                                style={{ paddingLeft: '2.5rem' }}
+                                required
+                            />
+                        </div>
+
+                        <button type="submit" className="btn-primary w-full justify-center mb-2 flex items-center gap-2" disabled={loading}>
+                            {loading ? (
+                                <Timer size={20} className="animate-spin" />
+                            ) : (
+                                <>Save Profile <CheckCircle2 size={18} /></>
+                            )}
+                        </button>
                     </form>
                 )}
                 <div

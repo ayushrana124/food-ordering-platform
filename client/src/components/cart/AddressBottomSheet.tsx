@@ -176,6 +176,8 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
         else if (addressLine.trim().length < 5) errs.addressLine = 'Address too short';
         if (!cityVillage.trim()) errs.cityVillage = 'City / Village is required';
         else if (cityVillage.trim().length < 2) errs.cityVillage = 'Too short';
+        if (!nearbyPlace.trim()) errs.nearbyPlace = 'Famous nearby place is required';
+        else if (nearbyPlace.trim().length < 2) errs.nearbyPlace = 'Too short';
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -632,16 +634,17 @@ export default function AddressBottomSheet({ addresses, selectedId, onSelect, on
                             {/* Famous Nearby Place */}
                             <div>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', fontWeight: 600, color: '#4A4A4A', marginBottom: 6 }}>
-                                    <Landmark size={12} /> Famous Nearby Place (optional)
+                                    <Landmark size={12} /> Famous Nearby Place *
                                 </label>
                                 <input
                                     type="text"
                                     value={nearbyPlace}
-                                    onChange={(e) => setNearbyPlace(e.target.value)}
+                                    onChange={(e) => { setNearbyPlace(e.target.value); setErrors((p) => ({ ...p, nearbyPlace: '' })); }}
                                     placeholder="Near temple, school, park, hospital..."
                                     maxLength={100}
-                                    style={inputStyle(false)}
+                                    style={inputStyle(!!errors.nearbyPlace)}
                                 />
+                                {errorText(errors.nearbyPlace)}
                             </div>
 
                             {/* Save button */}
