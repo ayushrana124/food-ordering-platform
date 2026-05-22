@@ -353,7 +353,7 @@ export default function LoginModal({ onClose }: LoginModalProps) {
                             )}
                         </button>
                     </form>
-                ) : (
+                ) : step === 'otp' ? (
                     <form onSubmit={handleVerifyOTP}>
                         <label className="block text-[0.875rem] font-semibold mb-[0.4rem] text-[#0F0F0F]">
                             Enter 6-digit OTP
