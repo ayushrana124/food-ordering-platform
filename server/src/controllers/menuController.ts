@@ -47,7 +47,7 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
             findQuery = findQuery.limit(Number(limit));
         }
 
-        const menuItems = await findQuery;
+        const menuItems = await findQuery.lean();
 
         res.status(200).json({
             menuItems,
@@ -64,7 +64,7 @@ export const getMenuItem = async (req: Request, res: Response): Promise<void> =>
     try {
         const { id } = req.params;
 
-        const menuItem = await MenuItem.findById(id);
+        const menuItem = await MenuItem.findById(id).lean();
 
         if (!menuItem) {
             res.status(404).json({ message: 'Menu item not found' });
@@ -87,7 +87,7 @@ export const getOffers = async (_req: Request, res: Response): Promise<void> => 
             isActive: true,
             validFrom: { $lte: now },
             validTill: { $gte: now }
-        }).sort({ createdAt: -1 });
+        }).sort({ createdAt: -1 }).lean();
 
         res.status(200).json({
             offers,
@@ -103,7 +103,7 @@ export const getOffers = async (_req: Request, res: Response): Promise<void> => 
 export const getCategories = async (_req: Request, res: Response): Promise<void> => {
     try {
         const categories = await Category.find({ isActive: true })
-            .sort({ displayOrder: 1, createdAt: 1 });
+            .sort({ displayOrder: 1, createdAt: 1 }).lean();
         res.status(200).json({ categories, count: categories.length });
     } catch (error) {
         console.error('Get Categories Error:', error);

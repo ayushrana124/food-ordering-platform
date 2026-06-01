@@ -140,5 +140,8 @@ orderSchema.pre('save', async function () {
         this.orderId = `ORD-${timestamp}-${random}`.toUpperCase();
     }
 });
+orderSchema.index({ restaurantId: 1, createdAt: -1 });
+orderSchema.index({ restaurantId: 1, orderStatus: 1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model<IOrder>('Order', orderSchema);

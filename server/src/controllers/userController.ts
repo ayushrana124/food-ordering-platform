@@ -10,7 +10,7 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        const user = await User.findById(req.user._id).select('-__v');
+        const user = await User.findById(req.user._id).select('-__v').lean();
         res.status(200).json({ user });
     } catch (error) {
         console.error('Get Profile Error:', error);
@@ -192,7 +192,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
             .sort({ createdAt: -1 })
             .limit(limitNum)
             .skip((pageNum - 1) * limitNum)
-            .populate('restaurantId', 'name logo');
+            .populate('restaurantId', 'name logo')
+            .lean();
 
         const count = await Order.countDocuments(query);
 

@@ -26,7 +26,7 @@ async function buildCartResponse(userId: mongoose.Types.ObjectId) {
 
     // Fetch all referenced menu items in one query
     const menuItemIds = cart.items.map((i) => i.menuItemId);
-    const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } });
+    const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } }).lean();
     const menuMap = new Map(menuItems.map((m) => [m._id.toString(), m]));
 
     const responseItems: any[] = [];
@@ -100,7 +100,7 @@ async function buildCartResponse(userId: mongoose.Types.ObjectId) {
 
 /** Validate a coupon code against the Offer collection */
 async function validateCoupon(code: string, subtotal: number) {
-    const offer = await Offer.findOne({ code: code.toUpperCase(), isActive: true });
+    const offer = await Offer.findOne({ code: code.toUpperCase(), isActive: true }).lean();
     if (!offer) return { valid: false, reason: 'Invalid coupon code' };
 
     const now = new Date();
@@ -167,7 +167,7 @@ export const addItem = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Validate menu item exists & is available
-        const menuItem = await MenuItem.findById(menuItemId);
+        const menuItem = await MenuItem.findById(menuItemId).lean();
         if (!menuItem) { res.status(404).json({ message: 'Menu item not found' }); return; }
         if (!menuItem.isAvailable) { res.status(400).json({ message: `"${menuItem.name}" is currently unavailable` }); return; }
 
@@ -321,7 +321,7 @@ export const applyCoupon = async (req: Request, res: Response): Promise<void> =>
 
         // Calculate current subtotal to validate min order
         const menuItemIds = cart.items.map((i) => i.menuItemId);
-        const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } });
+        const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } }).lean();
         const menuMap = new Map(menuItems.map((m) => [m._id.toString(), m]));
 
         let subtotal = 0;

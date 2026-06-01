@@ -37,7 +37,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
             .sort({ createdAt: -1 })
             .limit(limitNum)
             .skip((pageNum - 1) * limitNum)
-            .populate('userId', 'name phone');
+            .populate('userId', 'name phone')
+            .lean();
 
         const count = await Order.countDocuments(query);
 
@@ -370,7 +371,7 @@ export const restoreMenuItem = async (req: Request, res: Response): Promise<void
 // Get soft-deleted menu items (trash view)
 export const getDeletedMenuItems = async (_req: Request, res: Response): Promise<void> => {
     try {
-        const menuItems = await MenuItem.find({ isDeleted: true }).sort({ deletedAt: -1 });
+        const menuItems = await MenuItem.find({ isDeleted: true }).sort({ deletedAt: -1 }).lean();
         res.status(200).json({ menuItems });
     } catch (error) {
         console.error('Get Deleted Menu Items Error:', error);
@@ -382,7 +383,8 @@ export const getDeletedMenuItems = async (_req: Request, res: Response): Promise
 export const getAdminMenuItems = async (req: Request, res: Response): Promise<void> => {
     try {
         const menuItems = await MenuItem.find({ restaurantId: req.admin?.restaurantId })
-            .sort({ category: 1, name: 1 });
+            .sort({ category: 1, name: 1 })
+            .lean();
         res.status(200).json({ menuItems });
     } catch (error) {
         console.error('Get Admin Menu Items Error:', error);
@@ -444,7 +446,8 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
             .select('-__v')
             .limit(limitNum)
             .skip((pageNum - 1) * limitNum)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         const count = await User.countDocuments(query);
 
@@ -613,7 +616,8 @@ export const getOffers = async (req: Request, res: Response): Promise<void> => {
         const offers = await Offer.find()
             .sort({ createdAt: -1 })
             .limit(limitNum)
-            .skip((pageNum - 1) * limitNum);
+            .skip((pageNum - 1) * limitNum)
+            .lean();
 
         const total = await Offer.countDocuments();
 
@@ -732,7 +736,8 @@ export const toggleOfferActive = async (req: Request, res: Response): Promise<vo
 export const getCategories = async (req: Request, res: Response): Promise<void> => {
     try {
         const categories = await Category.find({ restaurantId: req.admin?.restaurantId })
-            .sort({ displayOrder: 1, createdAt: 1 });
+            .sort({ displayOrder: 1, createdAt: 1 })
+            .lean();
         res.status(200).json({ categories });
     } catch (error) {
         console.error('Get Categories Error:', error);

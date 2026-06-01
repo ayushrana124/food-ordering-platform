@@ -71,5 +71,7 @@ const offerSchema = new Schema<IOffer>({
         default: Date.now
     }
 });
+offerSchema.index({ restaurantId: 1, isActive: 1 });
+offerSchema.index({ code: 1, isActive: 1 });
 
 export default mongoose.model<IOffer>('Offer', offerSchema);
