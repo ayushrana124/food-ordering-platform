@@ -1,5 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, Filter } from 'lucide-react';
+import {
+    Banknote,
+    CheckCircle,
+    ClipboardList,
+    Clock,
+    CreditCard,
+    Filter,
+    Truck,
+    Utensils,
+    XCircle,
+    type LucideIcon,
+} from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
@@ -11,8 +22,21 @@ import { getOrders, type IAdminOrder, type OrderFilters } from '@/services/admin
 import { useAdminContext } from '@/contexts/AdminContext';
 import toast from 'react-hot-toast';
 
-const STATUS_OPTIONS = ['', 'PENDING', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
-const PAYMENT_OPTIONS = ['', 'COD', 'ONLINE'];
+const STATUS_OPTIONS: Array<{ value: string; label: string; icon: LucideIcon; color: string; bg: string }> = [
+    { value: '', label: 'All', icon: Filter, color: '#4A4A4A', bg: '#F5F5F3' },
+    { value: 'PENDING', label: 'Pending', icon: Clock, color: '#B45309', bg: '#FFF7ED' },
+    { value: 'ACCEPTED', label: 'Accepted', icon: CheckCircle, color: '#2563EB', bg: '#EFF6FF' },
+    { value: 'PREPARING', label: 'Preparing', icon: Utensils, color: '#7C3AED', bg: '#F5F3FF' },
+    { value: 'OUT_FOR_DELIVERY', label: 'Out for delivery', icon: Truck, color: '#EA580C', bg: '#FFF7ED' },
+    { value: 'DELIVERED', label: 'Delivered', icon: CheckCircle, color: '#16A34A', bg: '#F0FDF4' },
+    { value: 'CANCELLED', label: 'Cancelled', icon: XCircle, color: '#DC2626', bg: '#FEF2F2' },
+];
+
+const PAYMENT_OPTIONS: Array<{ value: string; label: string; icon: LucideIcon; color: string; bg: string }> = [
+    { value: '', label: 'All payments', icon: Filter, color: '#4A4A4A', bg: '#F5F5F3' },
+    { value: 'COD', label: 'COD', icon: Banknote, color: '#B45309', bg: '#FFF7ED' },
+    { value: 'ONLINE', label: 'Online', icon: CreditCard, color: '#2563EB', bg: '#EFF6FF' },
+];
 
 /** Background color based on order status — each status gets its own tint */
 const getRowBg = (status: string): string => {
@@ -32,6 +56,49 @@ const getPendingHighlight = (status: string) =>
     status === 'PENDING'
         ? { borderLeft: '4px solid #D97706', boxShadow: '0 0 0 1px #FDE68A inset' }
         : {};
+
+interface FilterChipProps {
+    option: {
+        value: string;
+        label: string;
+        icon: LucideIcon;
+        color: string;
+        bg: string;
+    };
+    active: boolean;
+    onClick: () => void;
+}
+
+function FilterChip({ option, active, onClick }: FilterChipProps) {
+    const Icon = option.icon;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-pressed={active}
+            className={[
+                'h-10 shrink-0 rounded-lg border px-3 text-[0.78rem] font-semibold transition-all duration-200',
+                'flex items-center gap-2 whitespace-nowrap outline-none',
+                'focus-visible:ring-2 focus-visible:ring-[#E8A317]/30 focus-visible:ring-offset-1',
+                active
+                    ? 'border-transparent bg-[#0F0F0F] text-white shadow-[0_8px_20px_rgba(15,15,15,0.12)]'
+                    : 'border-[#EEEEEE] bg-white text-[#4A4A4A] hover:border-[#D8D8D3] hover:bg-[#FAFAF8]',
+            ].join(' ')}
+        >
+            <span
+                className="grid h-6 w-6 place-items-center rounded-md"
+                style={{
+                    background: active ? 'rgba(255,255,255,0.14)' : option.bg,
+                    color: active ? '#FFFFFF' : option.color,
+                }}
+            >
+                <Icon size={14} strokeWidth={2.4} />
+            </span>
+            <span>{option.label}</span>
+        </button>
+    );
+}
 
 export default function Orders() {
     const [orders, setOrders] = useState<IAdminOrder[]>([]);
@@ -94,31 +161,71 @@ export default function Orders() {
 
             {/* Filters */}
             <AdminCard className="mb-5">
-                <div className="flex gap-2 items-center">
-                    <div className="flex items-center gap-2 text-[#8E8E8E] shrink-0">
-                        <Filter size={16} />
-                        <span className="text-[0.8rem] font-medium hidden sm:inline">Filters</span>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#FFF7ED] text-[#D97706]">
+                                <Filter size={17} />
+                            </span>
+                            <div>
+                                <p className="text-[0.86rem] font-bold text-[#0F0F0F]">Filters</p>
+                                <p className="text-[0.72rem] text-[#8E8E8E] hidden sm:block">Refine orders by progress and payment method</p>
+                            </div>
+                        </div>
+                        {(filters.status || filters.paymentMethod) && (
+                            <button
+                                type="button"
+                                onClick={() => setFilters((prev) => ({ ...prev, status: '', paymentMethod: '', page: 1 }))}
+                                className="h-9 rounded-lg border border-[#EEEEEE] bg-white px-3 text-[0.76rem] font-semibold text-[#4A4A4A] transition-colors hover:border-[#D8D8D3] hover:bg-[#FAFAF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8A317]/30"
+                            >
+                                Reset
+                            </button>
+                        )}
                     </div>
-                    <select
-                        value={filters.status ?? ''}
-                        onChange={(e) => setFilter('status', e.target.value)}
-                        className="h-9 px-2 sm:px-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.78rem] sm:text-[0.82rem] font-medium text-[#0F0F0F] outline-none focus:border-[#E8A317] transition-colors flex-1 min-w-0"
-                    >
-                        <option value="">All Statuses</option>
-                        {STATUS_OPTIONS.filter(Boolean).map((s) => (
-                            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                        ))}
-                    </select>
-                    <select
-                        value={filters.paymentMethod ?? ''}
-                        onChange={(e) => setFilter('paymentMethod', e.target.value)}
-                        className="h-9 px-2 sm:px-3 rounded-xl border border-[#EEEEEE] bg-white text-[0.78rem] sm:text-[0.82rem] font-medium text-[#0F0F0F] outline-none focus:border-[#E8A317] transition-colors flex-1 min-w-0"
-                    >
-                        <option value="">All Payments</option>
-                        {PAYMENT_OPTIONS.filter(Boolean).map((p) => (
-                            <option key={p} value={p}>{p === 'COD' ? 'COD' : 'Online'}</option>
-                        ))}
-                    </select>
+
+                    <div className="space-y-3">
+                        <div className="min-w-0">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="text-[0.7rem] font-bold uppercase tracking-wider text-[#8E8E8E]">Order status</span>
+                                {filters.status && (
+                                    <span className="hidden rounded-md bg-[#FAFAF8] px-2 py-1 text-[0.68rem] font-semibold text-[#4A4A4A] sm:inline">
+                                        {STATUS_OPTIONS.find((option) => option.value === filters.status)?.label}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
+                                {STATUS_OPTIONS.map((option) => (
+                                    <FilterChip
+                                        key={option.value || 'all-statuses'}
+                                        option={option}
+                                        active={(filters.status ?? '') === option.value}
+                                        onClick={() => setFilter('status', option.value)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="min-w-0 border-t border-[#F0F0EE] pt-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="text-[0.7rem] font-bold uppercase tracking-wider text-[#8E8E8E]">Payment</span>
+                                {filters.paymentMethod && (
+                                    <span className="hidden rounded-md bg-[#FAFAF8] px-2 py-1 text-[0.68rem] font-semibold text-[#4A4A4A] sm:inline">
+                                        {PAYMENT_OPTIONS.find((option) => option.value === filters.paymentMethod)?.label}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
+                                {PAYMENT_OPTIONS.map((option) => (
+                                    <FilterChip
+                                        key={option.value || 'all-payments'}
+                                        option={option}
+                                        active={(filters.paymentMethod ?? '') === option.value}
+                                        onClick={() => setFilter('paymentMethod', option.value)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </AdminCard>
 
