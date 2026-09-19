@@ -7,6 +7,7 @@ import {
     rejectOrder,
     getOrderStats,
     getDetailedOrderStats,
+    getOrderCounts,
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
@@ -60,6 +61,7 @@ router.post('/logout', logoutController);
 // Order management (stats routes must come before parameterized :id routes)
 router.get('/orders/stats/detailed', getDetailedOrderStats);
 router.get('/orders/stats', getOrderStats);
+router.get('/orders/counts', getOrderCounts);
 router.get('/orders', getOrders);
 router.put('/orders/:id/accept', validateObjectId(), acceptOrder);
 router.put('/orders/:id/reject', validateObjectId(), rejectOrder);

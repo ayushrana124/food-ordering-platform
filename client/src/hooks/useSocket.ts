@@ -31,7 +31,8 @@ function getOrCreateSocket(userId: string, token: string): Socket {
     }
     sharedSocket = io(SOCKET_URL, {
         auth: { token },
-        transports: ['websocket'],
+        // Fall back to polling where WebSockets are blocked (some mobile networks).
+        transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
@@ -46,6 +47,15 @@ function getOrCreateSocket(userId: string, token: string): Socket {
 
     sharedSocket.on('connect_error', (err) => {
         console.warn('Socket connection error:', err.message);
+
+        // The server rejects bad credentials during the handshake now. Retrying
+        // those indefinitely would just burn battery and server connections.
+        if (/auth|token|blocked|no longer exists/i.test(err.message)) {
+            sharedSocket?.disconnect();
+            sharedSocket = null;
+            sharedSocketUserId = null;
+            refCount = 0;
+        }
     });
 
     return sharedSocket;

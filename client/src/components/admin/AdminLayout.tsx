@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
     LayoutDashboard, ClipboardList, UtensilsCrossed, Users, Settings,
-    LogOut, ChevronLeft, Menu, ChefHat, Tag, Layers, MapPin, Bell, X,
+    LogOut, ChevronLeft, Menu, ChefHat, Tag, Layers, MapPin, Bell, X, WifiOff,
     Clock, AlertCircle,
 } from 'lucide-react';
 import { adminLogout, type IAdmin, type IAdminOrder } from '@/services/adminApi';
@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const [notifOpen, setNotifOpen] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
     const bellRef = useRef<HTMLButtonElement>(null);
-    const { pendingOrderCount, unacceptedOrders, activeOrderCount } = useAdminContext();
+    const { pendingOrderCount, unacceptedOrders, activeOrderCount, socketConnected } = useAdminContext();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Listen for order detail sidebar open/close events to hide the FAB
@@ -185,6 +185,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     </h1>
 
                     <div className="flex-1" />
+
+                    {/* Live-feed warning: staff must know if new orders can no longer reach them */}
+                    {!socketConnected && (
+                        <div
+                            title="Not receiving live orders. Reconnecting..."
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626]"
+                        >
+                            <WifiOff size={15} />
+                            <span className="hidden sm:inline text-[0.7rem] font-bold">Offline</span>
+                        </div>
+                    )}
 
                     {/* Notification bell with dropdown */}
                     <div className="relative">

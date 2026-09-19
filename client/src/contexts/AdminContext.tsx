@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
-import { getRestaurantInfo, getAdminCategories, getOrders, type IAdminOrder } from '@/services/adminApi';
+import { getRestaurantInfo, getAdminCategories, getOrders, getOrderCounts, type IAdminOrder } from '@/services/adminApi';
 import { useAdminSocket } from '@/hooks/useAdminSocket';
 import type { IRestaurant, ICategory } from '@/types';
 import toast from 'react-hot-toast';
@@ -25,6 +25,9 @@ interface AdminContextValue {
     activeOrderCount: number;
     /** Refresh unaccepted orders & active counts from server */
     refreshActiveOrders: () => Promise<void>;
+
+    /** Whether the realtime order feed is currently connected */
+    socketConnected: boolean;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -89,35 +92,58 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // ── Fetch unaccepted + active orders ─────────────────────────────────────
+    // Two parallel requests instead of the four sequential ones this used to make
+    // (one list plus a count query per active status).
     const refreshActiveOrders = useCallback(async () => {
         try {
-            // Fetch pending (unaccepted) orders
-            const pendingData = await getOrders({ status: 'PENDING', limit: 50 });
-            setUnacceptedOrders(pendingData.orders);
-            setPendingOrderCount(pendingData.totalOrders);
+            const [pendingData, counts] = await Promise.all([
+                getOrders({ status: 'PENDING', limit: 50 }),
+                getOrderCounts(),
+            ]);
 
-            // Fetch active orders count (all non-terminal statuses)
-            const activeStatuses = ['ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY'];
-            let totalActive = pendingData.totalOrders; // PENDING counts as active too
-            for (const status of activeStatuses) {
-                const res = await getOrders({ status, limit: 1 });
-                totalActive += res.totalOrders;
-            }
-            setActiveOrderCount(totalActive);
+            setUnacceptedOrders(pendingData.orders);
+            setPendingOrderCount(counts.pendingOrderCount);
+            setActiveOrderCount(counts.activeOrderCount);
         } catch {
             // Silently fail
         }
     }, []);
 
-    // Initial fetch + periodic refresh
-    useEffect(() => {
-        refreshActiveOrders();
-        const interval = setInterval(refreshActiveOrders, 30000);
-        return () => clearInterval(interval);
+    useEffect(() => { refreshActiveOrders(); }, [refreshActiveOrders]);
+
+    // ── Order-change fan-out ─────────────────────────────────────────────────
+    // Refreshes the shell's own counts and tells the order screens to refetch.
+    // The Orders page already listened for `admin:orders-changed`, but nothing
+    // ever dispatched it — so a new order rang the bell and raised a toast while
+    // the list on screen stayed stale until the window was refocused.
+    //
+    // Debounced because orders arrive in bursts at dinner time: ten tickets
+    // landing together should cause one refresh, not ten.
+    const ordersChangedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const signalOrdersChanged = useCallback(() => {
+        if (ordersChangedTimer.current) clearTimeout(ordersChangedTimer.current);
+        ordersChangedTimer.current = setTimeout(() => {
+            ordersChangedTimer.current = null;
+            refreshActiveOrders();
+            window.dispatchEvent(new CustomEvent('admin:orders-changed'));
+        }, 300);
     }, [refreshActiveOrders]);
 
+    useEffect(() => () => {
+        if (ordersChangedTimer.current) clearTimeout(ordersChangedTimer.current);
+    }, []);
+
+    // Safety net for missed socket events. Fans out to the order screens too,
+    // so a dropped connection cannot leave a stale list on the counter.
+    useEffect(() => {
+        const interval = setInterval(signalOrdersChanged, 60000);
+        return () => clearInterval(interval);
+    }, [signalOrdersChanged]);
+
+
     // ── Socket: real-time updates ────────────────────────────────────────────
-    const { onRefresh } = useAdminSocket({
+    const { onRefresh, connected: socketConnected } = useAdminSocket({
         onNewOrder: (data) => {
             toast(
                 (t) => (
@@ -160,23 +186,21 @@ export function AdminProvider({ children }: { children: ReactNode }) {
                     },
                 }
             );
-            // Refresh counts immediately
-            refreshActiveOrders();
+            signalOrdersChanged();
         },
         onOrderCancelled: (data) => {
             toast.error(`Order #${data.orderNumber || ''} cancelled`, { duration: 5000 });
-            // Refresh — cancelled order should disappear from notifications
-            refreshActiveOrders();
+            signalOrdersChanged();
         },
         onPaymentReceived: () => {
-            refreshActiveOrders();
+            signalOrdersChanged();
         },
     });
 
     // Expose refresh to socket for generic data refresh callbacks from individual pages
     useEffect(() => {
-        onRefresh(() => refreshActiveOrders());
-    }, [onRefresh, refreshActiveOrders]);
+        onRefresh(() => signalOrdersChanged());
+    }, [onRefresh, signalOrdersChanged]);
 
     return (
         <AdminContext.Provider value={{
@@ -184,6 +208,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             categories, categoriesLoading, fetchCategories, invalidateCategories,
             pendingOrderCount, setPendingOrderCount,
             unacceptedOrders, activeOrderCount, refreshActiveOrders,
+            socketConnected,
         }}>
             {children}
         </AdminContext.Provider>
@@ -205,6 +230,7 @@ const FALLBACK: AdminContextValue = {
     unacceptedOrders: [],
     activeOrderCount: 0,
     refreshActiveOrders: async () => {},
+    socketConnected: false,
 };
 
 export function useAdminContext() {

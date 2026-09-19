@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { sendServerError } from '../utils/errorResponse';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Order from '../models/Order';
@@ -105,7 +106,7 @@ export const createPaymentOrder = async (req: Request, res: Response): Promise<v
         });
     } catch (error) {
         console.error('Create Payment Order Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -135,11 +136,15 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
             .digest('hex');
 
         if (razorpaySignature !== expectedSign) {
-            // In dummy mode, skip signature check
-            if (!config.useDummyPayment) {
+            // The signature check is only ever skipped in local dummy mode.
+            // `config.useDummyPayment` is hard-forced to false in production, and
+            // `isProduction` is re-checked here so this branch can never be
+            // reached on a live deployment even if that logic changes.
+            if (config.isProduction || !config.useDummyPayment) {
                 res.status(400).json({ message: 'Invalid payment signature' });
                 return;
             }
+            console.warn('[DUMMY PAYMENT] Skipping signature verification — development only.');
         }
 
         // Update order payment status
@@ -198,7 +203,7 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
         });
     } catch (error) {
         console.error('Verify Payment Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -384,7 +389,7 @@ export const retryPayment = async (req: Request, res: Response): Promise<void> =
         });
     } catch (error) {
         console.error('Retry Payment Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 

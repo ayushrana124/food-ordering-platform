@@ -143,5 +143,7 @@ orderSchema.pre('save', async function () {
 orderSchema.index({ restaurantId: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, orderStatus: 1 });
 orderSchema.index({ userId: 1, createdAt: -1 });
+// Admin order list: filter by status, sort by newest.
+orderSchema.index({ orderStatus: 1, createdAt: -1 });
 
 export default mongoose.model<IOrder>('Order', orderSchema);

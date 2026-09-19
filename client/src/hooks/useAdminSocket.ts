@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL as string;
@@ -112,6 +112,7 @@ function enqueueRingSound() {
  */
 export const useAdminSocket = (callbacks?: AdminSocketCallbacks) => {
     const socketRef = useRef<Socket | null>(null);
+    const [connected, setConnected] = useState(false);
     const cbRef = useRef(callbacks);
     cbRef.current = callbacks;
 
@@ -128,35 +129,64 @@ export const useAdminSocket = (callbacks?: AdminSocketCallbacks) => {
 
         socketRef.current = io(SOCKET_URL, {
             auth: { token },
-            transports: ['websocket'],
-            reconnectionAttempts: 5,
+            // Prefer a WebSocket, but fall back to long-polling rather than failing
+            // outright — some restaurant networks and proxies block WebSockets.
+            transports: ['websocket', 'polling'],
+            // This used to give up after 5 attempts. A brief wifi drop or a server
+            // restart would then leave the dashboard connected-looking but deaf:
+            // no ring, no new orders, and no indication anything was wrong. The
+            // kitchen must never stop receiving orders, so retry indefinitely.
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 10000,
+            randomizationFactor: 0.5,
         });
 
         const socket = socketRef.current;
+        let hasConnectedOnce = false;
 
         socket.on('connect', () => {
             socket.emit('join-admin');
+            setConnected(true);
+
+            // After a reconnect, pull the orders that arrived while we were offline.
+            if (hasConnectedOnce) refreshRef.current?.();
+            hasConnectedOnce = true;
         });
 
+        socket.on('disconnect', () => setConnected(false));
+
+        // Each handler invokes the callback only. It used to *also* call
+        // refreshRef, which the provider wires to the same refresh function the
+        // callbacks already trigger — so every event refetched everything twice.
         socket.on('newOrder', (data) => {
             // Queue ring sound — concurrent orders play sequentially, never overlap
             enqueueRingSound();
             cbRef.current?.onNewOrder?.(data);
-            refreshRef.current?.();
         });
 
         socket.on('orderCancelled', (data) => {
             cbRef.current?.onOrderCancelled?.(data);
-            refreshRef.current?.();
         });
 
         socket.on('paymentReceived', (data) => {
             cbRef.current?.onPaymentReceived?.(data);
-            refreshRef.current?.();
         });
 
         socket.on('connect_error', (err) => {
             console.warn('Admin socket connection error:', err.message);
+            setConnected(false);
+
+            // The server now rejects bad credentials during the handshake. Retrying
+            // those forever would be pointless, so send the admin back to login.
+            const authFailure = /auth|token|admin no longer exists/i.test(err.message);
+            if (authFailure) {
+                socket.disconnect();
+                localStorage.removeItem('bp_admin_token');
+                localStorage.removeItem('bp_admin');
+                window.location.href = '/admin/login';
+            }
         });
 
         return () => {
@@ -165,5 +195,5 @@ export const useAdminSocket = (callbacks?: AdminSocketCallbacks) => {
         };
     }, []);
 
-    return { socket: socketRef.current, onRefresh };
+    return { socket: socketRef.current, onRefresh, connected };
 };

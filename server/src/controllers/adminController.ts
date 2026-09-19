@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { sendServerError } from '../utils/errorResponse';
 import MenuItem from '../models/MenuItem';
 import Order from '../models/Order';
 import User from '../models/User';
@@ -8,17 +9,39 @@ import Category from '../models/Category';
 
 import cloudinary from '../config/cloudinary';
 import fs from 'fs';
-import { autoCancelUnpaidOrders } from './paymentController';
+
+// ============= SHARED HELPERS =============
+
+/**
+ * Clamp pagination input. `parseInt` on a junk value yields NaN, which Mongoose
+ * turns into an unbounded query — so bad input used to be able to pull the whole
+ * collection into memory.
+ */
+const parsePagination = (
+    page: unknown,
+    limit: unknown,
+    { defaultLimit = 20, maxLimit = 100 } = {}
+): { pageNum: number; limitNum: number; skip: number } => {
+    const parsedPage = parseInt(String(page ?? ''), 10);
+    const parsedLimit = parseInt(String(limit ?? ''), 10);
+
+    const pageNum = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, maxLimit)
+        : defaultLimit;
+
+    return { pageNum, limitNum, skip: (pageNum - 1) * limitNum };
+};
 
 // ============= ORDER MANAGEMENT =============
 
 // Get all orders with filters
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
     try {
-        // Auto-cancel unpaid online orders older than 15 minutes
-        await autoCancelUnpaidOrders().catch((err) => console.error('Auto-cancel error:', err));
-
-        const { status, paymentMethod, startDate, endDate, page = '1', limit = '20' } = req.query;
+        // Note: auto-cancelling abandoned online orders used to run here, on every
+        // single request. It is now a scheduled job (see src/jobs) so this read
+        // path no longer triggers a collection-wide write.
+        const { status, paymentMethod, startDate, endDate, page, limit } = req.query;
 
         const query: any = {};
         if (status) query.orderStatus = status;
@@ -30,17 +53,17 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
             if (endDate) query.createdAt.$lte = new Date(endDate as string);
         }
 
-        const pageNum = parseInt(page as string, 10);
-        const limitNum = parseInt(limit as string, 10);
+        const { pageNum, limitNum, skip } = parsePagination(page, limit);
 
-        const orders = await Order.find(query)
-            .sort({ createdAt: -1 })
-            .limit(limitNum)
-            .skip((pageNum - 1) * limitNum)
-            .populate('userId', 'name phone')
-            .lean();
-
-        const count = await Order.countDocuments(query);
+        const [orders, count] = await Promise.all([
+            Order.find(query)
+                .sort({ createdAt: -1 })
+                .limit(limitNum)
+                .skip(skip)
+                .populate('userId', 'name phone')
+                .lean(),
+            Order.countDocuments(query),
+        ]);
 
         res.status(200).json({
             orders,
@@ -50,7 +73,39 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         });
     } catch (error) {
         console.error('Get Orders Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
+    }
+};
+
+/**
+ * Single-round-trip order counts for the admin shell.
+ *
+ * The dashboard previously derived these by firing four separate paginated
+ * `GET /orders` requests (one per active status) every 30 seconds. This
+ * replaces all four with one grouped aggregation.
+ */
+export const getOrderCounts = async (_req: Request, res: Response): Promise<void> => {
+    try {
+        const agg = await Order.aggregate([
+            { $match: { orderStatus: { $in: ['PENDING', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY'] } } },
+            { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+        ]);
+
+        const byStatus: Record<string, number> = {
+            PENDING: 0, ACCEPTED: 0, PREPARING: 0, OUT_FOR_DELIVERY: 0,
+        };
+        for (const row of agg) byStatus[row._id] = row.count;
+
+        const activeOrderCount = Object.values(byStatus).reduce((a, b) => a + b, 0);
+
+        res.status(200).json({
+            byStatus,
+            pendingOrderCount: byStatus.PENDING,
+            activeOrderCount,
+        });
+    } catch (error) {
+        console.error('Get Order Counts Error:', error);
+        sendServerError(res, error);
     }
 };
 
@@ -108,6 +163,7 @@ export const acceptOrder = async (req: Request, res: Response): Promise<void> =>
         order.statusHistory.push({ status: 'ACCEPTED', timestamp: new Date() });
         order.updatedAt = new Date();
         await order.save();
+        invalidateStatsCache();
 
         // Emit rich socket event to customer
         req.io.to(order.userId.toString()).emit('orderStatusUpdate', {
@@ -121,7 +177,7 @@ export const acceptOrder = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ message: 'Order accepted successfully', order });
     } catch (error) {
         console.error('Accept Order Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -163,6 +219,7 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
         order.statusHistory.push({ status, timestamp: new Date() });
         order.updatedAt = new Date();
         await order.save();
+        invalidateStatsCache();
 
         // Emit rich socket event to customer
         req.io.to(order.userId.toString()).emit('orderStatusUpdate', {
@@ -176,7 +233,7 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
         res.status(200).json({ message: 'Order status updated successfully', order });
     } catch (error) {
         console.error('Update Order Status Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -207,6 +264,7 @@ export const rejectOrder = async (req: Request, res: Response): Promise<void> =>
         order.statusHistory.push({ status: 'CANCELLED', timestamp: new Date(), note: reason || 'Rejected by restaurant' });
         order.updatedAt = new Date();
         await order.save();
+        invalidateStatsCache();
 
         // Emit to customer with rejection reason
         req.io.to(order.userId.toString()).emit('orderStatusUpdate', {
@@ -219,7 +277,7 @@ export const rejectOrder = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ message: 'Order rejected', order });
     } catch (error) {
         console.error('Reject Order Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -229,14 +287,17 @@ export const getOrderStats = async (_req: Request, res: Response): Promise<void>
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const todayRevenue = await Order.aggregate([
-            { $match: { createdAt: { $gte: today }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
-            { $group: { _id: null, total: { $sum: '$total' } } }
+        // Run in parallel — these four are independent, so there is no reason to
+        // pay four sequential database round-trips for them.
+        const [todayRevenue, todayOrders, pendingOrders, activeUsers] = await Promise.all([
+            Order.aggregate([
+                { $match: { createdAt: { $gte: today }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+                { $group: { _id: null, total: { $sum: '$total' } } }
+            ]),
+            Order.countDocuments({ createdAt: { $gte: today } }),
+            Order.countDocuments({ orderStatus: 'PENDING' }),
+            User.countDocuments({ isBlocked: false }),
         ]);
-
-        const todayOrders = await Order.countDocuments({ createdAt: { $gte: today } });
-        const pendingOrders = await Order.countDocuments({ orderStatus: 'PENDING' });
-        const activeUsers = await User.countDocuments({ isBlocked: false });
 
         res.status(200).json({
             todayRevenue: todayRevenue[0]?.total || 0,
@@ -246,7 +307,7 @@ export const getOrderStats = async (_req: Request, res: Response): Promise<void>
         });
     } catch (error) {
         console.error('Get Order Stats Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -288,7 +349,7 @@ export const addMenuItem = async (req: Request, res: Response): Promise<void> =>
         res.status(201).json({ message: 'Menu item added successfully', menuItem });
     } catch (error) {
         console.error('Add Menu Item Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -318,7 +379,7 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
         res.status(200).json({ message: 'Menu item updated successfully', menuItem });
     } catch (error) {
         console.error('Update Menu Item Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -341,7 +402,7 @@ export const deleteMenuItem = async (req: Request, res: Response): Promise<void>
         res.status(200).json({ message: 'Menu item moved to trash', menuItem });
     } catch (error) {
         console.error('Delete Menu Item Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -364,7 +425,7 @@ export const restoreMenuItem = async (req: Request, res: Response): Promise<void
         res.status(200).json({ message: 'Menu item restored successfully', menuItem });
     } catch (error) {
         console.error('Restore Menu Item Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -375,7 +436,7 @@ export const getDeletedMenuItems = async (_req: Request, res: Response): Promise
         res.status(200).json({ menuItems });
     } catch (error) {
         console.error('Get Deleted Menu Items Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -388,7 +449,7 @@ export const getAdminMenuItems = async (req: Request, res: Response): Promise<vo
         res.status(200).json({ menuItems });
     } catch (error) {
         console.error('Get Admin Menu Items Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -413,7 +474,7 @@ export const toggleAvailability = async (req: Request, res: Response): Promise<v
         });
     } catch (error) {
         console.error('Toggle Availability Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -439,17 +500,17 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
             query.isBlocked = isBlocked === 'true';
         }
 
-        const pageNum = parseInt(page as string, 10);
-        const limitNum = parseInt(limit as string, 10);
+        const { pageNum, limitNum, skip } = parsePagination(page, limit);
 
-        const users = await User.find(query)
-            .select('-__v')
-            .limit(limitNum)
-            .skip((pageNum - 1) * limitNum)
-            .sort({ createdAt: -1 })
-            .lean();
-
-        const count = await User.countDocuments(query);
+        const [users, count] = await Promise.all([
+            User.find(query)
+                .select('-__v')
+                .limit(limitNum)
+                .skip(skip)
+                .sort({ createdAt: -1 })
+                .lean(),
+            User.countDocuments(query),
+        ]);
 
         res.status(200).json({
             users,
@@ -459,7 +520,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         });
     } catch (error) {
         console.error('Get Users Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -484,7 +545,7 @@ export const toggleUserBlock = async (req: Request, res: Response): Promise<void
         });
     } catch (error) {
         console.error('Toggle User Block Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -509,7 +570,7 @@ export const toggleCODBlock = async (req: Request, res: Response): Promise<void>
         });
     } catch (error) {
         console.error('Toggle COD Block Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -539,7 +600,7 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
         res.status(200).json({ message: 'Restaurant updated successfully', restaurant });
     } catch (error) {
         console.error('Update Restaurant Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -602,24 +663,24 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
         res.status(201).json({ message: 'Offer created successfully', offer });
     } catch (error) {
         console.error('Create Offer Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
 // Get all offers (admin view — includes inactive)
 export const getOffers = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { page = '1', limit = '20' } = req.query;
-        const pageNum = parseInt(page as string, 10);
-        const limitNum = parseInt(limit as string, 10);
+        const { page, limit } = req.query;
+        const { pageNum, limitNum, skip } = parsePagination(page, limit);
 
-        const offers = await Offer.find()
-            .sort({ createdAt: -1 })
-            .limit(limitNum)
-            .skip((pageNum - 1) * limitNum)
-            .lean();
-
-        const total = await Offer.countDocuments();
+        const [offers, total] = await Promise.all([
+            Offer.find()
+                .sort({ createdAt: -1 })
+                .limit(limitNum)
+                .skip(skip)
+                .lean(),
+            Offer.countDocuments(),
+        ]);
 
         res.status(200).json({
             offers,
@@ -629,7 +690,7 @@ export const getOffers = async (req: Request, res: Response): Promise<void> => {
         });
     } catch (error) {
         console.error('Get Offers Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -682,7 +743,7 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ message: 'Offer updated successfully', offer });
     } catch (error) {
         console.error('Update Offer Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -701,7 +762,7 @@ export const deleteOffer = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ message: 'Offer deleted successfully' });
     } catch (error) {
         console.error('Delete Offer Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -726,7 +787,7 @@ export const toggleOfferActive = async (req: Request, res: Response): Promise<vo
         });
     } catch (error) {
         console.error('Toggle Offer Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -741,7 +802,7 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({ categories });
     } catch (error) {
         console.error('Get Categories Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -758,7 +819,7 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
         res.status(201).json({ message: 'Category created', category });
     } catch (error) {
         console.error('Create Category Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -774,7 +835,7 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
         res.status(200).json({ message: 'Category updated', category });
     } catch (error) {
         console.error('Update Category Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -797,7 +858,7 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
         res.status(200).json({ message: 'Category deleted' });
     } catch (error) {
         console.error('Delete Category Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -805,122 +866,164 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
 
 // ============= DETAILED STATS =============
 
+const VALID_TIME_RANGES = ['today', 'week', 'month', '3months'];
+
+// The server's own timezone, handed to MongoDB so date bucketing in the database
+// agrees with the local-time Date maths below. Set TZ=Asia/Kolkata on the server.
+const REPORT_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+/** Local-time YYYY-MM-DD. Matches MongoDB's $dateToString under REPORT_TZ. */
+const dayKey = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// ─── Short-lived stats cache ──────────────────────────────────────────────────
+// The dashboard polls on a timer and several admin screens ask for the same
+// numbers. A few seconds of staleness is irrelevant for revenue totals, and this
+// keeps repeated polls from re-running the aggregation pipeline every time.
+const STATS_CACHE_TTL_MS = 15000;
+const statsCache = new Map<string, { at: number; payload: unknown }>();
+
+/** Called after any write that changes order figures, so the UI never shows stale totals. */
+export const invalidateStatsCache = (): void => statsCache.clear();
+
 // Get detailed order statistics for dashboard
 export const getDetailedOrderStats = async (req: Request, res: Response): Promise<void> => {
     try {
-        const timeRange = req.query.timeRange as string || 'today';
+        const requested = req.query.timeRange as string;
+        const timeRange = VALID_TIME_RANGES.includes(requested) ? requested : 'today';
+
+        const cached = statsCache.get(timeRange);
+        if (cached && Date.now() - cached.at < STATS_CACHE_TTL_MS) {
+            res.status(200).json(cached.payload);
+            return;
+        }
+
         const now = new Date();
-        let startDate = new Date();
+        const startDate = new Date();
         startDate.setHours(0, 0, 0, 0);
 
         if (timeRange === 'week') {
-            startDate.setDate(now.getDate() - 6);
+            startDate.setDate(startDate.getDate() - 6);
         } else if (timeRange === 'month') {
-            startDate.setDate(now.getDate() - 29);
+            startDate.setDate(startDate.getDate() - 29);
         } else if (timeRange === '3months') {
-            startDate.setDate(now.getDate() - 89);
+            startDate.setDate(startDate.getDate() - 89);
         }
 
         const dateMatch = { createdAt: { $gte: startDate } };
         const deliveredMatch = { ...dateMatch, orderStatus: 'DELIVERED', paymentStatus: 'PAID' };
 
-        // Basic stats
-        const periodRevenueAgg = await Order.aggregate([
-            { $match: deliveredMatch },
-            { $group: { _id: null, total: { $sum: '$total' } } }
-        ]);
-        const periodOrders = await Order.countDocuments(dateMatch);
-        const pendingOrders = await Order.countDocuments({ orderStatus: 'PENDING' });
-        const activeUsers = await User.countDocuments({ isBlocked: false });
+        // The revenue trend used to be built with one aggregation per bucket —
+        // 8 round-trips for "today" and 30 for "month", run one after another.
+        // It is now a single grouped query, with the buckets filled in below.
+        const trendGroupId = timeRange === 'today'
+            ? { $multiply: [{ $floor: { $divide: [{ $hour: { date: '$createdAt', timezone: REPORT_TZ } }, 3] } }, 3] }
+            : { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: REPORT_TZ } };
 
-        // Trend data mapping
+        // Every query below is independent, so they all go out together.
+        const [
+            revenueAgg,
+            periodOrders,
+            pendingOrders,
+            activeUsers,
+            trendAgg,
+            statusAgg,
+            paymentAgg,
+            topItemsAgg,
+        ] = await Promise.all([
+            // Sum and average share a pipeline instead of being two separate passes.
+            Order.aggregate([
+                { $match: deliveredMatch },
+                { $group: { _id: null, total: { $sum: '$total' }, avg: { $avg: '$total' } } },
+            ]),
+            Order.countDocuments(dateMatch),
+            Order.countDocuments({ orderStatus: 'PENDING' }),
+            User.countDocuments({ isBlocked: false }),
+            Order.aggregate([
+                { $match: deliveredMatch },
+                { $group: { _id: trendGroupId, revenue: { $sum: '$total' } } },
+            ]),
+            Order.aggregate([
+                { $match: dateMatch },
+                { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+            ]),
+            Order.aggregate([
+                { $match: deliveredMatch },
+                { $group: { _id: '$paymentMethod', total: { $sum: '$total' } } },
+            ]),
+            Order.aggregate([
+                { $match: dateMatch },
+                { $unwind: '$items' },
+                { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 },
+            ]),
+        ]);
+
+        // ── Fill the trend buckets, including the empty ones ──────────────────
+        const revenueByBucket = new Map<string | number, number>(
+            trendAgg.map((r: any) => [r._id, r.revenue])
+        );
         const trendData: { date: string; revenue: number }[] = [];
+
         if (timeRange === 'today') {
-            // Show every 3 hours for today
             for (let i = 0; i < 24; i += 3) {
-                const hourStart = new Date(startDate);
-                hourStart.setHours(i);
-                const hourEnd = new Date(startDate);
-                hourEnd.setHours(i + 3);
-                const agg = await Order.aggregate([
-                    { $match: { createdAt: { $gte: hourStart, $lt: hourEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
-                    { $group: { _id: null, total: { $sum: '$total' } } }
-                ]);
                 trendData.push({
                     date: `${i.toString().padStart(2, '0')}:00`,
-                    revenue: agg[0]?.total || 0
+                    revenue: revenueByBucket.get(i) || 0,
                 });
             }
         } else {
-            // Group by days
             const numDays = timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 90;
-            const step = numDays > 30 ? 7 : 1; // if 90 days, step by 7 days
+            const step = numDays > 30 ? 7 : 1;
+
             for (let i = numDays - 1; i >= 0; i -= step) {
-                const dayStart = new Date(now);
-                dayStart.setHours(0, 0, 0, 0);
-                dayStart.setDate(dayStart.getDate() - i);
-                const dayEnd = new Date(dayStart);
-                dayEnd.setDate(dayEnd.getDate() + step);
-                
-                const agg = await Order.aggregate([
-                    { $match: { createdAt: { $gte: dayStart, $lt: dayEnd }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
-                    { $group: { _id: null, total: { $sum: '$total' } } }
-                ]);
+                const bucketStart = new Date(now);
+                bucketStart.setHours(0, 0, 0, 0);
+                bucketStart.setDate(bucketStart.getDate() - i);
+
+                // A multi-day bucket sums the days it covers.
+                let revenue = 0;
+                for (let d = 0; d < step; d++) {
+                    const day = new Date(bucketStart);
+                    day.setDate(day.getDate() + d);
+                    revenue += revenueByBucket.get(dayKey(day)) || 0;
+                }
+
+                // Label in local time. This previously used toISOString(), which
+                // is UTC and so labelled the wrong day for any timezone ahead of it.
                 trendData.push({
-                    date: dayStart.toISOString().split('T')[0],
-                    revenue: agg[0]?.total || 0
+                    date: dayKey(bucketStart),
+                    revenue: Math.round(revenue * 100) / 100,
                 });
             }
         }
 
-        // Orders by status
-        const statusAgg = await Order.aggregate([
-            { $match: dateMatch },
-            { $group: { _id: '$orderStatus', count: { $sum: 1 } } }
-        ]);
         const ordersByStatus: Record<string, number> = {};
         statusAgg.forEach((s: any) => { ordersByStatus[s._id] = s.count; });
 
-        // Revenue by payment method
-        const paymentAgg = await Order.aggregate([
-            { $match: deliveredMatch },
-            { $group: { _id: '$paymentMethod', total: { $sum: '$total' } } }
-        ]);
         const revenueByPayment = { cod: 0, online: 0 };
         paymentAgg.forEach((p: any) => {
             if (p._id === 'COD') revenueByPayment.cod = p.total;
             if (p._id === 'ONLINE') revenueByPayment.online = p.total;
         });
 
-        // Top 5 selling items
-        const topItemsAgg = await Order.aggregate([
-            { $match: dateMatch },
-            { $unwind: '$items' },
-            { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
-            { $sort: { count: -1 } },
-            { $limit: 5 }
-        ]);
-        const topItems = topItemsAgg.map((i: any) => ({ name: i._id, count: i.count }));
-
-        // Average order value
-        const avgAgg = await Order.aggregate([
-            { $match: deliveredMatch },
-            { $group: { _id: null, avg: { $avg: '$total' } } }
-        ]);
-
-        res.status(200).json({
-            revenue: periodRevenueAgg[0]?.total || 0,
+        const payload = {
+            revenue: revenueAgg[0]?.total || 0,
             orders: periodOrders,
             pendingOrders,
             activeUsers,
             trendData,
             ordersByStatus,
             revenueByPayment,
-            topItems,
-            avgOrderValue: Math.round(avgAgg[0]?.avg || 0)
-        });
+            topItems: topItemsAgg.map((i: any) => ({ name: i._id, count: i.count })),
+            avgOrderValue: Math.round(revenueAgg[0]?.avg || 0),
+        };
+
+        statsCache.set(timeRange, { at: Date.now(), payload });
+        res.status(200).json(payload);
     } catch (error) {
         console.error('Get Detailed Order Stats Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };

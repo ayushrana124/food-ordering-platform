@@ -1,6 +1,7 @@
 interface Config {
     port: number;
     nodeEnv: string;
+    isProduction: boolean;
     mongodbUri: string;
     jwtSecret: string;
     jwtExpire: string;
@@ -11,14 +12,28 @@ interface Config {
     cloudinaryApiKey: string;
     cloudinaryApiSecret: string;
     clientUrl: string;
+    extraOrigins: string[];
     useDummyPayment: boolean; // Set to true to bypass Razorpay (for dev/testing)
 }
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+
+const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
+
+// Dummy payment is ONLY ever allowed outside production. Even if someone sets
+// USE_DUMMY_PAYMENT=true on a production deploy, we refuse — the dummy path
+// skips Razorpay signature verification and would make every order free.
+const dummyRequested = process.env.USE_DUMMY_PAYMENT
+    ? process.env.USE_DUMMY_PAYMENT === 'true'
+    : !isProduction;
+
 const config: Config = {
     port: parseInt(process.env.PORT || '5000', 10),
-    nodeEnv: process.env.NODE_ENV || 'development',
+    nodeEnv,
+    isProduction,
     mongodbUri: process.env.MONGODB_URI || '',
-    jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    jwtSecret: process.env.JWT_SECRET || DEFAULT_JWT_SECRET,
     jwtExpire: process.env.JWT_EXPIRE || '7d',
 
     // Razorpay Configuration
@@ -32,21 +47,44 @@ const config: Config = {
     cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
 
     // Client URL
-    clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+    clientUrl: (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, ''),
 
-    // Dummy payment toggle — set USE_DUMMY_PAYMENT=false when Razorpay keys are ready
-    useDummyPayment: process.env.USE_DUMMY_PAYMENT
-        ? process.env.USE_DUMMY_PAYMENT === 'true'
-        : (process.env.NODE_ENV || 'development') === 'development',
+    // Optional extra allowed origins, comma-separated (e.g. a www. alias or preview domain)
+    extraOrigins: (process.env.EXTRA_ORIGINS || '')
+        .split(',')
+        .map((o) => o.trim().replace(/\/$/, ''))
+        .filter(Boolean),
+
+    useDummyPayment: isProduction ? false : dummyRequested,
 };
 
-// Validate required environment variables
-const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+if (isProduction && dummyRequested) {
+    console.warn('[config] USE_DUMMY_PAYMENT=true was ignored — dummy payments are disabled in production.');
+}
 
-if (missingEnvVars.length > 0 && config.nodeEnv === 'production') {
-    console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
-    process.exit(1);
+// ─── Validate required environment variables ──────────────────────────────────
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    const msg = `Missing required environment variables: ${missingEnvVars.join(', ')}`;
+    if (isProduction) {
+        console.error(msg);
+        process.exit(1);
+    }
+    console.warn(`[config] ${msg} — using development defaults.`);
+}
+
+// A weak/default signing key in production means anyone can mint admin tokens.
+if (isProduction) {
+    if (config.jwtSecret === DEFAULT_JWT_SECRET) {
+        console.error('JWT_SECRET is still the built-in default. Set a strong, random JWT_SECRET.');
+        process.exit(1);
+    }
+    if (config.jwtSecret.length < 32) {
+        console.error('JWT_SECRET is too short. Use at least 32 random characters.');
+        process.exit(1);
+    }
 }
 
 export default config;

@@ -4,6 +4,12 @@ import type { IOrder, IAddress } from '@/types';
 export interface CreateOrderPayload {
     deliveryAddress: IAddress;
     paymentMethod: 'COD' | 'ONLINE';
+    /**
+     * The server resolves the delivery address from the saved addresses on the
+     * account using this id — it does not trust the address body. Sent
+     * explicitly so the contract survives any reshaping of deliveryAddress.
+     */
+    addressId?: string;
 }
 
 export interface PaginatedOrdersResponse {

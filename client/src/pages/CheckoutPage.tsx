@@ -56,6 +56,7 @@ export default function CheckoutPage() {
         try {
             const { order } = await orderService.createOrder({
                 deliveryAddress: deliveryAddr,
+                addressId: deliveryAddr._id,
                 paymentMethod,
             });
 

@@ -21,7 +21,9 @@ const adminSchema = new Schema<IAdmin>({
     },
     password: {
         type: String,
-        required: true
+        required: true,
+        // Never ship the bcrypt hash out of the DB unless explicitly asked for.
+        select: false
     },
     name: {
         type: String,

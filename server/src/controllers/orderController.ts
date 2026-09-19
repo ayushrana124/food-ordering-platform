@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import { sendServerError } from '../utils/errorResponse';
+import mongoose from 'mongoose';
 import Order from '../models/Order';
 import Cart from '../models/Cart';
 import MenuItem from '../models/MenuItem';
@@ -6,6 +8,8 @@ import Offer from '../models/Offer';
 import Restaurant from '../models/Restaurant';
 import { calculateDistance } from '../utils/distanceCalculator';
 import { calculateDeliveryCharges } from '../utils/deliveryCharges';
+
+const PAYMENT_METHODS = ['COD', 'ONLINE'];
 
 // Create order — reads cart from DB, validates everything server-side
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
@@ -17,8 +21,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
         const { deliveryAddress, paymentMethod, specialInstructions } = req.body;
 
-        if (!deliveryAddress) {
-            res.status(400).json({ message: 'Delivery address is required' });
+        if (!PAYMENT_METHODS.includes(paymentMethod)) {
+            res.status(400).json({ message: `Payment method must be one of: ${PAYMENT_METHODS.join(', ')}` });
             return;
         }
 
@@ -32,8 +36,48 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        if (specialInstructions && typeof specialInstructions === 'string' && specialInstructions.length > 500) {
-            res.status(400).json({ message: 'Special instructions must be 500 characters or less' });
+        if (specialInstructions !== undefined && specialInstructions !== null) {
+            if (typeof specialInstructions !== 'string') {
+                res.status(400).json({ message: 'Special instructions must be text' });
+                return;
+            }
+            if (specialInstructions.length > 500) {
+                res.status(400).json({ message: 'Special instructions must be 500 characters or less' });
+                return;
+            }
+        }
+
+        // ── Resolve the delivery address from the user's own saved addresses ──
+        // The address is never taken from the request body as-is. Trusting the
+        // body let a caller omit `coordinates`, which skipped both the delivery
+        // radius check and the delivery charge — free delivery, any distance.
+        const addressId = req.body.addressId || deliveryAddress?._id;
+
+        if (!addressId || !mongoose.Types.ObjectId.isValid(String(addressId))) {
+            res.status(400).json({ message: 'A saved delivery address is required' });
+            return;
+        }
+
+        const savedAddress = req.user.addresses.id(String(addressId));
+
+        if (!savedAddress) {
+            res.status(400).json({ message: 'Delivery address not found on your account' });
+            return;
+        }
+
+        const coordinates = savedAddress.coordinates;
+        if (
+            !coordinates ||
+            typeof coordinates.lat !== 'number' ||
+            typeof coordinates.lng !== 'number' ||
+            Number.isNaN(coordinates.lat) ||
+            Number.isNaN(coordinates.lng) ||
+            Math.abs(coordinates.lat) > 90 ||
+            Math.abs(coordinates.lng) > 180
+        ) {
+            res.status(400).json({
+                message: 'This address has no valid location pinned. Please edit it and set a location on the map.'
+            });
             return;
         }
 
@@ -55,34 +99,26 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        // ── Distance & delivery ──────────────────────────────────────────────
-        let distance = 0;
-        let deliveryCharges = 0;
+        // ── Distance & delivery — always enforced ────────────────────────────
+        const distance = calculateDistance(
+            restaurant.address.coordinates.lat,
+            restaurant.address.coordinates.lng,
+            coordinates.lat,
+            coordinates.lng
+        );
 
-        if (deliveryAddress.coordinates?.lat && deliveryAddress.coordinates?.lng) {
-            // GPS-based address — calculate and validate distance
-            distance = calculateDistance(
-                restaurant.address.coordinates.lat,
-                restaurant.address.coordinates.lng,
-                deliveryAddress.coordinates.lat,
-                deliveryAddress.coordinates.lng
-            );
-
-            if (distance > restaurant.deliveryRadius) {
-                res.status(400).json({
-                    message: `Delivery not available. Maximum delivery distance is ${restaurant.deliveryRadius}km. Your location is ${distance}km away.`
-                });
-                return;
-            }
-
-            const charges = calculateDeliveryCharges(distance);
-            if (charges === null) {
-                res.status(400).json({ message: 'Delivery not available for this distance' });
-                return;
-            }
-            deliveryCharges = charges;
+        if (distance > restaurant.deliveryRadius) {
+            res.status(400).json({
+                message: `Delivery not available. Maximum delivery distance is ${restaurant.deliveryRadius}km. Your location is ${distance}km away.`
+            });
+            return;
         }
-        // Predefined delivery locations added by admin — no distance check needed
+
+        const deliveryCharges = calculateDeliveryCharges(distance);
+        if (deliveryCharges === null) {
+            res.status(400).json({ message: 'Delivery not available for this distance' });
+            return;
+        }
 
         // ── Validate items & calculate prices from DB ────────────────────────
         const menuItemIds = cart.items.map((i) => i.menuItemId);
@@ -177,11 +213,18 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         const total = Math.round((subtotal + deliveryCharges - discount) * 100) / 100;
 
         // ── Create order ─────────────────────────────────────────────────────
+        // Only whitelisted address fields are persisted, so no arbitrary
+        // client-supplied keys end up on the order document.
         const order = await Order.create({
             userId: req.user._id,
             restaurantId: restaurant._id,
             items: orderItems,
-            deliveryAddress,
+            deliveryAddress: {
+                label: savedAddress.label,
+                addressLine: savedAddress.addressLine,
+                landmark: savedAddress.landmark,
+                coordinates: { lat: coordinates.lat, lng: coordinates.lng },
+            },
             distance,
             deliveryCharges,
             subtotal,
@@ -211,7 +254,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         res.status(201).json({ message: 'Order created successfully', order });
     } catch (error) {
         console.error('Create Order Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -239,7 +282,7 @@ export const getOrder = async (req: Request, res: Response): Promise<void> => {
         res.status(200).json({ order });
     } catch (error) {
         console.error('Get Order Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -284,6 +327,6 @@ export const cancelOrder = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ message: 'Order cancelled successfully', order });
     } catch (error) {
         console.error('Cancel Order Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { sendServerError } from '../utils/errorResponse';
 import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin';
 import config from '../config/config';
@@ -13,8 +14,17 @@ export const loginController = async (req: Request, res: Response): Promise<void
             return;
         }
 
+        // Reject non-string credentials up front. A crafted object here used to
+        // reach Mongoose, fail to cast, and come back as a 500 carrying the raw
+        // driver error — which told an unauthenticated caller the model name and
+        // field types.
+        if (typeof email !== 'string' || typeof password !== 'string') {
+            res.status(401).json({ message: 'Invalid credentials' });
+            return;
+        }
+
         // Find admin by email
-        const admin = await Admin.findOne({ email }).populate('restaurantId');
+        const admin = await Admin.findOne({ email }).select('+password').populate('restaurantId');
 
         if (!admin) {
             res.status(401).json({ message: 'Invalid credentials' });
@@ -49,7 +59,7 @@ export const loginController = async (req: Request, res: Response): Promise<void
         });
     } catch (error) {
         console.error('Admin Login Error:', error);
-        res.status(500).json({ message: (error as Error).message || 'Login failed' });
+        sendServerError(res, error, 'Login failed');
     }
 };
 

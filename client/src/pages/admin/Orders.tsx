@@ -134,13 +134,14 @@ export default function Orders() {
         return () => window.removeEventListener('focus', handler);
     }, [fetchOrders]);
 
-    // Also re-fetch orders whenever context refreshes active orders (socket events)
-    // We use a custom event to bridge context socket → Orders page
+    // Bridge: the provider dispatches this after a socket event (debounced) and
+    // on its safety-net heartbeat. It has already refreshed the shell counts, so
+    // this only needs to refetch the visible list.
     useEffect(() => {
-        const handler = () => { fetchOrders(); refreshActiveOrders(); };
+        const handler = () => { fetchOrders(); };
         window.addEventListener('admin:orders-changed', handler);
         return () => window.removeEventListener('admin:orders-changed', handler);
-    }, [fetchOrders, refreshActiveOrders]);
+    }, [fetchOrders]);
 
     const setFilter = (key: keyof OrderFilters, value: string | number) => {
         setFilters((prev) => ({ ...prev, [key]: value, page: key === 'page' ? Number(value) : 1 }));

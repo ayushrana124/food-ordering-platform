@@ -116,6 +116,21 @@ export async function getOrders(filters: OrderFilters = {}) {
     return data;
 }
 
+export interface IOrderCounts {
+    byStatus: Record<string, number>;
+    pendingOrderCount: number;
+    activeOrderCount: number;
+}
+
+/**
+ * All active-order counts in a single request. Replaces the four separate
+ * paginated /admin/orders calls the admin shell used to make on every refresh.
+ */
+export async function getOrderCounts() {
+    const { data } = await adminApi.get<IOrderCounts>('/admin/orders/counts');
+    return data;
+}
+
 export async function acceptOrder(id: string, preparationTime: number) {
     const { data } = await adminApi.put<{ message: string; order: IAdminOrder }>(`/admin/orders/${id}/accept`, { preparationTime });
     return data;

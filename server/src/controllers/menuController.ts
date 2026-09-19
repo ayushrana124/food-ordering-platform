@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { sendServerError } from '../utils/errorResponse';
 import MenuItem from '../models/MenuItem';
 import Restaurant from '../models/Restaurant';
 import Offer from '../models/Offer';
@@ -18,7 +19,7 @@ export const getRestaurantInfo = async (_req: Request, res: Response): Promise<v
         res.status(200).json({ restaurant });
     } catch (error) {
         console.error('Get Restaurant Info Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -55,7 +56,7 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
         });
     } catch (error) {
         console.error('Get Menu Items Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -74,7 +75,7 @@ export const getMenuItem = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ menuItem });
     } catch (error) {
         console.error('Get Menu Item Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -95,7 +96,7 @@ export const getOffers = async (_req: Request, res: Response): Promise<void> => 
         });
     } catch (error) {
         console.error('Get Offers Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -107,7 +108,7 @@ export const getCategories = async (_req: Request, res: Response): Promise<void>
         res.status(200).json({ categories, count: categories.length });
     } catch (error) {
         console.error('Get Categories Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 

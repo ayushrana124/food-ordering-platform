@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { sendServerError } from '../utils/errorResponse';
 import User from '../models/User';
 import Order from '../models/Order';
 
@@ -14,7 +15,7 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
         res.status(200).json({ user });
     } catch (error) {
         console.error('Get Profile Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -37,7 +38,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({ message: 'Profile updated successfully', user });
     } catch (error) {
         console.error('Update Profile Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -84,7 +85,7 @@ export const addAddress = async (req: Request, res: Response): Promise<void> => 
         });
     } catch (error) {
         console.error('Add Address Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -134,7 +135,7 @@ export const updateAddress = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({ message: 'Address updated successfully', address });
     } catch (error) {
         console.error('Update Address Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -168,7 +169,7 @@ export const deleteAddress = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({ message: 'Address deleted successfully' });
     } catch (error) {
         console.error('Delete Address Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };
 
@@ -205,6 +206,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         });
     } catch (error) {
         console.error('Get Orders Error:', error);
-        res.status(500).json({ message: (error as Error).message });
+        sendServerError(res, error);
     }
 };

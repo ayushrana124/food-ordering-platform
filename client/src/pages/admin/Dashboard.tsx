@@ -58,7 +58,9 @@ export default function Dashboard() {
     }, [fetchData]);
 
     useEffect(() => {
-        const interval = setInterval(fetchData, 30000);
+        // Socket events and window focus already refresh this. The timer is only a
+        // fallback, and this is the most expensive query the admin makes.
+        const interval = setInterval(fetchData, 60000);
         return () => clearInterval(interval);
     }, [fetchData]);
 
