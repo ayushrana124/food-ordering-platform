@@ -9,6 +9,8 @@ import {
     applyCoupon,
     removeCoupon,
     getAvailableCoupons,
+    mergeCart,
+    reorderIntoCart,
 } from '../controllers/cartController';
 
 const router = Router();
@@ -24,5 +26,10 @@ router.delete('/', clearCart);
 router.get('/available-coupons', getAvailableCoupons);
 router.post('/apply-coupon', applyCoupon);
 router.delete('/coupon', removeCoupon);
+
+// Fold a guest's browser cart into their account after login
+router.post('/merge', mergeCart);
+// Refill the cart from one of their past orders
+router.post('/reorder', reorderIntoCart);
 
 export default router;

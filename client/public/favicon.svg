@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="crust" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F5B933"/>
+      <stop offset="1" stop-color="#D98A0E"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#crust)"/>
+  <circle cx="32" cy="32" r="23" fill="#FFE6A8"/>
+  <circle cx="24" cy="26" r="4" fill="#D93A2B"/>
+  <circle cx="40" cy="24" r="3.4" fill="#D93A2B"/>
+  <circle cx="34" cy="40" r="3.8" fill="#D93A2B"/>
+  <circle cx="21" cy="39" r="2.8" fill="#D93A2B"/>
+  <circle cx="44" cy="36" r="2.6" fill="#D93A2B"/>
+  <circle cx="31" cy="31" r="1.8" fill="#4FA83D"/>
+  <circle cx="43" cy="45" r="1.6" fill="#4FA83D"/>
+  <circle cx="18" cy="31" r="1.5" fill="#4FA83D"/>
+</svg>

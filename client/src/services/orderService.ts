@@ -10,6 +10,8 @@ export interface CreateOrderPayload {
      * explicitly so the contract survives any reshaping of deliveryAddress.
      */
     addressId?: string;
+    /** Free-text note for the rider, capped at 500 chars by the server. */
+    specialInstructions?: string;
 }
 
 export interface PaginatedOrdersResponse {

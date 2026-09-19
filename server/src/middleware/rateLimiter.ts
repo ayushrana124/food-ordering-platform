@@ -27,7 +27,9 @@ const userOrIpKey = (req: Request): string => {
 // high enough to absorb several customers sharing one carrier NAT address.
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 600,
+    // Tunable via RATE_LIMIT_MAX — raise it if the shop ever shares one NAT
+    // address with a lot of customers, or lower it under abuse.
+    max: parseInt(process.env.RATE_LIMIT_MAX || '600', 10),
     message: {
         message: 'Too many requests. Please try again later.'
     },

@@ -17,6 +17,7 @@ export interface IUser extends Document {
     name?: string;
     email?: string;
     addresses: Types.DocumentArray<IAddress>;
+    favorites: Types.ObjectId[];
     isBlocked: boolean;
     isCODBlocked: boolean;
     createdAt: Date;
@@ -59,6 +60,11 @@ const userSchema = new Schema<IUser>({
             type: Boolean,
             default: false
         }
+    }],
+    // Dishes the customer has hearted, shown on their home screen.
+    favorites: [{
+        type: Schema.Types.ObjectId,
+        ref: 'MenuItem'
     }],
     isBlocked: {
         type: Boolean,

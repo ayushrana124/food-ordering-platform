@@ -62,33 +62,41 @@ export interface IMenuItem {
 
 
 
+/**
+ * Mirrors the Restaurant document the API actually returns.
+ *
+ * This previously declared `address` as a string and `coordinates` as a
+ * top-level field, neither of which the server sends — callers were casting
+ * through `any` to reach `address.addressLine`. Checkout needs the real
+ * coordinates to compute distance, so the shape is now honest.
+ */
 export interface IRestaurant {
     _id: string;
     name: string;
-    description: string;
-    address: string;
-    phone: string;
-    email: string;
+    description?: string;
     logo?: string;
     banner?: string;
-    coordinates: { lat: number; lng: number };
+    address: {
+        addressLine: string;
+        coordinates: { lat: number; lng: number };
+    };
+    phone?: string;
+    email?: string;
+    openingHours: Record<string, { open: string; close: string; isOpen: boolean }>;
+    isOpen: boolean;
     deliveryRadius: number;
     minOrderAmount: number;
-    deliveryTime: number;
-    isOpen: boolean;
-    openingHours: {
-        open: string;
-        close: string;
-    };
-    rating?: number;
-    avgPreparationTime?: string;
+    /** Minutes. */
+    avgPreparationTime: number;
+    categories?: string[];
 }
 
 export interface IOffer {
     _id: string;
     title: string;
     description: string;
-    discountType: 'percentage' | 'flat';
+    /** Uppercase to match the server's enum — lowercase never matched anything. */
+    discountType: 'PERCENTAGE' | 'FLAT';
     discountValue: number;
     minOrderAmount: number;
     code?: string;

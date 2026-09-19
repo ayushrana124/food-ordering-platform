@@ -1,601 +1,285 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    ShoppingBag, Pizza, MapPin, Plus, UtensilsCrossed,
-    ChevronRight, Tag, X, Percent, ChevronDown, Lock, IndianRupee
-} from 'lucide-react';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
-import EmptyState from '@/components/common/EmptyState';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { ShoppingBag, Tag as TagIcon, X, Trash2, AlertTriangle } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
-import { cartService, type AvailableCoupon } from '@/services/cartService';
-import { userService } from '@/services/userService';
-import AddressBottomSheet from '@/components/cart/AddressBottomSheet';
-import type { IAddress } from '@/types';
+import { useAppSelector } from '@/redux/hooks';
+import AppShell, { TopBar } from '@/components/layout/AppShell';
+import LoginModal from '@/components/common/LoginModal';
+import { VegMark, Stepper, Empty, Tag, DishFallback } from '@/components/ui/Bits';
+import { useT, money } from '@/i18n';
 import toast from 'react-hot-toast';
 
 export default function CartPage() {
     const navigate = useNavigate();
+    const t = useT();
+    const { isAuthenticated } = useAuth();
+    const restaurant = useAppSelector((s) => s.menu.restaurant);
+
     const {
-        items, subtotal, total, itemCount, discount, appliedCoupon,
-        loading, fetch, setQuantity, removeItem,
-        applyCoupon: applyCode, removeCoupon,
+        items, subtotal, itemCount, discount, appliedCoupon,
+        setQuantity, removeItem, applyCoupon, removeCoupon, isGuest, loading,
     } = useCart();
-    const { user } = useAuth();
-    const [couponLoading, setCouponLoading] = useState(false);
-    const [showCoupons, setShowCoupons] = useState(false);
-    const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
-    const [couponsLoading, setCouponsLoading] = useState(false);
-    const [showAddressSheet, setShowAddressSheet] = useState(false);
-    const [addresses, setAddresses] = useState<IAddress[]>(user?.addresses ?? []);
-    const [selectedAddrId, setSelectedAddrId] = useState(() => {
-        const def = user?.addresses?.find((a) => a.isDefault) ?? user?.addresses?.[0];
-        return def?._id ?? '';
-    });
-    const [addrHighlight, setAddrHighlight] = useState(false);
-    const addrCardRef = useRef<HTMLDivElement>(null);
 
-    const selectedAddress = addresses.find((a) => a._id === selectedAddrId);
+    const [couponInput, setCouponInput] = useState('');
+    const [applying, setApplying] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
 
-    // Refresh addresses on mount
-    useEffect(() => {
-        if (user) {
-            userService.getProfile().then((u) => {
-                setAddresses(u.addresses);
-                if (!selectedAddrId && u.addresses.length > 0) {
-                    const def = u.addresses.find((a) => a.isDefault) ?? u.addresses[0];
-                    setSelectedAddrId(def._id);
-                }
-            }).catch(() => {});
-        }
-    }, [user]);
+    useEffect(() => { window.scrollTo(0, 0); }, []);
 
-    useEffect(() => { fetch(); }, []);
+    const minOrder = restaurant?.minOrderAmount ?? 0;
+    const shortfall = Math.max(0, minOrder - subtotal);
+    const discountAmount = discount?.appliedDiscount ?? 0;
+    const payable = Math.max(0, subtotal - discountAmount);
 
-    // Listen for the sticky bar's "no address" click — scroll + shake address card
-    useEffect(() => {
-        const handler = () => {
-            addrCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            setAddrHighlight(true);
-            toast.error('Please add a delivery address first');
-            setTimeout(() => setAddrHighlight(false), 1400);
-        };
-        window.addEventListener('highlight-address', handler);
-        return () => window.removeEventListener('highlight-address', handler);
-    }, []);
+    const unavailable = items.filter((i) => !i.isAvailable);
 
-    const loadCoupons = async () => {
-        if (showCoupons) { setShowCoupons(false); return; }
-        setCouponsLoading(true);
+    const handleApplyCoupon = async () => {
+        const code = couponInput.trim().toUpperCase();
+        if (!code) return;
+        setApplying(true);
         try {
-            const { coupons } = await cartService.getAvailableCoupons();
-            setAvailableCoupons(coupons);
-            setShowCoupons(true);
-        } catch {
-            toast.error('Failed to load coupons');
+            await applyCoupon(code).unwrap();
+            toast.success(t('cart.couponApplied', { code }));
+            setCouponInput('');
+        } catch (err) {
+            toast.error(typeof err === 'string' ? err : t('common.somethingWrong'));
         } finally {
-            setCouponsLoading(false);
+            setApplying(false);
         }
     };
 
-    const handleApplyCoupon = async (code: string) => {
-        setCouponLoading(true);
-        try {
-            const result = await applyCode(code);
-            if ((result as any).meta?.requestStatus === 'rejected') {
-                toast.error((result as any).payload || 'Invalid coupon');
-            } else {
-                toast.success('Coupon applied!');
-                setShowCoupons(false);
-            }
-        } catch {
-            toast.error('Failed to apply coupon');
-        } finally {
-            setCouponLoading(false);
-        }
+    const handleCheckout = () => {
+        // Signing in is deferred to exactly this point — everything before it
+        // works as a guest, which is what keeps the basket from being abandoned.
+        if (!isAuthenticated) { setShowLogin(true); return; }
+        navigate('/checkout');
     };
 
-    const handleRemoveCoupon = async () => {
-        await removeCoupon();
-        toast.success('Coupon removed');
-    };
-
-    /* ── Loading ───────────────────────────────────────────────────────── */
-    if (loading && items.length === 0) {
+    if (itemCount === 0) {
         return (
-            <div className="min-h-screen bg-[#F7F7F5]">
-                <Navbar />
-                <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
-            </div>
+            <AppShell hideCartBar>
+                <TopBar title={t('cart.title')} back="/menu" />
+                <Empty
+                    icon={ShoppingBag}
+                    title={t('cart.empty')}
+                    body={t('cart.emptyBody')}
+                    action={
+                        <button type="button" className="c-btn c-btn--primary" onClick={() => navigate('/menu')}>
+                            {t('cart.startOrdering')}
+                        </button>
+                    }
+                />
+            </AppShell>
         );
     }
 
-    /* ── Empty state ───────────────────────────────────────────────────── */
-    if (items.length === 0) {
-        return (
-            <div className="min-h-screen bg-[#F7F7F5]">
-                <Navbar />
-                <div className="py-16">
-                    <EmptyState
-                        icon={ShoppingBag}
-                        title="Your cart is empty"
-                        description="Add some delicious items from our menu!"
-                        action={
-                            <button
-                                className="btn-primary text-base px-8 py-3 flex items-center gap-2"
-                                onClick={() => navigate('/menu')}
-                            >
-                                Browse Menu <Pizza size={18} />
-                            </button>
-                        }
-                    />
-                </div>
-                <Footer />
-            </div>
-        );
-    }
-
-    /* ── Main cart ─────────────────────────────────────────────────────── */
     return (
-        <div className="min-h-screen bg-[#F4F4F2] page-enter" style={{ paddingBottom: 80 }}>
-            <Navbar />
+        <AppShell hideCartBar>
+            <TopBar title={t('cart.title')} back="/menu" />
 
-            <div className="container py-5" style={{ maxWidth: 680 }}>
+            {/* ── Items ── */}
+            <div className="c-wrap" style={{ paddingTop: 8 }}>
+                {items.map((item) => (
+                    <div
+                        key={item.cartItemId}
+                        style={{
+                            display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 12,
+                            alignItems: 'start', paddingBlock: 14, borderBottom: '1px solid var(--c-line)',
+                            opacity: item.isAvailable ? 1 : .55,
+                        }}
+                    >
+                        <div style={{ width: 52, height: 52, borderRadius: 12, overflow: 'hidden', background: 'var(--c-surface-2)' }}>
+                            {item.image
+                                ? <img src={item.image} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <DishFallback name={item.name} radius={0} />}
+                        </div>
 
-                {/* ── ITEMS CARD ─────────────────────────────────────── */}
-                <div style={{
-                    background: 'white', borderRadius: 18, overflow: 'hidden',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem',
-                }}>
-                    <div style={{
-                        padding: '0.9rem 1.25rem 0.75rem', borderBottom: '1px solid #F0F0EE',
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    }}>
-                        <span style={{
-                            width: 28, height: 28, borderRadius: 8, background: '#FFFBF0',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#E8A317', flexShrink: 0,
-                        }}>
-                            <UtensilsCrossed size={14} />
-                        </span>
-                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F0F0F' }}>ITEMS ADDED</span>
-                        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#8E8E8E', fontWeight: 600 }}>
-                            {itemCount} item{itemCount !== 1 ? 's' : ''}
-                        </span>
-                    </div>
-
-                    {items.map((item, idx) => (
-                        <div key={item.cartItemId}>
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                padding: '0.85rem 1.25rem',
-                                opacity: item.isAvailable ? 1 : 0.5,
-                            }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                                        <span style={{
-                                            width: 12, height: 12, borderRadius: 2,
-                                            border: `2px solid ${item.isVeg ? '#16A34A' : '#DC2626'}`,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            flexShrink: 0, marginTop: 3,
-                                        }}>
-                                            <span style={{
-                                                width: 6, height: 6, borderRadius: '50%',
-                                                background: item.isVeg ? '#16A34A' : '#DC2626',
-                                            }} />
-                                        </span>
-                                        <div style={{ minWidth: 0 }}>
-                                            <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F0F0F', lineHeight: 1.3 }}>
-                                                {item.name}
-                                            </p>
-                                            {item.selectedCustomizations.length > 0 && (
-                                                <p style={{ fontSize: '0.7rem', color: '#8E8E8E', marginTop: 2 }}>
-                                                    {item.selectedCustomizations.map((c) => c.optionName).join(' • ')}
-                                                </p>
-                                            )}
-                                            {!item.isAvailable && (
-                                                <span style={{
-                                                    display: 'inline-block', marginTop: 4,
-                                                    fontSize: '0.65rem', fontWeight: 700,
-                                                    color: '#DC2626', background: '#FEF2F2',
-                                                    padding: '1px 8px', borderRadius: 4,
-                                                }}>Unavailable</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Qty stepper */}
-                                {item.isAvailable ? (
-                                    <div style={{
-                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                        border: '1.5px solid #E8A317', borderRadius: 8,
-                                        padding: '2px 6px', background: '#FFFBF0',
-                                    }}>
-                                        <button
-                                            onClick={() => setQuantity(item.cartItemId, item.quantity - 1)}
-                                            style={{
-                                                width: 22, height: 22, border: 'none', background: 'none',
-                                                cursor: 'pointer', color: '#E8A317', fontWeight: 800,
-                                                fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            }}
-                                        >−</button>
-                                        <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0F0F0F', minWidth: 16, textAlign: 'center' }}>
-                                            {item.quantity}
-                                        </span>
-                                        <button
-                                            onClick={() => setQuantity(item.cartItemId, item.quantity + 1)}
-                                            style={{
-                                                width: 22, height: 22, border: 'none', background: 'none',
-                                                cursor: 'pointer', color: '#E8A317', fontWeight: 800,
-                                                fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            }}
-                                        >+</button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => removeItem(item.cartItemId)}
-                                        style={{
-                                            fontSize: '0.72rem', fontWeight: 700, color: '#DC2626',
-                                            background: 'none', border: 'none', cursor: 'pointer',
-                                        }}
-                                    >Remove</button>
-                                )}
-
-                                <span style={{
-                                    fontWeight: 800, fontSize: '0.9rem', color: '#0F0F0F',
-                                    minWidth: 52, textAlign: 'right', flexShrink: 0,
-                                }}>
-                                    ₹{item.itemTotal}
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <VegMark isVeg={item.isVeg} size={12} />
+                                <span style={{ font: '700 .88rem/1.3 "DM Sans", sans-serif', color: 'var(--c-ink)' }}>
+                                    {item.name}
                                 </span>
                             </div>
 
-                            {idx < items.length - 1 && (
-                                <div style={{ margin: '0 1.25rem', borderTop: '1.5px dashed #E8E8E6' }} />
+                            {item.selectedCustomizations.length > 0 && (
+                                <p style={{ marginTop: 2, font: '400 .74rem/1.4 "DM Sans", sans-serif', color: 'var(--c-ink-3)' }}>
+                                    {item.selectedCustomizations.map((c) => c.optionName).join(' · ')}
+                                </p>
                             )}
-                        </div>
-                    ))}
 
-                    {/* Footer actions */}
-                    <div style={{
-                        borderTop: '1px solid #F0F0EE', display: 'flex', alignItems: 'center',
-                        padding: '0.55rem 1.25rem',
-                    }}>
-                        <button
-                            onClick={() => navigate('/menu')}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '0.3rem',
-                                border: '1px solid #E0E0DC', borderRadius: 6, background: 'white',
-                                color: '#8E8E8E', fontSize: '0.68rem', fontWeight: 600,
-                                padding: '0.3rem 0.6rem', cursor: 'pointer', transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#E8A317'; e.currentTarget.style.color = '#E8A317'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#E0E0DC'; e.currentTarget.style.color = '#8E8E8E'; }}
-                        >
-                            <Plus size={10} /> Add more
-                        </button>
+                            {!item.isAvailable && (
+                                <span style={{ display: 'inline-block', marginTop: 4 }}>
+                                    <Tag tone="danger">{t('menu.unavailable')}</Tag>
+                                </span>
+                            )}
+
+                            <div style={{ marginTop: 8 }}>
+                                <Stepper
+                                    value={item.quantity}
+                                    onChange={(next) => {
+                                        if (next <= 0) {
+                                            removeItem(item.cartItemId);
+                                            toast.success(t('cart.removedItem'));
+                                        } else {
+                                            setQuantity(item.cartItemId, next);
+                                        }
+                                    }}
+                                    min={0}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                            <p style={{ font: '800 .95rem/1 Outfit, sans-serif', color: 'var(--c-ink)' }}>
+                                {money(item.itemTotal)}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => { removeItem(item.cartItemId); toast.success(t('cart.removedItem')); }}
+                                aria-label={t('cart.removedItem')}
+                                style={{
+                                    marginTop: 10, border: 0, background: 'none', cursor: 'pointer',
+                                    color: 'var(--c-ink-3)', padding: 4,
+                                }}
+                            >
+                                <Trash2 size={15} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {unavailable.length > 0 && (
+                <div className="c-wrap" style={{ marginTop: 14 }}>
+                    <div
+                        style={{
+                            display: 'flex', gap: 10, padding: 12, borderRadius: 'var(--c-r-md)',
+                            background: 'var(--c-danger-wash)', color: 'var(--c-danger)',
+                            font: '600 .78rem/1.45 "DM Sans", sans-serif',
+                        }}
+                    >
+                        <AlertTriangle size={16} style={{ flex: 'none', marginTop: 1 }} />
+                        {t('cart.someUnavailable')}
                     </div>
                 </div>
+            )}
 
-                {/* ── COUPON CARD ────────────────────────────────────── */}
-                <div style={{
-                    background: 'white', borderRadius: 18, overflow: 'hidden',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem',
-                }}>
-                    {/* Applied coupon */}
+            {/* ── Coupon ── */}
+            {!isGuest && (
+                <div className="c-wrap" style={{ marginTop: 20 }}>
                     {appliedCoupon && discount ? (
-                        <div style={{ padding: '0.85rem 1.25rem' }}>
-                            <div style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12,
-                                padding: '0.7rem 1rem',
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                    <Percent size={16} style={{ color: '#16A34A' }} />
-                                    <div>
-                                        <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#16A34A' }}>
-                                            {appliedCoupon}
-                                        </p>
-                                        <p style={{ fontSize: '0.72rem', color: '#4A4A4A' }}>
-                                            {discount.title} — You save ₹{discount.appliedDiscount}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={handleRemoveCoupon}
-                                    style={{
-                                        width: 28, height: 28, borderRadius: 8, border: '1px solid #86EFAC',
-                                        background: 'white', cursor: 'pointer', display: 'flex',
-                                        alignItems: 'center', justifyContent: 'center', color: '#DC2626', flexShrink: 0,
-                                    }}
-                                >
-                                    <X size={14} />
-                                </button>
+                        <div
+                            className="c-card"
+                            style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--c-ok-wash)', borderColor: '#BBF7D0' }}
+                        >
+                            <TagIcon size={17} style={{ color: 'var(--c-ok)', flex: 'none' }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ font: '800 .84rem/1.2 "DM Sans", sans-serif', color: 'var(--c-ok)' }}>
+                                    {appliedCoupon}
+                                </p>
+                                <p style={{ font: '500 .74rem/1.3 "DM Sans", sans-serif', color: 'var(--c-ink-2)' }}>
+                                    {discount.title} · −{money(discount.appliedDiscount)}
+                                </p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => removeCoupon()}
+                                aria-label={t('cart.removeCoupon')}
+                                style={{ border: 0, background: 'none', cursor: 'pointer', color: 'var(--c-ink-3)', padding: 4 }}
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
                     ) : (
-                        <>
-                            {/* Coupon selector toggle */}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <input
+                                className="c-field"
+                                style={{ flex: 1, minHeight: 44, textTransform: 'uppercase' }}
+                                placeholder={t('cart.coupon')}
+                                value={couponInput}
+                                onChange={(e) => setCouponInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCoupon(); }}
+                            />
                             <button
-                                onClick={loadCoupons}
-                                disabled={couponsLoading}
-                                style={{
-                                    width: '100%', display: 'flex', alignItems: 'center',
-                                    padding: '0.85rem 1.25rem', border: 'none', background: 'white',
-                                    cursor: 'pointer', gap: '0.5rem',
-                                }}
+                                type="button"
+                                className="c-btn c-btn--ghost"
+                                style={{ minHeight: 44 }}
+                                onClick={handleApplyCoupon}
+                                disabled={applying || !couponInput.trim()}
                             >
-                                <span style={{
-                                    width: 28, height: 28, borderRadius: 8, background: '#F0FDF4',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: '#16A34A', flexShrink: 0,
-                                }}>
-                                    <Tag size={14} />
-                                </span>
-                                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F', flex: 1, textAlign: 'left' }}>
-                                    Apply Coupon
-                                </span>
-                                {couponsLoading ? (
-                                    <LoadingSpinner size="sm" />
-                                ) : (
-                                    <ChevronDown
-                                        size={16}
-                                        style={{
-                                            color: '#8E8E8E', flexShrink: 0,
-                                            transform: showCoupons ? 'rotate(180deg)' : 'rotate(0)',
-                                            transition: 'transform 0.2s',
-                                        }}
-                                    />
-                                )}
+                                {t('cart.applyCoupon')}
                             </button>
-
-                            {/* Coupons dropdown */}
-                            {showCoupons && (
-                                <div style={{ borderTop: '1px solid #F0F0EE' }}>
-                                    {availableCoupons.length === 0 ? (
-                                        <p style={{ padding: '1.25rem', fontSize: '0.85rem', color: '#8E8E8E', textAlign: 'center' }}>
-                                            No coupons available right now.
-                                        </p>
-                                    ) : (
-                                        availableCoupons.map((coupon) => {
-                                            const isFlat = coupon.discountType === 'FLAT';
-                                            return (
-                                                <div
-                                                    key={coupon.code}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'center',
-                                                        padding: '1rem 1.25rem', gap: '1rem',
-                                                        borderBottom: '1px solid #F7F7F5',
-                                                        backgroundColor: coupon.eligible ? '#FFFFFF' : '#FAFAF8',
-                                                        opacity: coupon.eligible ? 1 : 0.65,
-                                                    }}
-                                                >
-                                                    {/* Coupon Icon/Badge */}
-                                                    <div style={{
-                                                        width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
-                                                        background: coupon.eligible ? (isFlat ? '#FFFBF0' : '#EFF6FF') : '#F5F5F3',
-                                                        border: `1px solid ${coupon.eligible ? (isFlat ? '#FDE68A' : '#BFDBFE') : '#E5E5E5'}`,
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        color: coupon.eligible ? (isFlat ? '#D97706' : '#2563EB') : '#8E8E8E'
-                                                    }}>
-                                                        {isFlat ? <IndianRupee size={18} /> : <Percent size={18} />}
-                                                    </div>
-
-                                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
-                                                            <span style={{
-                                                                fontWeight: 800, fontSize: '0.78rem', 
-                                                                color: coupon.eligible ? (isFlat ? '#D97706' : '#2563EB') : '#8E8E8E',
-                                                                letterSpacing: '0.05em', background: coupon.eligible ? 'transparent' : '#F5F5F3',
-                                                                padding: '1px 6px', borderRadius: '6px',
-                                                                border: `1px dashed ${coupon.eligible ? (isFlat ? '#D97706' : '#2563EB') : '#D4D4D0'}`,
-                                                                display: 'inline-block'
-                                                            }}>
-                                                                {coupon.code}
-                                                            </span>
-                                                        </div>
-                                                        <p style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F0F0F', lineHeight: 1.3, marginBottom: '2px' }}>
-                                                            {coupon.title}
-                                                        </p>
-                                                        {coupon.description && (
-                                                            <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '2px' }}>
-                                                                {coupon.description}
-                                                            </p>
-                                                        )}
-                                                        {coupon.eligible ? (
-                                                            <p style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 700, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <Tag size={12} /> You save ₹{coupon.savings}
-                                                            </p>
-                                                        ) : (
-                                                            <p style={{ fontSize: '0.72rem', color: '#DC2626', fontWeight: 600, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <Lock size={10} /> {coupon.reason}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleApplyCoupon(coupon.code)}
-                                                        disabled={!coupon.eligible || couponLoading}
-                                                        style={{
-                                                            padding: '0.5rem 1rem', borderRadius: '10px',
-                                                            border: coupon.eligible ? '1.5px solid #16A34A' : '1px solid #D4D4D0',
-                                                            background: coupon.eligible ? '#F0FDF4' : '#F7F7F5',
-                                                            color: coupon.eligible ? '#16A34A' : '#8E8E8E',
-                                                            fontWeight: 800, fontSize: '0.75rem',
-                                                            cursor: coupon.eligible ? 'pointer' : 'not-allowed',
-                                                            flexShrink: 0, transition: 'all 0.2s',
-                                                            boxShadow: coupon.eligible ? '0 2px 8px rgba(22, 163, 74, 0.1)' : 'none'
-                                                        }}
-                                                    >
-                                                        {coupon.eligible ? 'APPLY' : 'LOCKED'}
-                                                    </button>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            )}
-                        </>
+                        </div>
                     )}
                 </div>
+            )}
 
-                {/* ── DELIVERY ADDRESS CARD ──────────────────────────── */}
-                <style>{`
-                    @keyframes addrShake {
-                        0%,100% { transform: translateX(0); }
-                        15%     { transform: translateX(-6px); }
-                        30%     { transform: translateX(6px); }
-                        45%     { transform: translateX(-5px); }
-                        60%     { transform: translateX(5px); }
-                        75%     { transform: translateX(-3px); }
-                        90%     { transform: translateX(3px); }
-                    }
-                    .addr-shake {
-                        animation: addrShake 0.5s ease;
-                        outline: 2.5px solid #DC2626 !important;
-                        outline-offset: 2px;
-                        box-shadow: 0 0 0 4px rgba(220,38,38,0.15) !important;
-                    }
-                `}</style>
-                <div
-                    ref={addrCardRef}
-                    className={addrHighlight ? 'addr-shake' : ''}
-                    style={{
-                        background: 'white', borderRadius: 18, overflow: 'hidden',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem',
-                        transition: 'box-shadow 0.2s, outline 0.2s',
-                    }}>
-                    <div style={{
-                        padding: '0.9rem 1.25rem 0.75rem', borderBottom: '1px solid #F0F0EE',
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    }}>
-                        <span style={{
-                            width: 28, height: 28, borderRadius: 8, background: '#EFF6FF',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#2563EB', flexShrink: 0,
-                        }}>
-                            <MapPin size={14} />
-                        </span>
-                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F0F0F' }}>DELIVERY DETAILS</span>
-                    </div>
-
-                    <div style={{ padding: '1rem 1.25rem' }}>
-                        {selectedAddress ? (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-                                <div>
-                                    <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F', marginBottom: 3 }}>
-                                        {selectedAddress.label}
-                                        {selectedAddress.isDefault && (
-                                            <span style={{
-                                                marginLeft: 6, fontSize: '0.65rem', background: '#DCFCE7',
-                                                color: '#16A34A', fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                                            }}>DEFAULT</span>
-                                        )}
-                                    </p>
-                                    <p style={{ fontSize: '0.8rem', color: '#4A4A4A', lineHeight: 1.5 }}>
-                                        {selectedAddress.addressLine}
-                                    </p>
-                                    {selectedAddress.landmark && (
-                                        <p style={{ fontSize: '0.75rem', color: '#8E8E8E', marginTop: 2 }}>
-                                            Near {selectedAddress.landmark}
-                                        </p>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => setShowAddressSheet(true)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: 2, fontSize: '0.75rem',
-                                        color: '#2563EB', fontWeight: 700, background: 'none',
-                                        border: 'none', cursor: 'pointer', flexShrink: 0,
-                                    }}
-                                >
-                                    Change <ChevronRight size={13} />
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => setShowAddressSheet(true)}
-                                style={{
-                                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    padding: '0.7rem 0.75rem', border: '2px dashed #D4D4D0', borderRadius: 12,
-                                    background: '#FAFAF8', cursor: 'pointer', color: '#4A4A4A',
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                    <Plus size={16} color="#E8A317" />
-                                    <div style={{ textAlign: 'left' }}>
-                                        <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0F0F0F' }}>Add delivery address</p>
-                                        <p style={{ fontSize: '0.72rem', color: '#8E8E8E', marginTop: 1 }}>Required to place your order</p>
-                                    </div>
-                                </div>
-                                <ChevronRight size={16} color="#8E8E8E" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {showAddressSheet && (
-                    <AddressBottomSheet
-                        addresses={addresses}
-                        selectedId={selectedAddrId}
-                        onSelect={setSelectedAddrId}
-                        onAddressesUpdate={setAddresses}
-                        onClose={() => setShowAddressSheet(false)}
-                    />
-                )}
-
-                {/* ── BILL DETAILS CARD ──────────────────────────────── */}
-                <div style={{
-                    background: 'white', borderRadius: 18, overflow: 'hidden',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem',
-                }}>
-                    <div style={{
-                        padding: '0.9rem 1.25rem 0.75rem', borderBottom: '1px dashed #D4D4D0',
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F0F0F', letterSpacing: '0.04em' }}>
-                            BILL DETAILS
-                        </span>
-                    </div>
-
-                    <div style={{ padding: '0.9rem 1.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                            <span style={{ fontSize: '0.85rem', color: '#4A4A4A' }}>Item Total</span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0F0F0F' }}>₹{subtotal}</span>
-                        </div>
-
-                        {discount && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#16A34A', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <Tag size={12} /> Discount ({discount.code})
-                                </span>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#16A34A' }}>−₹{discount.appliedDiscount}</span>
-                            </div>
-                        )}
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.85rem', color: '#4A4A4A' }}>Delivery Fee</span>
-                            <span style={{ fontSize: '0.85rem', color: '#8E8E8E' }}>Based on distance*</span>
-                        </div>
-
-                        <div style={{ borderTop: '1.5px dashed #E0E0DC', margin: '0.5rem 0 0.75rem' }} />
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F0F0F' }}>Total</span>
-                            <span style={{ fontWeight: 900, fontSize: '1.05rem', color: '#0F0F0F', fontFamily: 'Outfit, sans-serif' }}>
-                                ₹{total}
-                            </span>
-                        </div>
-
-                        <div style={{ borderTop: '1.5px dashed #E0E0DC', margin: '0.75rem 0 0.6rem' }} />
-
-                        <p style={{ fontSize: '0.7rem', color: '#8E8E8E', lineHeight: 1.5 }}>
-                            * Delivery charges are calculated based on distance at checkout. Prices are verified by the server.
-                        </p>
-                    </div>
+            {/* ── Bill ── */}
+            <div className="c-wrap" style={{ marginTop: 20 }}>
+                <div className="c-card" style={{ padding: 14 }}>
+                    <Row label={t('cart.itemTotal')} value={money(subtotal)} />
+                    {discountAmount > 0 && (
+                        <Row label={t('cart.discount')} value={`− ${money(discountAmount)}`} tone="ok" />
+                    )}
+                    <Row label={t('cart.delivery')} value={t('cart.deliveryAtCheckout')} muted />
+                    <div style={{ height: 1, background: 'var(--c-line)', marginBlock: 10 }} />
+                    <Row label={t('cart.toPay')} value={money(payable)} strong />
                 </div>
             </div>
+
+            {shortfall > 0 && (
+                <div className="c-wrap" style={{ marginTop: 12 }}>
+                    <p
+                        style={{
+                            padding: 10, borderRadius: 'var(--c-r-md)', textAlign: 'center',
+                            background: 'var(--c-brand-wash)', color: 'var(--c-brand-deep)',
+                            font: '700 .8rem/1.4 "DM Sans", sans-serif',
+                        }}
+                    >
+                        {t('cart.minOrderWarning', { amount: money(shortfall) })}
+                    </p>
+                </div>
+            )}
+
+            {/* ── Checkout ── */}
+            <div className="c-bar c-bar--docked">
+                <div className="c-bar__inner">
+                    <button
+                        type="button"
+                        className="c-btn c-btn--primary c-btn--block c-btn--lg"
+                        onClick={handleCheckout}
+                        disabled={loading || shortfall > 0 || unavailable.length > 0}
+                        style={{ justifyContent: 'space-between', paddingInline: 18 }}
+                    >
+                        <span>{money(payable)}</span>
+                        <span>{t('cart.checkout')} →</span>
+                    </button>
+                </div>
+            </div>
+
+            {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+        </AppShell>
+    );
+}
+
+function Row({ label, value, strong, muted, tone }: {
+    label: string; value: string; strong?: boolean; muted?: boolean; tone?: 'ok';
+}) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, paddingBlock: 4 }}>
+            <span style={{ font: `${strong ? 800 : 500} .86rem/1.4 "DM Sans", sans-serif`, color: strong ? 'var(--c-ink)' : 'var(--c-ink-2)' }}>
+                {label}
+            </span>
+            <span
+                style={{
+                    font: `${strong ? 800 : 600} ${strong ? '1rem' : '.86rem'}/1.4 ${strong ? 'Outfit' : '"DM Sans"'}, sans-serif`,
+                    color: tone === 'ok' ? 'var(--c-ok)' : muted ? 'var(--c-ink-3)' : 'var(--c-ink)',
+                }}
+            >
+                {value}
+            </span>
         </div>
     );
 }

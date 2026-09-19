@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { sendServerError } from '../utils/errorResponse';
 import User from '../models/User';
 import Order from '../models/Order';
+import MenuItem from '../models/MenuItem';
 
 // Get user profile
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
@@ -206,6 +207,69 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         });
     } catch (error) {
         console.error('Get Orders Error:', error);
+        sendServerError(res, error);
+    }
+};
+
+/**
+ * GET /api/users/favorites
+ * Returns the customer's hearted dishes, already filtered to what is still on
+ * the menu so the client never has to deal with dangling references.
+ */
+export const getFavorites = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+
+        const user = await User.findById(req.user._id).select('favorites').lean();
+        const ids = user?.favorites ?? [];
+        if (ids.length === 0) { res.status(200).json({ favorites: [], menuItems: [] }); return; }
+
+        // The soft-delete hook on MenuItem drops removed dishes automatically.
+        const menuItems = await MenuItem.find({ _id: { $in: ids } }).lean();
+
+        res.status(200).json({
+            favorites: menuItems.map((m) => m._id.toString()),
+            menuItems,
+        });
+    } catch (error) {
+        console.error('Get Favorites Error:', error);
+        sendServerError(res, error);
+    }
+};
+
+/**
+ * PUT /api/users/favorites/:menuItemId
+ * Toggles one dish. Idempotent per state, so a double-tap cannot desync the UI.
+ */
+export const toggleFavorite = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+
+        const { menuItemId } = req.params;
+
+        const menuItem = await MenuItem.findById(menuItemId).select('_id').lean();
+        if (!menuItem) { res.status(404).json({ message: 'Menu item not found' }); return; }
+
+        const user = await User.findById(req.user._id).select('favorites');
+        if (!user) { res.status(404).json({ message: 'User not found' }); return; }
+
+        const idx = user.favorites.findIndex((f) => f.toString() === menuItemId);
+        const isFavorite = idx === -1;
+
+        if (isFavorite) {
+            user.favorites.push(menuItem._id);
+        } else {
+            user.favorites.splice(idx, 1);
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            isFavorite,
+            favorites: user.favorites.map((f) => f.toString()),
+        });
+    } catch (error) {
+        console.error('Toggle Favorite Error:', error);
         sendServerError(res, error);
     }
 };

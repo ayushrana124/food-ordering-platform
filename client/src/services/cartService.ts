@@ -87,4 +87,26 @@ export const cartService = {
         const { data } = await api.get('/cart/available-coupons');
         return data;
     },
+
+    /**
+     * Fold the browser-held guest cart into the account's server cart.
+     * Called once, immediately after sign-in. `skipped` names anything that went
+     * unavailable while they were browsing, so the UI can say so.
+     */
+    merge: async (items: GuestLinePayload[]): Promise<CartResponse & { skipped: string[] }> => {
+        const { data } = await api.post('/cart/merge', { items });
+        return data;
+    },
+
+    /** Refill the cart from a past order. Prices are re-read from today's menu. */
+    reorder: async (orderId: string): Promise<CartResponse & { skipped: string[] }> => {
+        const { data } = await api.post('/cart/reorder', { orderId });
+        return data;
+    },
 };
+
+export interface GuestLinePayload {
+    menuItemId: string;
+    quantity: number;
+    selectedCustomizations: { groupName: string; optionName: string }[];
+}

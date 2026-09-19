@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getProfile, updateProfile, addAddress, updateAddress, deleteAddress, getOrders } from '../controllers/userController';
+import { getProfile, updateProfile, addAddress, updateAddress, deleteAddress, getOrders, getFavorites, toggleFavorite } from '../controllers/userController';
 import { protect } from '../middleware/auth';
 import { validateObjectId } from '../middleware/validateObjectId';
 
@@ -19,5 +19,9 @@ router.delete('/address/:addressId', validateObjectId('addressId'), deleteAddres
 
 // Order history
 router.get('/orders', getOrders);
+
+// Favourites
+router.get('/favorites', getFavorites);
+router.put('/favorites/:menuItemId', validateObjectId('menuItemId'), toggleFavorite);
 
 export default router;

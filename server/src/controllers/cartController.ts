@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Cart from '../models/Cart';
 import MenuItem from '../models/MenuItem';
+import Order from '../models/Order';
 import Offer from '../models/Offer';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -131,6 +132,106 @@ async function validateCoupon(code: string, subtotal: number) {
     };
 }
 
+export interface CartLineInput {
+    menuItemId?: unknown;
+    quantity?: unknown;
+    selectedCustomizations?: unknown;
+}
+
+export interface ResolvedCartLine {
+    menuItemId: mongoose.Types.ObjectId;
+    quantity: number;
+    selectedCustomizations: { groupName: string; optionName: string }[];
+}
+
+/**
+ * Validate one incoming cart line against the live menu.
+ *
+ * Shared by add-to-cart, guest-cart merge and reorder so all three enforce the
+ * same rules: the item must exist and be available, every customization must
+ * still be offered, and required option groups must be chosen. Returns a reason
+ * instead of throwing, because merge and reorder need to skip bad lines rather
+ * than fail the whole request.
+ */
+export async function resolveCartLine(input: CartLineInput): Promise<{ line: ResolvedCartLine } | { reason: string; name?: string }> {
+    const { menuItemId, quantity = 1, selectedCustomizations = [] } = input;
+
+    if (!menuItemId || typeof menuItemId !== 'string' || !mongoose.Types.ObjectId.isValid(menuItemId)) {
+        return { reason: 'Invalid menu item ID' };
+    }
+
+    const parsedQty = Math.floor(Number(quantity));
+    if (!Number.isFinite(parsedQty)) return { reason: 'Invalid quantity' };
+    const qty = Math.min(Math.max(1, parsedQty), MAX_ITEM_QTY);
+
+    if (!Array.isArray(selectedCustomizations) || selectedCustomizations.some(
+        (c: any) => typeof c?.groupName !== 'string' || typeof c?.optionName !== 'string'
+    )) {
+        return { reason: 'Invalid customizations format' };
+    }
+
+    const menuItem = await MenuItem.findById(menuItemId).lean();
+    if (!menuItem) return { reason: 'Menu item not found' };
+    if (!menuItem.isAvailable) return { reason: 'unavailable', name: menuItem.name };
+
+    const cleanCustomizations: { groupName: string; optionName: string }[] = [];
+    for (const cust of selectedCustomizations as { groupName: string; optionName: string }[]) {
+        let found = false;
+        for (const group of menuItem.customizations ?? []) {
+            if (group.name === cust.groupName) {
+                const opt = group.options?.find((o: any) => o.name === cust.optionName);
+                if (opt) { found = true; break; }
+            }
+        }
+        if (!found) {
+            return { reason: `Invalid customization: ${cust.groupName} → ${cust.optionName}`, name: menuItem.name };
+        }
+        cleanCustomizations.push({ groupName: cust.groupName, optionName: cust.optionName });
+    }
+
+    for (const group of menuItem.customizations ?? []) {
+        if (group.required && !cleanCustomizations.some((c) => c.groupName === group.name)) {
+            return { reason: `Required customization "${group.name}" not selected`, name: menuItem.name };
+        }
+    }
+
+    return {
+        line: {
+            menuItemId: new mongoose.Types.ObjectId(menuItemId),
+            quantity: qty,
+            selectedCustomizations: cleanCustomizations,
+        },
+    };
+}
+
+/** Stable key for "same item, same options" deduplication. */
+const customizationKey = (c: { groupName: string; optionName: string }[]): string =>
+    JSON.stringify(
+        c.slice().sort((a, b) => a.groupName.localeCompare(b.groupName) || a.optionName.localeCompare(b.optionName))
+    );
+
+/** Add a resolved line into a cart document, merging with an identical existing line. */
+function pushLine(cart: any, line: ResolvedCartLine): boolean {
+    const totalQty = cart.items.reduce((s: number, i: any) => s + i.quantity, 0);
+    if (totalQty >= MAX_ITEMS) return false;
+
+    const key = customizationKey(line.selectedCustomizations);
+    const existing = cart.items.find(
+        (i: any) => i.menuItemId.toString() === line.menuItemId.toString() &&
+            customizationKey(i.selectedCustomizations) === key
+    );
+
+    const room = MAX_ITEMS - totalQty;
+    const qty = Math.min(line.quantity, room);
+
+    if (existing) {
+        existing.quantity = Math.min(existing.quantity + qty, MAX_ITEM_QTY);
+    } else {
+        cart.items.push({ ...line, quantity: qty });
+    }
+    return true;
+}
+
 // ── Controllers ──────────────────────────────────────────────────────────────
 
 /** GET /api/cart */
@@ -150,80 +251,23 @@ export const addItem = async (req: Request, res: Response): Promise<void> => {
     try {
         if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
 
-        const { menuItemId, quantity = 1, selectedCustomizations = [] } = req.body;
-
-        // Validate inputs
-        if (!menuItemId || !mongoose.Types.ObjectId.isValid(menuItemId)) {
-            res.status(400).json({ message: 'Invalid menu item ID' }); return;
-        }
-        const qty = Math.min(Math.max(1, Math.floor(Number(quantity))), MAX_ITEM_QTY);
-        if (!Number.isFinite(qty)) { res.status(400).json({ message: 'Invalid quantity' }); return; }
-
-        // Validate customizations are strings
-        if (!Array.isArray(selectedCustomizations) || selectedCustomizations.some(
-            (c: any) => typeof c.groupName !== 'string' || typeof c.optionName !== 'string'
-        )) {
-            res.status(400).json({ message: 'Invalid customizations format' }); return;
+        // Same validation the guest-cart merge and reorder paths use.
+        const resolved = await resolveCartLine(req.body);
+        if ('reason' in resolved) {
+            const message = resolved.reason === 'unavailable'
+                ? `"${resolved.name}" is currently unavailable`
+                : resolved.reason;
+            res.status(resolved.reason === 'Menu item not found' ? 404 : 400).json({ message });
+            return;
         }
 
-        // Validate menu item exists & is available
-        const menuItem = await MenuItem.findById(menuItemId).lean();
-        if (!menuItem) { res.status(404).json({ message: 'Menu item not found' }); return; }
-        if (!menuItem.isAvailable) { res.status(400).json({ message: `"${menuItem.name}" is currently unavailable` }); return; }
-
-        // Validate customizations exist on menu item
-        const cleanCustomizations: { groupName: string; optionName: string }[] = [];
-        for (const cust of selectedCustomizations) {
-            let found = false;
-            for (const group of menuItem.customizations ?? []) {
-                if (group.name === cust.groupName) {
-                    const opt = group.options?.find((o: any) => o.name === cust.optionName);
-                    if (opt) { found = true; break; }
-                }
-            }
-            if (!found) {
-                res.status(400).json({ message: `Invalid customization: ${cust.groupName} → ${cust.optionName}` }); return;
-            }
-            cleanCustomizations.push({ groupName: cust.groupName, optionName: cust.optionName });
-        }
-
-        // Validate required customization groups are selected
-        for (const group of menuItem.customizations ?? []) {
-            if (group.required) {
-                const hasSelection = cleanCustomizations.some((c) => c.groupName === group.name);
-                if (!hasSelection) {
-                    res.status(400).json({ message: `Required customization "${group.name}" not selected` }); return;
-                }
-            }
-        }
-
-        // Upsert cart
         let cart = await Cart.findOne({ userId: req.user._id });
         if (!cart) {
             cart = new Cart({ userId: req.user._id, items: [] });
         }
 
-        // Check total items cap
-        const totalQty = cart.items.reduce((s, i) => s + i.quantity, 0);
-        if (totalQty + qty > MAX_ITEMS) {
+        if (!pushLine(cart, resolved.line)) {
             res.status(400).json({ message: `Cart cannot exceed ${MAX_ITEMS} items` }); return;
-        }
-
-        // Deduplication — same menuItemId + same customizations = increment qty
-        const custKey = JSON.stringify(cleanCustomizations.sort((a, b) => a.groupName.localeCompare(b.groupName) || a.optionName.localeCompare(b.optionName)));
-        const existing = cart.items.find(
-            (i) => i.menuItemId.toString() === menuItemId &&
-                JSON.stringify(
-                    i.selectedCustomizations
-                        .slice()
-                        .sort((a, b) => a.groupName.localeCompare(b.groupName) || a.optionName.localeCompare(b.optionName))
-                ) === custKey
-        );
-
-        if (existing) {
-            existing.quantity = Math.min(existing.quantity + qty, MAX_ITEM_QTY);
-        } else {
-            cart.items.push({ menuItemId: new mongoose.Types.ObjectId(menuItemId), quantity: qty, selectedCustomizations: cleanCustomizations });
         }
 
         await cart.save();
@@ -422,5 +466,122 @@ export const removeCoupon = async (req: Request, res: Response): Promise<void> =
     } catch (err) {
         console.error('removeCoupon error:', err);
         res.status(500).json({ message: 'Failed to remove coupon' });
+    }
+};
+
+/**
+ * POST /api/cart/merge
+ *
+ * Guests build a cart in their browser before signing in. On login the client
+ * posts those lines here and they are folded into the account's server cart.
+ *
+ * Lines that are no longer valid (item withdrawn, option removed, went out of
+ * stock while they browsed) are skipped and reported rather than failing the
+ * whole merge — losing the entire cart at the login step would be worse than
+ * losing one line.
+ */
+export const mergeCart = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+
+        const { items } = req.body;
+        if (!Array.isArray(items)) {
+            res.status(400).json({ message: 'items must be an array' }); return;
+        }
+        if (items.length > MAX_ITEMS) {
+            res.status(400).json({ message: `Cannot merge more than ${MAX_ITEMS} lines` }); return;
+        }
+
+        let cart = await Cart.findOne({ userId: req.user._id });
+        if (!cart) cart = new Cart({ userId: req.user._id, items: [] });
+
+        const skipped: string[] = [];
+
+        for (const raw of items) {
+            const result = await resolveCartLine(raw);
+            if ('reason' in result) {
+                if (result.name) skipped.push(result.name);
+                continue;
+            }
+            if (!pushLine(cart, result.line)) break; // cart is full
+        }
+
+        await cart.save();
+        const data = await buildCartResponse(req.user._id);
+        res.json({ ...data, skipped });
+    } catch (err) {
+        console.error('mergeCart error:', err);
+        res.status(500).json({ message: 'Failed to merge cart' });
+    }
+};
+
+/**
+ * POST /api/cart/reorder
+ *
+ * Refills the cart from one of the customer's own past orders. Prices and
+ * availability are re-resolved from the live menu, never copied from the old
+ * order — yesterday's price must not carry into today's basket.
+ */
+export const reorderIntoCart = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+
+        const { orderId, replace = true } = req.body;
+        if (!orderId || typeof orderId !== 'string' || !mongoose.Types.ObjectId.isValid(orderId)) {
+            res.status(400).json({ message: 'Valid order ID is required' }); return;
+        }
+
+        const order = await Order.findById(orderId).lean();
+        if (!order) { res.status(404).json({ message: 'Order not found' }); return; }
+
+        if (order.userId.toString() !== req.user._id.toString()) {
+            res.status(403).json({ message: 'Not authorized to reorder this order' }); return;
+        }
+
+        let cart = await Cart.findOne({ userId: req.user._id });
+        if (!cart) cart = new Cart({ userId: req.user._id, items: [] });
+        if (replace) { cart.items.splice(0, cart.items.length); cart.appliedCoupon = null; }
+
+        const skipped: string[] = [];
+        let added = 0;
+
+        for (const item of order.items) {
+            // Past orders store the chosen option names flat; the cart needs them
+            // grouped, so map each one back to the group it belongs to today.
+            const menuItem = await MenuItem.findById(item.menuItemId).lean();
+            if (!menuItem) { skipped.push(item.name); continue; }
+
+            const selectedCustomizations: { groupName: string; optionName: string }[] = [];
+            for (const chosen of item.customizations ?? []) {
+                const optionName = (chosen as { name?: string }).name;
+                if (!optionName) continue;
+                const group = (menuItem.customizations ?? []).find(
+                    (g: any) => g.options?.some((o: any) => o.name === optionName)
+                );
+                if (group) selectedCustomizations.push({ groupName: group.name, optionName });
+            }
+
+            const result = await resolveCartLine({
+                menuItemId: item.menuItemId.toString(),
+                quantity: item.quantity,
+                selectedCustomizations,
+            });
+
+            if ('reason' in result) { skipped.push(result.name ?? item.name); continue; }
+            if (!pushLine(cart, result.line)) break;
+            added++;
+        }
+
+        if (added === 0) {
+            res.status(400).json({ message: 'None of the items from that order are available right now', skipped });
+            return;
+        }
+
+        await cart.save();
+        const data = await buildCartResponse(req.user._id);
+        res.json({ ...data, skipped });
+    } catch (err) {
+        console.error('reorderIntoCart error:', err);
+        res.status(500).json({ message: 'Failed to reorder' });
     }
 };

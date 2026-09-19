@@ -3,21 +3,33 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/pizza-favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!-- viewport-fit=cover so the app can paint into the notch / gesture-bar area
+       and pad itself back with env(safe-area-inset-*). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description"
-    content="Diamond Pizza — Fresh, handcrafted pizzas delivered to your doorstep in 30 minutes." />
+    content="Diamond Pizza & Restaurant, Noorpur — handcrafted pizzas, burgers and more, delivered hot within 10 km." />
   <meta name="theme-color" content="#E8A317" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/pizza-hero.png" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>Topia - Backup</title>
-  <!-- Inter Variable — the gold standard premium web font (Stripe, Linear, Notion, GitHub) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet" />
+  <meta name="apple-mobile-web-app-title" content="Diamond Pizza" />
+
+  <title>Diamond Pizza &amp; Restaurant — Order Online</title>
+
+  <!-- Fonts. Outfit carries the headings and prices, DM Sans the body.
+       Both were referenced throughout the stylesheet but never actually loaded,
+       so every heading silently fell back to a system font. -->
+  <!-- Fonts are served from this origin (see public/fonts and the @font-face
+       rules in src/index.css). Preloading the two latin files starts them in
+       parallel with the stylesheet instead of waiting for the CSS to be parsed
+       first. latin-ext is deliberately not preloaded: it exists for the rupee
+       sign and can arrive a beat later under font-display: swap.
+       Devanagari is never downloaded — it falls back to the system Indic font
+       that every Android device already ships. -->
+  <link rel="preload" href="/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin />
 </head>
 
 <body>
