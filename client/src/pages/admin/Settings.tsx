@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Store, Clock, MapPin, Save, Loader2, Truck } from 'lucide-react';
+import { Settings as SettingsIcon, Store, Clock, MapPin, Save, Loader2, Truck, BellRing } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
@@ -8,6 +8,7 @@ import AdminSkeleton from '@/components/admin/ui/AdminSkeleton';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { updateRestaurant } from '@/services/adminApi';
 import toast from 'react-hot-toast';
+import { previewChime } from '@/utils/orderAlert';
 
 type TabKey = 'general' | 'delivery' | 'hours';
 
@@ -193,6 +194,35 @@ export default function Settings() {
                                 />
                             </div>
                         </div>
+                    </AdminCard>
+                )}
+
+                {/* Order alarm — staff should be able to confirm the alert works
+                    before a shift, and playing it here also satisfies the browser
+                    rule that audio needs one user interaction first. */}
+                {activeTab === 'general' && (
+                    <AdminCard>
+                        <h3 className="font-outfit font-bold text-[1rem] mb-5 flex items-center gap-2.5 text-[#0F0F0F]">
+                            <BellRing size={18} className="text-[#E8A317]" />
+                            Order alarm
+                        </h3>
+                        <p className="text-[0.82rem] text-[#4A4A4A] mb-4 leading-relaxed">
+                            A new order rings until someone presses <strong>Got it</strong> on the
+                            notification, or <strong>Silence</strong> in the top bar. Play it once at the
+                            start of every shift to check the volume and to let this browser play sound.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                const ok = await previewChime();
+                                if (ok) toast.success('Alarm sound is working');
+                                else toast.error('Your browser blocked the sound. Tap anywhere on the page, then try again.');
+                            }}
+                            className="h-10 px-4 rounded-xl bg-[#0F0F0F] text-white text-[0.82rem] font-bold cursor-pointer hover:bg-[#2A2A2A] transition-colors flex items-center gap-2"
+                        >
+                            <BellRing size={15} />
+                            Test alarm sound
+                        </button>
                     </AdminCard>
                 )}
 

@@ -4,6 +4,7 @@ import { useAdminSocket } from '@/hooks/useAdminSocket';
 import type { IRestaurant, ICategory } from '@/types';
 import toast from 'react-hot-toast';
 import { Bell } from 'lucide-react';
+import { acknowledgeOrders } from '@/utils/orderAlert';
 
 interface AdminContextValue {
     restaurant: IRestaurant | null;
@@ -165,18 +166,20 @@ export function AdminProvider({ children }: { children: ReactNode }) {
                             </p>
                         </div>
                         <button
-                            onClick={() => toast.dismiss(t.id)}
+                            onClick={() => { acknowledgeOrders(); toast.dismiss(t.id); }}
                             style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: '#8E8E8E', fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem',
+                                background: '#0F0F0F', border: 'none', cursor: 'pointer', color: 'white',
+                                fontSize: '0.72rem', fontWeight: 700, padding: '0.45rem 0.7rem',
+                                borderRadius: 9, flexShrink: 0,
                             }}
                         >
-                            OK
+                            Got it
                         </button>
                     </div>
                 ),
                 {
-                    duration: 10000,
+                    // Stays until acknowledged — it is the control that silences the alarm.
+                    duration: Infinity,
                     style: {
                         background: 'white',
                         border: '2px solid #FDE68A',

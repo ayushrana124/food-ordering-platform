@@ -3,11 +3,12 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
     LayoutDashboard, ClipboardList, UtensilsCrossed, Users, Settings,
-    LogOut, ChevronLeft, Menu, ChefHat, Tag, Layers, MapPin, Bell, X, WifiOff,
+    LogOut, ChevronLeft, Menu, ChefHat, Tag, Layers, MapPin, Bell, X, WifiOff, BellRing, Volume2,
     Clock, AlertCircle,
 } from 'lucide-react';
 import { adminLogout, type IAdmin, type IAdminOrder } from '@/services/adminApi';
 import { useAdminContext } from '@/contexts/AdminContext';
+import { useOrderAlert, acknowledgeOrders, previewChime } from '@/utils/orderAlert';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -42,6 +43,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const notifRef = useRef<HTMLDivElement>(null);
     const bellRef = useRef<HTMLButtonElement>(null);
     const { pendingOrderCount, unacceptedOrders, activeOrderCount, socketConnected } = useAdminContext();
+    const { ringing: alarmRinging, blocked: soundBlocked } = useOrderAlert();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Listen for order detail sidebar open/close events to hide the FAB
@@ -195,6 +197,34 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                             <WifiOff size={15} />
                             <span className="hidden sm:inline text-[0.7rem] font-bold">Offline</span>
                         </div>
+                    )}
+
+                    {/* Silence control — the alarm now rings until acknowledged, so there
+                        must always be an obvious way to stop it. */}
+                    {alarmRinging && (
+                        <button
+                            type="button"
+                            onClick={acknowledgeOrders}
+                            title="Silence the new-order alarm"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-[#DC2626] cursor-pointer animate-pulse hover:bg-[#FEE2E2]"
+                        >
+                            <BellRing size={15} />
+                            <span className="hidden sm:inline text-[0.7rem] font-bold">Silence</span>
+                        </button>
+                    )}
+
+                    {/* Browsers refuse to play audio until the page has been interacted
+                        with. Without this the alarm would just fail silently. */}
+                    {soundBlocked && !alarmRinging && (
+                        <button
+                            type="button"
+                            onClick={() => { void previewChime(); }}
+                            title="Your browser has blocked the order alarm. Tap once to enable sound for this session."
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] text-[#B45309] cursor-pointer hover:bg-[#FEF3C7]"
+                        >
+                            <Volume2 size={15} />
+                            <span className="hidden sm:inline text-[0.7rem] font-bold">Enable sound</span>
+                        </button>
                     )}
 
                     {/* Notification bell with dropdown */}
