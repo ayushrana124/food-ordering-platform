@@ -22,7 +22,7 @@ export default function AdminLogin() {
             localStorage.setItem('bp_admin_token', res.token);
             localStorage.setItem('bp_admin', JSON.stringify(res.admin));
             toast.success(`Welcome, ${res.admin.name}!`);
-            navigate('/admin/dashboard', { replace: true });
+            navigate('/admin/orders', { replace: true });
         } catch (err: unknown) {
             const msg = err && typeof err === 'object' && 'response' in err
                 ? (err as { response?: { data?: { message?: string } } }).response?.data?.message

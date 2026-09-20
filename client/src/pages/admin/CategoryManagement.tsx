@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layers, Plus, Pencil, Trash2, X, Save, Loader2, GripVertical } from 'lucide-react';
-import AdminLayout from '@/components/admin/AdminLayout';
+import AdminShell from '@/components/admin/AdminShell';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
 import AdminEmptyState from '@/components/admin/ui/AdminEmptyState';
@@ -104,7 +104,7 @@ export default function CategoryManagement() {
     const update = (key: keyof CategoryForm, value: unknown) => setForm(f => ({ ...f, [key]: value }));
 
     return (
-        <AdminLayout>
+        <AdminShell title="Categories"><div className="a-wrap">
             <AdminPageHeader
                 title="Categories"
                 subtitle={`${localCategories.length} categories`}
@@ -330,6 +330,6 @@ export default function CategoryManagement() {
                     to { opacity: 1; transform: scale(1); }
                 }
             `}</style>
-        </AdminLayout>
+        </div></AdminShell>
     );
 }

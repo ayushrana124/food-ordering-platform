@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Store, Clock, MapPin, Save, Loader2, Truck, BellRing } from 'lucide-react';
-import AdminLayout from '@/components/admin/AdminLayout';
+import AdminShell from '@/components/admin/AdminShell';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
 import AdminToggle from '@/components/admin/ui/AdminToggle';
@@ -116,15 +116,15 @@ export default function Settings() {
 
     if (loading || !form) {
         return (
-            <AdminLayout>
+            <AdminShell title="Settings"><div className="a-wrap">
                 <AdminPageHeader title="Settings" subtitle="Restaurant configuration" icon={SettingsIcon} />
                 <AdminSkeleton count={3} type="card" />
-            </AdminLayout>
+            </div></AdminShell>
         );
     }
 
     return (
-        <AdminLayout>
+        <AdminShell title="Settings"><div className="a-wrap">
             <AdminPageHeader
                 title="Settings"
                 subtitle="Restaurant configuration"
@@ -364,6 +364,6 @@ export default function Settings() {
                     {saving ? 'Saving...' : 'Save Settings'}
                 </button>
             </form>
-        </AdminLayout>
+        </div></AdminShell>
     );
 }

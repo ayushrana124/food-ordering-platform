@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Users as UsersIcon, Search, Shield, Banknote, Phone, Mail, Calendar } from 'lucide-react';
-import AdminLayout from '@/components/admin/AdminLayout';
+import AdminShell from '@/components/admin/AdminShell';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
@@ -56,7 +56,7 @@ export default function Users() {
     };
 
     return (
-        <AdminLayout>
+        <AdminShell title="Customers"><div className="a-wrap">
             <AdminPageHeader
                 title="Users"
                 subtitle={`${totalUsers} registered users`}
@@ -229,6 +229,6 @@ export default function Users() {
                     />
                 )}
             </div>
-        </AdminLayout>
+        </div></AdminShell>
     );
 }

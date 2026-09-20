@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tag, Plus, Pencil, Trash2, X, Save, Loader2, AlertTriangle, Percent, IndianRupee, Calendar, BadgePercent, ChevronDown } from 'lucide-react';
-import AdminLayout from '@/components/admin/AdminLayout';
+import AdminShell from '@/components/admin/AdminShell';
 import AdminCard from '@/components/admin/ui/AdminCard';
 import AdminPageHeader from '@/components/admin/ui/AdminPageHeader';
 import AdminBadge from '@/components/admin/ui/AdminBadge';
@@ -156,7 +156,7 @@ export default function OfferManagement() {
         : `${form.discountValue || 0}% OFF${Number(form.maxDiscount) > 0 ? ` (up to ₹${form.maxDiscount})` : ''}`;
 
     return (
-        <AdminLayout>
+        <AdminShell title="Offers"><div className="a-wrap">
             <AdminPageHeader
                 title="Coupons"
                 subtitle={`${offers.length} / ${MAX_OFFERS} coupons`}
@@ -494,6 +494,6 @@ export default function OfferManagement() {
                     to { transform: translateX(0); }
                 }
             `}</style>
-        </AdminLayout>
+        </div></AdminShell>
     );
 }

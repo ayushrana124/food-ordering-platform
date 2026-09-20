@@ -139,6 +139,8 @@ export default function App() {
 
                 {/* Admin */}
                 <Route path="/admin/login" element={withSuspense(<AdminLogin />)} />
+                {/* Orders is the admin home — during service that is the job. */}
+                <Route path="/admin" element={<Navigate to="/admin/orders" replace />} />
                 <Route element={<AdminRouteLayout />}>
                     <Route path="/admin/dashboard" element={withSuspense(<AdminDashboard />)} />
                     <Route path="/admin/orders" element={withSuspense(<AdminOrders />)} />

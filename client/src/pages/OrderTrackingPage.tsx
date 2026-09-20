@@ -12,6 +12,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import { useT, money } from '@/i18n';
 import type { StringKey } from '@/i18n/strings';
+import { ticketCode } from '@/utils/orderCode';
 import toast from 'react-hot-toast';
 
 /** The happy path, in order. CANCELLED is handled separately. */
@@ -157,7 +158,7 @@ export default function OrderTrackingPage() {
                     </p>
 
                     <p style={{ marginTop: 12, font: '600 .74rem/1 "DM Sans", sans-serif', color: 'var(--c-ink-3)' }}>
-                        {t('track.orderNumber')} #{order.orderId}
+                        {t('track.orderNumber')} #{ticketCode(order.orderId)}
                     </p>
                 </div>
             </div>

@@ -12,6 +12,7 @@ import { Empty, Tag, Skeleton } from '@/components/ui/Bits';
 import { useAuth } from '@/hooks/useAuth';
 import { useT, money } from '@/i18n';
 import type { StringKey } from '@/i18n/strings';
+import { ticketCode } from '@/utils/orderCode';
 import toast from 'react-hot-toast';
 
 const LIVE: OrderStatus[] = ['PENDING', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY'];
