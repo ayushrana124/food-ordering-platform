@@ -7,10 +7,7 @@ import { useAdminContext } from '@/contexts/AdminContext';
 import { money } from '@/i18n';
 import toast from 'react-hot-toast';
 
-/**
- * The four stages an order passes through while it is still work.
- * Delivered and cancelled orders drop out of the board into the history view.
- */
+
 const STAGES = [
     { key: 'PENDING', title: 'New', tone: 'new' },
     { key: 'ACCEPTED', title: 'Accepted', tone: '' },
