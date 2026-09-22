@@ -32,9 +32,6 @@ export default function AdminOrders() {
         if (!quiet) setLoading(true);
         setRefreshing(true);
         try {
-            // One call for the live board: the four working stages are all the
-            // kitchen needs, and the server's default page of 20 is nowhere near
-            // enough when a rush stacks up.
             const [live, todayStats] = await Promise.all([
                 getOrders({ limit: 100 }),
                 getOrderStats().catch(() => null),
